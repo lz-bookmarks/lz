@@ -2,7 +2,7 @@
 
 mod embedded {
     use refinery::embed_migrations;
-    embed_migrations!("../../db/migrations");
+    embed_migrations!("./migrations");
 }
 
 /// Run the migrations to bring up `lz` on the given DB connection.

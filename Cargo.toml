@@ -1,0 +1,7 @@
+[workspace]
+resolver = "2"
+
+# We place member crates in the src/ directory:
+members = [
+  "src/lz-web"
+]

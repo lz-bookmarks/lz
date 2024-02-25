@@ -3,10 +3,11 @@
 #[cfg(test)]
 pub(crate) static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!();
 
-mod bookmarks;
 mod connection;
+mod transaction;
 
 pub use connection::*;
+pub use transaction::*;
 
 #[cfg(test)]
 mod tests {

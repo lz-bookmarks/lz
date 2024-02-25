@@ -1,34 +1,22 @@
 //! Database bindings and models for the `lz` bookmark manager
 
-mod embedded {
-    use refinery::embed_migrations;
-    embed_migrations!("./migrations");
-}
+#[cfg(test)]
+pub(crate) static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!();
+
 mod bookmarks;
 mod connection;
 
 pub use connection::*;
 
-/// Run the migrations to bring up `lz` on the given DB connection.
-pub(crate) fn run_migrations<C: refinery::Migrate>(
-    conn: &mut C,
-) -> Result<refinery::Report, refinery::Error> {
-    embedded::migrations::runner().run(conn)
-}
-
 #[cfg(test)]
 mod tests {
+    use crate::MIGRATOR;
     use anyhow::Result;
-    use rusqlite::Connection;
-    use test_log::test;
-    use tracing::info;
+    use sqlx::sqlite::SqlitePool;
 
-    #[test]
-    fn test_migrations_in_memory() -> Result<()> {
-        let mut conn = Connection::open_in_memory()?;
-        let report = crate::run_migrations(&mut conn)?;
-        info!(applied_migrations=?report.applied_migrations(), "Ran migrations");
-        assert!(report.applied_migrations().len() > 0);
+    #[test_log::test(sqlx::test(migrations = false))]
+    async fn apply_migrations(pool: SqlitePool) -> Result<()> {
+        MIGRATOR.run(&pool).await?;
         Ok(())
     }
 }

@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "\n              INSERT INTO bookmarks (\n                url,\n                title,\n                description,\n                website_title,\n                website_description,\n                notes\n              ) VALUES (\n                ?,\n                ?,\n                ?,\n                ?,\n                ?,\n                ?\n              )\n              RETURNING bookmark_id;\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "bookmark_id",
+        "ordinal": 0,
+        "type_info": "Int64"
+      }
+    ],
+    "parameters": {
+      "Right": 6
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "c8f9b17df60e7557f46f675ee1ee0ca2bd99ce5a3db86d9588c02317c5009f36"
+}

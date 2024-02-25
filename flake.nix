@@ -78,7 +78,6 @@
               "${inputs.devshell}/extra/language/c.nix"
             ];
             packages = [
-              fenix.packages.${system}.stable.rust-analyzer
               pkgs.sqlx-cli
               pkgs.sqlite
             ];
@@ -91,6 +90,10 @@
               {
                 name = "RUST_LOG";
                 value = "info";
+              }
+              {
+                name = "DATABASE_URL";
+                eval = "sqlite:$PRJ_ROOT/dev-db.sqlite";
               }
             ];
 

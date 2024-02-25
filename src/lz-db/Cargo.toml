@@ -11,6 +11,8 @@ barrel = { version = "0.7.0", features = ["sqlite3"] }
 refinery = { version = "0.8.12", features = ["rusqlite"] }
 rusqlite = "0.30"
 serde = { version = "1.0.197", features = ["derive"] }
-sqlx = { version = "0.7.3", features = ["sqlx-sqlite", "sqlite"] }
 tokio = { version = "1.36.0", features = ["tracing", "macros", "rt-multi-thread"] }
 tracing = "0.1.40"
+
+[dev-dependencies]
+test-log = { version = "0.2.14", features = ["trace"], default-features = false }

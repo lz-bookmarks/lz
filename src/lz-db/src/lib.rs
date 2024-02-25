@@ -1,17 +1,16 @@
 //! Database bindings and models for the `lz` bookmark manager
 
-use std::path::Path;
-
 mod embedded {
     use refinery::embed_migrations;
     embed_migrations!("./migrations");
 }
+mod bookmarks;
 mod connection;
 
 pub use connection::*;
 
 /// Run the migrations to bring up `lz` on the given DB connection.
-pub fn run_migrations<C: refinery::Migrate>(
+pub(crate) fn run_migrations<C: refinery::Migrate>(
     conn: &mut C,
 ) -> Result<refinery::Report, refinery::Error> {
     embedded::migrations::runner().run(conn)

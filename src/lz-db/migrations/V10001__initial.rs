@@ -8,12 +8,13 @@ pub fn migration() -> String {
         t.add_column("title", types::text());
         t.add_column("description", types::text());
         t.add_column("website_title", types::text());
+        t.add_column("website_description", types::text());
         t.add_column("notes", types::text());
     });
 
     m.create_table("tags", |t| {
         t.add_column("tag_id", types::primary());
-        t.add_column("name", types::text());
+        t.add_column("name", types::text().indexed(true).unique(true));
     });
 
     m.create_table("bookmark_tags", |t| {

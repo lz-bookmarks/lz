@@ -2,7 +2,7 @@ use std::path::Path;
 
 /// A connection to an sqlite DB holding our bookmark data.
 pub struct Connection {
-    sqlite: rusqlite::Connection,
+    pub(crate) sqlite: rusqlite::Connection,
 }
 
 impl From<rusqlite::Connection> for Connection {
@@ -11,15 +11,23 @@ impl From<rusqlite::Connection> for Connection {
     }
 }
 
+/// # Opening a DB connection
 impl Connection {
     /// Open a connection to a sqlite3 database file.
     ///
     /// If the file doesn't exist yet, it is created. In order to
     /// become usable, the migrations on it need to be run.
     pub fn open<P: AsRef<Path>>(path: P) -> Result<NonLiveConnection, rusqlite::Error> {
-        Ok(NonLiveConnection {
-            sqlite: rusqlite::Connection::open(path)?,
-        })
+        let sqlite = rusqlite::Connection::open(path)?;
+        rusqlite::vtab::array::load_module(&sqlite)?;
+        Ok(NonLiveConnection { sqlite })
+    }
+
+    #[cfg(test)]
+    pub fn open_in_memory() -> Result<NonLiveConnection, rusqlite::Error> {
+        let sqlite = rusqlite::Connection::open_in_memory()?;
+        rusqlite::vtab::array::load_module(&sqlite)?;
+        Ok(NonLiveConnection { sqlite })
     }
 }
 

@@ -5,7 +5,7 @@
 //! that authentication data and identify the person accessing bookmarks
 //! that way. But it will not attempt to do access control.
 
-use crate::IdType;
+use crate::{IdType, Transaction};
 use serde::{Deserialize, Serialize};
 use sqlx::{prelude::*, query_as};
 
@@ -24,7 +24,8 @@ impl IdType<UserId> for UserId {
 
 /// A user known the system.
 ///
-/// See the section in [Transaction][Transaction#working-with-users]
+/// The currently active user can be retrieved via
+/// [`Transaction::user`].
 #[derive(Serialize, Deserialize, PartialEq, Eq, Hash, Debug, FromRow)]
 pub struct User<ID: IdType<UserId>> {
     /// Database identifier of the user.
@@ -72,6 +73,21 @@ impl crate::Connection {
     }
 }
 
+/// # Working with [`User`]s
+impl<'c> Transaction<'c> {
+    /// Retrieve a user with a given name.
+    #[tracing::instrument(skip(self))]
+    pub async fn get_user_by_name(
+        &mut self,
+        name: &str,
+    ) -> Result<Option<User<UserId>>, sqlx::Error> {
+        query_as(r#"SELECT * FROM users WHERE name = ?"#)
+            .bind(name)
+            .fetch_optional(&mut *self.txn)
+            .await
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::*;
@@ -80,8 +96,11 @@ mod tests {
     #[test_log::test(sqlx::test(migrator = "MIGRATOR"))]
     fn roundtrip_user(pool: SqlitePool) -> anyhow::Result<()> {
         let conn = Connection::from_pool(pool);
-        let txn = conn.begin_for_user("tester").await?;
+        let mut txn = conn.begin_for_user("tester").await?;
         assert_eq!(txn.user().name, "tester");
+
+        let user = txn.get_user_by_name("tester").await?;
+        assert_eq!(Some(txn.user()), user.as_ref());
         Ok(())
     }
 }

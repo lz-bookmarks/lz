@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n              DELETE FROM bookmark_tags WHERE bookmark_id = (\n                SELECT bookmark_id FROM bookmarks where bookmark_id = ? AND user_id = ?\n              );\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "44db600d81a61ed663684fafd603c2061d5d17862cddaad526f3cecadcfebffb"
+}

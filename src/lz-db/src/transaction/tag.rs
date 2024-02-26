@@ -1,9 +1,9 @@
 use std::collections::BTreeSet;
 
 use serde::{Deserialize, Serialize};
-use sqlx::prelude::*;
+use sqlx::{prelude::*, query};
 
-use crate::{IdType, Transaction};
+use crate::{BookmarkId, IdType, Transaction};
 
 /// The database ID of a tag.
 #[derive(Serialize, Deserialize, PartialEq, Eq, Hash, Debug, Clone, Copy, sqlx::Type)]
@@ -24,7 +24,8 @@ impl IdType<TagId> for TagId {
 #[derive(Serialize, Deserialize, PartialEq, Eq, Hash, Debug, FromRow)]
 pub struct Tag<ID: IdType<TagId>> {
     /// Database identifier of the tag.
-    pub tag_id: ID,
+    #[sqlx(rename = "tag_id")]
+    pub id: ID,
 
     /// Name of the tag.
     pub name: String,
@@ -112,24 +113,109 @@ impl<'c> Transaction<'c> {
     }
 }
 
+/// A named tag, possibly assigned to multiple bookmarks.
+///
+/// See the section in [Transaction][Transaction#working-with-tags]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Hash, Debug, FromRow)]
+pub struct BookmarkTag<TID: IdType<TagId>, BID: IdType<BookmarkId>> {
+    /// Database identifier of the tag.
+    pub tag_id: TID,
+
+    pub bookmark_id: BID,
+}
+
+/// # Setting a [`Bookmark`]'s [`Tag`]s
+impl<'c> Transaction<'c> {
+    /// Set the tags on a bookmark.
+    ///
+    /// Any existing tagging will be removed and replaced with the
+    /// given set of tags. Tags are not garbage-collected and will
+    /// stick around, so they are available for re-use.
+    pub async fn set_bookmark_tags<T: std::fmt::Debug + IntoIterator<Item = Tag<TagId>>>(
+        &mut self,
+        bookmark_id: BookmarkId,
+        tags: T,
+    ) -> Result<(), sqlx::Error> {
+        let me = self.user().id;
+        query!(
+            r#"
+              DELETE FROM bookmark_tags WHERE bookmark_id = (
+                SELECT bookmark_id FROM bookmarks where bookmark_id = ? AND user_id = ?
+              );
+            "#,
+            bookmark_id,
+            me,
+        )
+        .execute(&mut *self.txn)
+        .await?;
+
+        for tag in tags {
+            query!(
+                r#"
+              INSERT INTO bookmark_tags (
+                bookmark_id, tag_id
+              ) VALUES (?, ?)
+            "#,
+                bookmark_id,
+                tag.id,
+            )
+            .execute(&mut *self.txn)
+            .await?;
+        }
+        Ok(())
+    }
+
+    /// Retrieve a bookmark's tags.
+    pub async fn get_bookmark_tags(
+        &mut self,
+        bookmark_id: BookmarkId,
+    ) -> Result<Vec<Tag<TagId>>, sqlx::Error> {
+        sqlx::query_as(
+            r#"
+              SELECT tags.*
+              FROM
+                tags
+                JOIN bookmark_tags USING (tag_id)
+              WHERE
+                bookmark_id = ?
+              ORDER BY tags.name;
+            "#,
+        )
+        .bind(bookmark_id)
+        .fetch_all(&mut *self.txn)
+        .await
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeSet;
 
     use crate::*;
+    use anyhow::*;
     use sqlx::SqlitePool;
+    use url::Url;
 
     #[test_log::test(sqlx::test(migrator = "MIGRATOR"))]
     fn roundtrip_tag(pool: SqlitePool) -> anyhow::Result<()> {
         let conn = Connection::from_pool(pool);
         let mut txn = conn.begin_for_user("tester").await?;
-        let inserted = txn.ensure_tags(["hi", "test", "welp"]).await?;
+        let inserted = txn
+            .ensure_tags(["hi", "test", "welp"])
+            .await
+            .context("ensuring first set of tags")?;
         assert_eq!(inserted.len(), 3);
 
-        let inserted = txn.ensure_tags(["hi", "test", "new"]).await?;
+        let inserted = txn
+            .ensure_tags(["hi", "test", "new"])
+            .await
+            .context("ensuring second set of tags")?;
         assert_eq!(inserted.len(), 3);
 
-        let existing = txn.get_tags_with_names(["welp", "new"]).await?;
+        let existing = txn
+            .get_tags_with_names(["welp", "new"])
+            .await
+            .context("retrieving tags")?;
         assert_eq!(
             existing
                 .into_iter()
@@ -139,6 +225,71 @@ mod tests {
         );
 
         txn.commit().await?;
+        Ok(())
+    }
+
+    #[test_log::test(sqlx::test(migrator = "MIGRATOR"))]
+    fn bookmark_tags(pool: SqlitePool) -> anyhow::Result<()> {
+        let conn = Connection::from_pool(pool);
+        let mut txn = conn.begin_for_user("tester").await?;
+        let tags = txn.ensure_tags(["hi", "test"]).await?;
+        let bookmark_id = txn
+            .add_bookmark(Bookmark {
+                id: (),
+                user_id: (),
+                created_at: Default::default(),
+                url: Url::parse("https://github.com/antifuchs/lz")?,
+                title: "The lz repo".to_string(),
+                description: "Our extremely high-quality repo".to_string(),
+                website_title: None,
+                website_description: None,
+                notes: "".to_string(),
+            })
+            .await?;
+        let other_bookmark_id = txn
+            .add_bookmark(Bookmark {
+                id: (),
+                user_id: (),
+                created_at: Default::default(),
+                url: Url::parse("https://github.com/antifuchs/governor")?,
+                title: "The governor repo".to_string(),
+                description: "Another extremely high-quality repo".to_string(),
+                website_title: None,
+                website_description: None,
+                notes: "".to_string(),
+            })
+            .await?;
+        let other_tags = txn.ensure_tags(["welp", "not-this"]).await?;
+
+        txn.set_bookmark_tags(bookmark_id, tags)
+            .await
+            .context("Setting tags on the bookmark")?;
+        txn.set_bookmark_tags(other_bookmark_id, other_tags)
+            .await
+            .context("Setting other tags on the other bookmark")?;
+
+        let existing_tags = txn
+            .get_bookmark_tags(bookmark_id)
+            .await
+            .context("Retrieving tags")?;
+        let existing_other_tags = txn
+            .get_bookmark_tags(other_bookmark_id)
+            .await
+            .context("Retrieving tags")?;
+        assert_eq!(
+            existing_tags
+                .iter()
+                .map(|t| t.name.as_str())
+                .collect::<Vec<&str>>(),
+            vec!["hi", "test"]
+        );
+        assert_eq!(
+            existing_other_tags
+                .iter()
+                .map(|t| t.name.as_str())
+                .collect::<Vec<&str>>(),
+            vec!["not-this", "welp"]
+        );
         Ok(())
     }
 }

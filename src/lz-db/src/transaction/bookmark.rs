@@ -114,11 +114,10 @@ mod tests {
     #[test_log::test(sqlx::test(migrator = "MIGRATOR"))]
     fn roundtrip_bookmark(pool: SqlitePool) -> anyhow::Result<()> {
         let conn = Connection::from_pool(pool);
-        let mut txn = conn.begin().await?;
-        let user = txn.ensure_user("tester").await?;
+        let mut txn = conn.begin_for_user("tester").await?;
         let to_add = Bookmark {
             id: (),
-            user_id: user.id,
+            user_id: txn.user().id,
             created_at: Default::default(),
             url: Url::parse("https://github.com/antifuchs/lz")?,
             title: "The lz repo".to_string(),

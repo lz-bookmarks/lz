@@ -5,7 +5,7 @@
 //! that authentication data and identify the person accessing bookmarks
 //! that way. But it will not attempt to do access control.
 
-use crate::{IdType, Transaction};
+use crate::IdType;
 use serde::{Deserialize, Serialize};
 use sqlx::{prelude::*, query_as};
 
@@ -40,13 +40,15 @@ pub struct User<ID: IdType<UserId>> {
     pub created_at: chrono::DateTime<chrono::Utc>,
 }
 
-/// # Working with [`User`]s
-impl<'c> Transaction<'c> {
-    #[tracing::instrument(skip(self))]
-    pub async fn ensure_user(&mut self, name: &str) -> Result<User<UserId>, sqlx::Error> {
+impl crate::Connection {
+    #[tracing::instrument()]
+    pub(crate) async fn ensure_user<'c>(
+        txn: &mut sqlx::Transaction<'c, sqlx::Sqlite>,
+        name: &str,
+    ) -> Result<User<UserId>, sqlx::Error> {
         if let Some(user) = query_as(r#"SELECT * FROM users WHERE name = ?"#)
             .bind(name)
-            .fetch_optional(&mut *self.txn)
+            .fetch_optional(&mut **txn)
             .await?
         {
             return Ok(user);
@@ -65,7 +67,7 @@ impl<'c> Transaction<'c> {
             "#,
         )
         .bind(name)
-        .fetch_one(&mut *self.txn)
+        .fetch_one(&mut **txn)
         .await
     }
 }
@@ -78,9 +80,8 @@ mod tests {
     #[test_log::test(sqlx::test(migrator = "MIGRATOR"))]
     fn roundtrip_user(pool: SqlitePool) -> anyhow::Result<()> {
         let conn = Connection::from_pool(pool);
-        let mut txn = conn.begin().await?;
-        let user = txn.ensure_user("tester").await?;
-        assert_eq!(user.name, "tester");
+        let txn = conn.begin_for_user("tester").await?;
+        assert_eq!(txn.user().name, "tester");
         Ok(())
     }
 }

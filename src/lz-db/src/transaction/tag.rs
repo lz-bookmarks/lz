@@ -122,7 +122,7 @@ mod tests {
     #[test_log::test(sqlx::test(migrator = "MIGRATOR"))]
     fn roundtrip_tag(pool: SqlitePool) -> anyhow::Result<()> {
         let conn = Connection::from_pool(pool);
-        let mut txn = conn.begin().await?;
+        let mut txn = conn.begin_for_user("tester").await?;
         let inserted = txn.ensure_tags(["hi", "test", "welp"]).await?;
         assert_eq!(inserted.len(), 3);
 

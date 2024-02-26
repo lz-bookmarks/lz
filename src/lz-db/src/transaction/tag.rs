@@ -6,7 +6,7 @@ use sqlx::prelude::*;
 use crate::{IdType, Transaction};
 
 /// The database ID of a tag.
-#[derive(PartialEq, Eq, Debug, Clone, Copy, sqlx::Type)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Hash, Debug, Clone, Copy, sqlx::Type)]
 #[sqlx(transparent)]
 pub struct TagId(i64);
 
@@ -19,6 +19,8 @@ impl IdType<TagId> for TagId {
 }
 
 /// A named tag, possibly assigned to multiple bookmarks.
+///
+/// See the section in [Transaction][Transaction#working-with-tags]
 #[derive(Serialize, Deserialize, PartialEq, Eq, Hash, Debug, FromRow)]
 pub struct Tag<ID: IdType<TagId>> {
     /// Database identifier of the tag.
@@ -33,8 +35,9 @@ impl<'c> Transaction<'c> {
     /// Return all existing tags matching the given names.
     ///
     /// If a tag with a given name doesn't exist, it will be missing
-    /// in the returned set. The method [`ensure_tags`] will create
-    /// any that are missing and return all the matching tags.
+    /// in the returned set. The method [`Transaction::ensure_tags`]
+    /// will create any that are missing and return all the matching
+    /// tags.
     #[tracing::instrument(skip(self))]
     pub async fn get_tags_with_names<
         T: std::fmt::Debug + IntoIterator<Item = S, IntoIter = C>,
@@ -72,8 +75,8 @@ impl<'c> Transaction<'c> {
     /// Ensure all the tags with the given name exist and return them.
     ///
     /// This method is the ad-hoc-creating mirror to
-    /// [`get_tags_with_names`]. Use `ensure_tags` to ensure all the
-    /// tags with the given name exist in the database.
+    /// [`Transaction::get_tags_with_names`]. Use `ensure_tags` to
+    /// ensure all the tags with the given name exist in the database.
     #[tracing::instrument(skip(self))]
     pub async fn ensure_tags<
         T: std::fmt::Debug + IntoIterator<Item = S, IntoIter = C>,

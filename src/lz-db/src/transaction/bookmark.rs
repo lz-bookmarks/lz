@@ -2,10 +2,10 @@ use serde::{Deserialize, Serialize};
 use sqlx::{prelude::*, query_scalar, types::Text};
 use url::Url;
 
-use crate::{IdType, Transaction};
+use crate::{IdType, Transaction, UserId};
 
 /// The database ID of a bookmark.
-#[derive(PartialEq, Eq, Debug, Clone, Copy, sqlx::Type)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Hash, Debug, Clone, Copy, sqlx::Type)]
 #[sqlx(transparent)]
 pub struct BookmarkId(i64);
 
@@ -18,10 +18,21 @@ impl IdType<BookmarkId> for BookmarkId {
 }
 
 /// A bookmark saved by a user.
+///
+/// See the section in [Transaction][Transaction#working-with-bookmarks]
 #[derive(Serialize, Deserialize, PartialEq, Eq, Hash, Debug, Clone, FromRow)]
 pub struct Bookmark<ID: IdType<BookmarkId>> {
+    /// Database identifier of the bookmark
     #[sqlx(rename = "bookmark_id")]
     pub id: ID,
+
+    /// ID of the user who owns the bookmark
+    pub user_id: UserId,
+
+    /// Time at which the bookmark was created.
+    ///
+    /// This time is assigned in code here, not in the database.
+    pub created_at: chrono::DateTime<chrono::Utc>,
 
     /// URL that the bookmark points to.
     #[sqlx(try_from = "&'a str")]
@@ -46,20 +57,25 @@ pub struct Bookmark<ID: IdType<BookmarkId>> {
 /// # Working with Bookmarks
 impl<'c> Transaction<'c> {
     /// Store a new bookmark in the database.
+    #[tracing::instrument(skip(self))]
     pub async fn add_bookmark(&mut self, bm: Bookmark<()>) -> Result<BookmarkId, sqlx::Error> {
         let bm_url = Text(bm.url);
         let id = query_scalar!(
             r#"
               INSERT INTO bookmarks (
+                user_id,
+                created_at,
                 url,
                 title,
                 description,
                 website_title,
                 website_description,
                 notes
-              ) VALUES (?, ?, ?, ?, ?, ?)
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
               RETURNING bookmark_id;
             "#,
+            bm.user_id,
+            bm.created_at,
             bm_url,
             bm.title,
             bm.description,
@@ -73,6 +89,7 @@ impl<'c> Transaction<'c> {
     }
 
     /// Retrieve the bookmark with the given ID.
+    #[tracing::instrument(skip(self))]
     pub async fn get_bookmark_by_id(
         &mut self,
         id: i64,
@@ -97,8 +114,12 @@ mod tests {
     #[test_log::test(sqlx::test(migrator = "MIGRATOR"))]
     fn roundtrip_bookmark(pool: SqlitePool) -> anyhow::Result<()> {
         let conn = Connection::from_pool(pool);
+        let mut txn = conn.begin().await?;
+        let user = txn.ensure_user("tester").await?;
         let to_add = Bookmark {
             id: (),
+            user_id: user.id,
+            created_at: Default::default(),
             url: Url::parse("https://github.com/antifuchs/lz")?,
             title: "The lz repo".to_string(),
             description: "This is a great repo with excellent code.".to_string(),
@@ -108,7 +129,6 @@ mod tests {
             ),
             notes: "No need to run tests.".to_string(),
         };
-        let mut txn = conn.begin().await?;
         let added = txn.add_bookmark(to_add.clone()).await?;
         let retrieved = txn.get_bookmark_by_id(added.id()).await?;
         txn.commit().await?;
@@ -118,6 +138,8 @@ mod tests {
             to_add,
             Bookmark::<()> {
                 id: (),
+                user_id: retrieved.user_id,
+                created_at: retrieved.created_at,
                 url: retrieved.url,
                 title: retrieved.title,
                 description: retrieved.description,

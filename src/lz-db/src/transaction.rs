@@ -57,3 +57,6 @@ pub use bookmark::*;
 
 mod tag;
 pub use tag::*;
+
+mod user;
+pub use user::*;

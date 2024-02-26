@@ -30,7 +30,7 @@
         cIncludes = [pkgs.sqlite];
         cLibs =
           if pkgs.stdenv.isDarwin
-          then [pkgs.libiconv]
+          then [pkgs.libiconv pkgs.darwin.apple_sdk.frameworks.CoreFoundation]
           else [];
       in {
         formatter = pkgs.alejandra;

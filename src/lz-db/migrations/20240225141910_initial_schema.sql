@@ -1,13 +1,25 @@
 -- Add migration script here
 
+CREATE TABLE "users" (
+  "user_id" INTEGER NOT NULL PRIMARY KEY,
+  "name" TEXT NOT NULL UNIQUE,
+  "created_at" datetime NOT NULL
+);
+
+CREATE UNIQUE INDEX "users_by_name" ON "users" ("name");
+
 CREATE TABLE "bookmarks" (
   "bookmark_id" INTEGER NOT NULL PRIMARY KEY,
+  "user_id" INTEGER NOT NULL,
+  "created_at" datetime NOT NULL,
   "url" TEXT NOT NULL,
   "title" TEXT NOT NULL,
   "description" TEXT,
   "website_title" TEXT,
   "website_description" TEXT,
-  "notes" TEXT
+  "notes" TEXT,
+
+  FOREIGN KEY ("user_id") REFERENCES "users"("user_id")
 );
 
 CREATE TABLE "tags" (

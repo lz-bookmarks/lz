@@ -751,6 +751,7 @@ dependencies = [
  "indoc",
  "once_cell",
  "serde",
+ "serde_json",
  "sqlx",
  "test-log",
  "tokio",

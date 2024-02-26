@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use sqlx::{prelude::*, query_scalar, types::Text};
+use tracing::warn;
 use url::Url;
 
 use crate::{IdType, Transaction, UserId};
@@ -27,7 +28,7 @@ pub struct Bookmark<ID: IdType<BookmarkId>> {
     pub id: ID,
 
     /// ID of the user who owns the bookmark
-    pub user_id: UserId,
+    pub user_id: Option<UserId>,
 
     /// Time at which the bookmark was created.
     ///
@@ -60,6 +61,10 @@ impl<'c> Transaction<'c> {
     #[tracing::instrument(skip(self))]
     pub async fn add_bookmark(&mut self, bm: Bookmark<()>) -> Result<BookmarkId, sqlx::Error> {
         let bm_url = Text(bm.url);
+        let user_id = self.user().id;
+        if bm.user_id.is_some() && bm.user_id != Some(self.user().id) {
+            warn!(identified=?self.user(), given_id=?bm.user_id, "Attempt to create a bookmark for a different user than the one that's identified. This might be a security issue. (We're using the identified user)");
+        }
         let id = query_scalar!(
             r#"
               INSERT INTO bookmarks (
@@ -74,7 +79,7 @@ impl<'c> Transaction<'c> {
               ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
               RETURNING bookmark_id;
             "#,
-            bm.user_id,
+            user_id,
             bm.created_at,
             bm_url,
             bm.title,
@@ -96,10 +101,11 @@ impl<'c> Transaction<'c> {
     ) -> Result<Bookmark<BookmarkId>, sqlx::Error> {
         sqlx::query_as(
             r#"
-               SELECT * FROM bookmarks WHERE bookmark_id = ?;
+               SELECT * FROM bookmarks WHERE bookmark_id = ? AND user_id = ?;
             "#,
         )
         .bind(id)
+        .bind(self.user().id)
         .fetch_one(&mut *self.txn)
         .await
     }
@@ -117,7 +123,7 @@ mod tests {
         let mut txn = conn.begin_for_user("tester").await?;
         let to_add = Bookmark {
             id: (),
-            user_id: txn.user().id,
+            user_id: None,
             created_at: Default::default(),
             url: Url::parse("https://github.com/antifuchs/lz")?,
             title: "The lz repo".to_string(),
@@ -130,23 +136,23 @@ mod tests {
         };
         let added = txn.add_bookmark(to_add.clone()).await?;
         let retrieved = txn.get_bookmark_by_id(added.id()).await?;
-        txn.commit().await?;
 
         assert_eq!(added, retrieved.id);
         assert_eq!(
-            to_add,
-            Bookmark::<()> {
-                id: (),
-                user_id: retrieved.user_id,
-                created_at: retrieved.created_at,
-                url: retrieved.url,
-                title: retrieved.title,
-                description: retrieved.description,
-                website_title: retrieved.website_title,
-                website_description: retrieved.website_description,
-                notes: retrieved.notes,
+            retrieved,
+            Bookmark {
+                id: added,
+                user_id: Some(txn.user().id),
+                created_at: to_add.created_at,
+                url: to_add.url,
+                title: to_add.title,
+                description: to_add.description,
+                website_title: to_add.website_title,
+                website_description: to_add.website_description,
+                notes: to_add.notes,
             }
         );
+        txn.commit().await?;
         Ok(())
     }
 }

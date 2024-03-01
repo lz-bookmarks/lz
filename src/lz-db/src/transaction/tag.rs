@@ -124,7 +124,7 @@ pub struct BookmarkTag<TID: IdType<TagId>, BID: IdType<BookmarkId>> {
     pub bookmark_id: BID,
 }
 
-/// # Setting a [`Bookmark`]'s [`Tag`]s
+/// # Working with a `Bookmark`'s `Tag`s
 impl<'c> Transaction<'c> {
     /// Set the tags on a bookmark.
     ///

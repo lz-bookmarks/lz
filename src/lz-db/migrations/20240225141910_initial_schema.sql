@@ -29,6 +29,7 @@ CREATE TABLE "bookmarks" (
 
 CREATE TABLE "tags" (
   "tag_id" INTEGER NOT NULL PRIMARY KEY,
+  "created_at" datetime NOT NULL,
   "name" TEXT NOT NULL UNIQUE
 );
 

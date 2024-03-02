@@ -29,6 +29,9 @@ pub struct Tag<ID: IdType<TagId>> {
 
     /// Name of the tag.
     pub name: String,
+
+    /// When the tag was first created.
+    pub created_at: chrono::DateTime<chrono::Utc>,
 }
 
 /// # Working with [`Tag`]s
@@ -97,7 +100,7 @@ impl<'c> Transaction<'c> {
         for name in missing_names {
             let tag = sqlx::query_as(
                 r#"
-                  INSERT INTO tags (name) VALUES (?) RETURNING *;
+                  INSERT INTO tags (name, created_at) VALUES (?, datetime()) RETURNING *;
                 "#,
             )
             .bind(name)

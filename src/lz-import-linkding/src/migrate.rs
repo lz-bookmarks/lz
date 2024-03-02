@@ -2,7 +2,10 @@
 
 use std::collections::HashMap;
 
-use futures::stream::{BoxStream, StreamExt};
+use futures::{
+    stream::{BoxStream, StreamExt},
+    TryStreamExt as _,
+};
 
 use crate::schema::{self, LinkdingTransaction};
 
@@ -11,13 +14,14 @@ pub async fn migrate<'c>(
     mut linkding_tx: LinkdingTransaction<'c>,
     mut db: &mut lz_db::Transaction<'c>,
 ) -> anyhow::Result<()> {
-    let all_tags = linkding_tx.all_tags();
-    let tag_translation = translate_tags(&mut db, all_tags).await?;
-    tracing::info!(?tag_translation, "Tags done");
+    let tag_translation = translate_tags(&mut db, linkding_tx.all_tags()).await?;
+    tracing::info!(tag_count = tag_translation.iter().len(), "Tags done");
+
+    let bm_translation = translate_bookmarks(&mut db, linkding_tx.all_bookmarks()).await?;
     Ok(())
 }
 
-/// Insert or
+/// Translate all linkding tags into lz tags (creating them if necessary).
 #[tracing::instrument(skip(db, tag_stream))]
 async fn translate_tags<'c, 's>(
     db: &mut lz_db::Transaction<'c>,
@@ -41,6 +45,20 @@ where
                 .expect("all tags to have corresponding names");
             translated.insert(*li_tag_id, tag.id);
         }
+    }
+    Ok(translated)
+}
+
+#[tracing::instrument(skip(db, bookmark_stream))]
+async fn translate_bookmarks<'c, 's>(
+    db: &mut lz_db::Transaction<'c>,
+    mut bookmark_stream: BoxStream<'s, Result<schema::Bookmark, sqlx::Error>>,
+) -> Result<HashMap<i64, lz_db::BookmarkId>, sqlx::Error> {
+    let mut translated = HashMap::new();
+    while let Some(bookmark) = bookmark_stream.try_next().await? {
+        let added_id = db.add_bookmark(bookmark.as_lz_bookmark()).await?;
+        translated.insert(bookmark.id, added_id);
+        tracing::info!(?bookmark, ?added_id, "added bookmark");
     }
     Ok(translated)
 }

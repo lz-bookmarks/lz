@@ -966,6 +966,7 @@ dependencies = [
  "futures",
  "lz-db",
  "serde",
+ "serde_json",
  "sqlx",
  "tokio",
  "tracing",

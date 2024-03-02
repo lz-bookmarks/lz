@@ -21,5 +21,5 @@ pub enum ImportableSystem {
 /// higher-fidelity importing purpose.
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct ImportProperties {
-    pub by_system: HashMap<ImportableSystem, HashMap<String, serde_json::Value>>,
+    pub by_system: HashMap<ImportableSystem, serde_json::Value>,
 }

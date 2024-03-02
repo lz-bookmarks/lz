@@ -84,23 +84,29 @@ impl<'c> Transaction<'c> {
               INSERT INTO bookmarks (
                 user_id,
                 created_at,
+                modified_at,
+                accessed_at,
                 url,
                 title,
                 description,
                 website_title,
                 website_description,
-                notes
-              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                notes,
+                import_properties
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
               RETURNING bookmark_id;
             "#,
             user_id,
             bm.created_at,
+            bm.modified_at,
+            bm.accessed_at,
             bm_url,
             bm.title,
             bm.description,
             bm.website_title,
             bm.website_description,
             bm.notes,
+            bm.import_properties,
         )
         .fetch_one(&mut *self.txn)
         .await?;
@@ -128,6 +134,7 @@ impl<'c> Transaction<'c> {
 #[cfg(test)]
 mod tests {
     use crate::*;
+    use anyhow::Context as _;
     use sqlx::SqlitePool;
     use url::Url;
 
@@ -139,8 +146,8 @@ mod tests {
             id: (),
             user_id: (),
             created_at: Default::default(),
-            modified_at: None,
-            accessed_at: None,
+            modified_at: Some(Default::default()),
+            accessed_at: Some(Default::default()),
             url: Url::parse("https://github.com/antifuchs/lz")?,
             title: "The lz repo".to_string(),
             description: "This is a great repo with excellent code.".to_string(),
@@ -153,8 +160,14 @@ mod tests {
             shared: false,
             unread: false,
         };
-        let added = txn.add_bookmark(to_add.clone()).await?;
-        let retrieved = txn.get_bookmark_by_id(added.id()).await?;
+        let added = txn
+            .add_bookmark(to_add.clone())
+            .await
+            .context("adding it")?;
+        let retrieved = txn
+            .get_bookmark_by_id(added.id())
+            .await
+            .context("retrieving it")?;
 
         assert_eq!(added, retrieved.id);
         assert_eq!(
@@ -163,8 +176,8 @@ mod tests {
                 id: added,
                 user_id: txn.user().id,
                 created_at: to_add.created_at,
-                modified_at: None,
-                accessed_at: None,
+                modified_at: to_add.modified_at,
+                accessed_at: to_add.accessed_at,
                 url: to_add.url,
                 title: to_add.title,
                 description: to_add.description,

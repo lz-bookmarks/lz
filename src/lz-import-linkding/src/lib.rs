@@ -1,1 +1,3 @@
-pub(crate) mod schema;
+pub mod schema;
+
+pub mod migrate;

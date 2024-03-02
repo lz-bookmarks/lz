@@ -21,7 +21,7 @@ impl IdType<TagId> for TagId {
 /// A named tag, possibly assigned to multiple bookmarks.
 ///
 /// See the section in [Transaction][Transaction#working-with-tags]
-#[derive(Serialize, Deserialize, PartialEq, Eq, Hash, Debug, FromRow)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Hash, Debug, FromRow)]
 pub struct Tag<ID: IdType<TagId>> {
     /// Database identifier of the tag.
     #[sqlx(rename = "tag_id")]

@@ -12,12 +12,17 @@ CREATE TABLE "bookmarks" (
   "bookmark_id" INTEGER NOT NULL PRIMARY KEY,
   "user_id" INTEGER NOT NULL,
   "created_at" datetime NOT NULL,
+  "modified_at" datetime,
+  "accessed_at" datetime,
   "url" TEXT NOT NULL,
   "title" TEXT NOT NULL,
   "description" TEXT,
   "website_title" TEXT,
   "website_description" TEXT,
   "notes" TEXT,
+  "unread" BOOLEAN,
+  "shared" BOOLEAN,
+  "import_properties" JSON,
 
   FOREIGN KEY ("user_id") REFERENCES "users"("user_id")
 );

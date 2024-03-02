@@ -20,7 +20,7 @@ impl IdType<BookmarkId> for BookmarkId {
 /// A bookmark saved by a user.
 ///
 /// See the section in [Transaction][Transaction#working-with-bookmarks]
-#[derive(Serialize, Deserialize, PartialEq, Eq, Hash, Debug, Clone, FromRow)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone, FromRow)]
 pub struct Bookmark<ID: IdType<BookmarkId>, UID: IdType<UserId>> {
     /// Database identifier of the bookmark
     #[sqlx(rename = "bookmark_id")]
@@ -33,6 +33,15 @@ pub struct Bookmark<ID: IdType<BookmarkId>, UID: IdType<UserId>> {
     ///
     /// This time is assigned in code here, not in the database.
     pub created_at: chrono::DateTime<chrono::Utc>,
+
+    /// Last time the bookmark was modified.
+    ///
+    /// This field indicates modifications to the bookmark data itself
+    /// only, not changes to tags or related models.
+    pub modified_at: Option<chrono::DateTime<chrono::Utc>>,
+
+    /// Last time the bookmark was accessed via the web
+    pub accessed_at: Option<chrono::DateTime<chrono::Utc>>,
 
     /// URL that the bookmark points to.
     #[sqlx(try_from = "&'a str")]
@@ -52,6 +61,15 @@ pub struct Bookmark<ID: IdType<BookmarkId>, UID: IdType<UserId>> {
 
     /// Private notes that the user attached to the bookmark.
     pub notes: String,
+
+    /// Whether the bookmark is "to read"
+    pub unread: bool,
+
+    /// Whether other users can see the bookmark.
+    pub shared: bool,
+
+    /// Properties imported from other systems.
+    pub import_properties: Option<sqlx::types::Json<crate::ImportProperties>>,
 }
 
 /// # Working with Bookmarks
@@ -121,6 +139,8 @@ mod tests {
             id: (),
             user_id: (),
             created_at: Default::default(),
+            modified_at: None,
+            accessed_at: None,
             url: Url::parse("https://github.com/antifuchs/lz")?,
             title: "The lz repo".to_string(),
             description: "This is a great repo with excellent code.".to_string(),
@@ -129,6 +149,9 @@ mod tests {
                 "Please do not believe in the quality of this code.".to_string(),
             ),
             notes: "No need to run tests.".to_string(),
+            import_properties: None,
+            shared: false,
+            unread: false,
         };
         let added = txn.add_bookmark(to_add.clone()).await?;
         let retrieved = txn.get_bookmark_by_id(added.id()).await?;
@@ -140,12 +163,17 @@ mod tests {
                 id: added,
                 user_id: txn.user().id,
                 created_at: to_add.created_at,
+                modified_at: None,
+                accessed_at: None,
                 url: to_add.url,
                 title: to_add.title,
                 description: to_add.description,
                 website_title: to_add.website_title,
                 website_description: to_add.website_description,
                 notes: to_add.notes,
+                import_properties: to_add.import_properties,
+                shared: to_add.shared,
+                unread: to_add.unread,
             }
         );
         txn.commit().await?;

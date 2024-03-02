@@ -238,12 +238,17 @@ mod tests {
                 id: (),
                 user_id: (),
                 created_at: Default::default(),
+                modified_at: None,
+                accessed_at: None,
                 url: Url::parse("https://github.com/antifuchs/lz")?,
                 title: "The lz repo".to_string(),
                 description: "Our extremely high-quality repo".to_string(),
                 website_title: None,
                 website_description: None,
                 notes: "".to_string(),
+                import_properties: None,
+                shared: false,
+                unread: false,
             })
             .await?;
         let other_bookmark_id = txn
@@ -251,12 +256,17 @@ mod tests {
                 id: (),
                 user_id: (),
                 created_at: Default::default(),
+                modified_at: None,
+                accessed_at: None,
                 url: Url::parse("https://github.com/antifuchs/governor")?,
                 title: "The governor repo".to_string(),
                 description: "Another extremely high-quality repo".to_string(),
                 website_title: None,
                 website_description: None,
                 notes: "".to_string(),
+                import_properties: None,
+                shared: false,
+                unread: false,
             })
             .await?;
         let other_tags = txn.ensure_tags(["welp", "not-this"]).await?;

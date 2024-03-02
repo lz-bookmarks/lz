@@ -1,0 +1,12 @@
+[package]
+name = "lz-import-linkding"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+chrono = { version = "0.4.34", features = ["serde"] }
+clap = { version = "4.5.1", features = ["derive"] }
+lz-db = { version = "0.1.0", path = "../lz-db" }
+serde = "1.0.197"
+sqlx = { version = "0.7.3", features = ["sqlite", "migrate", "runtime-tokio", "chrono"] }
+url = "2.5.0"

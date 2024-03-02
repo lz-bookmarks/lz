@@ -71,3 +71,6 @@ pub use tag::*;
 
 mod user;
 pub use user::*;
+
+mod import_properties;
+pub use import_properties::*;

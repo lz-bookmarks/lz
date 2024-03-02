@@ -51,7 +51,7 @@ pub struct Bookmark<ID: IdType<BookmarkId>, UID: IdType<UserId>> {
     pub title: String,
 
     /// Description of the bookmark, possibly extracted from the website.
-    pub description: String,
+    pub description: Option<String>,
 
     /// Original title extracted from the website.
     pub website_title: Option<String>,
@@ -60,7 +60,7 @@ pub struct Bookmark<ID: IdType<BookmarkId>, UID: IdType<UserId>> {
     pub website_description: Option<String>,
 
     /// Private notes that the user attached to the bookmark.
-    pub notes: String,
+    pub notes: Option<String>,
 
     /// Whether the bookmark is "to read"
     pub unread: bool,
@@ -91,9 +91,11 @@ impl<'c> Transaction<'c> {
                 description,
                 website_title,
                 website_description,
+                unread,
+                shared,
                 notes,
                 import_properties
-              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
               RETURNING bookmark_id;
             "#,
             user_id,
@@ -105,6 +107,8 @@ impl<'c> Transaction<'c> {
             bm.description,
             bm.website_title,
             bm.website_description,
+            bm.unread,
+            bm.shared,
             bm.notes,
             bm.import_properties,
         )
@@ -150,15 +154,15 @@ mod tests {
             accessed_at: Some(Default::default()),
             url: Url::parse("https://github.com/antifuchs/lz")?,
             title: "The lz repo".to_string(),
-            description: "This is a great repo with excellent code.".to_string(),
+            description: Some("This is a great repo with excellent code.".to_string()),
             website_title: Some("lz, the bookmarks manager".to_string()),
             website_description: Some(
                 "Please do not believe in the quality of this code.".to_string(),
             ),
-            notes: "No need to run tests.".to_string(),
+            notes: Some("No need to run tests.".to_string()),
             import_properties: None,
-            shared: false,
-            unread: false,
+            shared: true,
+            unread: true,
         };
         let added = txn
             .add_bookmark(to_add.clone())

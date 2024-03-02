@@ -61,7 +61,8 @@ pub(crate) struct Bookmark {
     #[sqlx(try_from = "&'a str")]
     pub url: Url,
     pub title: String,
-    pub description: String,
+    pub description: Option<String>,
+    pub notes: Option<String>,
     pub website_title: Option<String>,
     pub website_description: Option<String>,
     pub unread: bool,
@@ -72,7 +73,6 @@ pub(crate) struct Bookmark {
 
     pub is_archived: bool,
     pub shared: bool,
-    pub notes: String,
 }
 
 impl Bookmark {
@@ -83,6 +83,11 @@ impl Bookmark {
             serde_json::to_value(&self).expect("cleanly convert to serde_json::Value"),
         );
         let import_properties = Some(sqlx::types::Json(lz_db::ImportProperties { by_system }));
+        let notes = match self.notes.as_ref() {
+            None => None,
+            Some(n) if n.len() == 0 => None,
+            Some(n) => Some(n.to_string()),
+        };
         lz_db::Bookmark {
             id: (),
             user_id: (),
@@ -94,7 +99,7 @@ impl Bookmark {
             description: self.description.clone(),
             website_title: self.website_title.clone(),
             website_description: self.website_description.clone(),
-            notes: self.notes.clone(),
+            notes,
             unread: self.unread,
             shared: self.shared,
             import_properties,

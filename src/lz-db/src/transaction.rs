@@ -10,8 +10,8 @@ use crate::Connection;
 /// an HTTP request), the transaction needs to be
 /// [`commit`][Transaction::commit]ed.
 #[derive(Debug)]
-pub struct Transaction<'c> {
-    txn: sqlx::Transaction<'c, sqlx::sqlite::Sqlite>,
+pub struct Transaction {
+    txn: sqlx::Transaction<'static, sqlx::sqlite::Sqlite>,
     user: User<UserId>,
 }
 
@@ -28,17 +28,14 @@ impl Connection {
     ///
     /// In order to commit the changes that happened in the
     /// transaction, call [`Transaction::commit`].
-    pub async fn begin_for_user<'c>(
-        &'c self,
-        username: &str,
-    ) -> Result<Transaction<'c>, sqlx::Error> {
+    pub async fn begin_for_user(&self, username: &str) -> Result<Transaction, sqlx::Error> {
         let mut txn = self.db.begin().await?;
         let user = Connection::ensure_user(&mut txn, username).await?;
         Ok(Transaction { txn, user })
     }
 }
 
-impl<'c> Transaction<'c> {
+impl Transaction {
     /// Commits the transaction.
     pub async fn commit(self) -> Result<(), sqlx::Error> {
         self.txn.commit().await
@@ -82,3 +79,5 @@ pub use user::*;
 
 mod import_properties;
 pub use import_properties::*;
+
+pub mod web;

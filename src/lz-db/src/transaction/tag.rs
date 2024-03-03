@@ -41,7 +41,7 @@ impl From<Tag<TagId>> for TagId {
 }
 
 /// # Working with [`Tag`]s
-impl<'c> Transaction<'c> {
+impl Transaction {
     /// Return all existing tags matching the given names.
     ///
     /// If a tag with a given name doesn't exist, it will be missing
@@ -134,7 +134,7 @@ pub struct BookmarkTag<TID: IdType<TagId>, BID: IdType<BookmarkId>> {
 }
 
 /// # Working with a `Bookmark`'s `Tag`s
-impl<'c> Transaction<'c> {
+impl Transaction {
     /// Set the tags on a bookmark.
     ///
     /// Any existing tagging will be removed and replaced with the

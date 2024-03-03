@@ -11,7 +11,7 @@ use crate::{
 };
 
 pub struct Migration<'c> {
-    db: lz_db::Transaction<'c>,
+    db: lz_db::Transaction,
     linkding_tx: LinkdingTransaction<'c>,
     tag_ids: HashMap<i64, lz_db::TagId>,
     bookmark_ids: HashMap<i64, lz_db::BookmarkId>,
@@ -20,7 +20,7 @@ pub struct Migration<'c> {
 
 impl<'c> Migration<'c> {
     pub fn new(
-        db: lz_db::Transaction<'c>,
+        db: lz_db::Transaction,
         linkding_tx: LinkdingTransaction<'c>,
         on_duplicate: DuplicateBehavior,
     ) -> Self {

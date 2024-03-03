@@ -43,8 +43,8 @@ pub struct User<ID: IdType<UserId>> {
 
 impl crate::Connection {
     #[tracing::instrument()]
-    pub(crate) async fn ensure_user<'c>(
-        txn: &mut sqlx::Transaction<'c, sqlx::Sqlite>,
+    pub(crate) async fn ensure_user(
+        txn: &mut sqlx::Transaction<'static, sqlx::Sqlite>,
         name: &str,
     ) -> Result<User<UserId>, sqlx::Error> {
         if let Some(user) = query_as(r#"SELECT * FROM users WHERE name = ?"#)
@@ -74,7 +74,7 @@ impl crate::Connection {
 }
 
 /// # Working with [`User`]s
-impl<'c> Transaction<'c> {
+impl Transaction {
     /// Retrieve a user with a given name.
     #[tracing::instrument(skip(self))]
     pub async fn get_user_by_name(

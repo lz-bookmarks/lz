@@ -73,7 +73,7 @@ pub struct Bookmark<ID: IdType<BookmarkId>, UID: IdType<UserId>> {
 }
 
 /// # Working with Bookmarks
-impl<'c> Transaction<'c> {
+impl Transaction {
     /// Store a new bookmark in the database.
     #[tracing::instrument(skip(self))]
     pub async fn add_bookmark(&mut self, bm: Bookmark<(), ()>) -> Result<BookmarkId, sqlx::Error> {

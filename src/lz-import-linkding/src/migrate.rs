@@ -133,7 +133,7 @@ impl<'c> Migration<'c> {
                     let current = tagging_stream.try_next().await?;
                     batch.push(current.expect("peeked tagging to exist").tag_id);
                 }
-                (Ok(tagging), Some(last_id)) if tagging.bookmark_id != last_id => {
+                (Ok(tagging), Some(last_id)) => {
                     // write the batch out.
                     let bm_id = *self
                         .bookmark_ids
@@ -151,10 +151,6 @@ impl<'c> Migration<'c> {
                 (Err(e), _) => {
                     tracing::error!(error=%e, error_debug=?e, "encountered error");
                     tagging_stream.try_next().await?;
-                }
-                (Ok(what), what2) => {
-                    tracing::error!(?what, ?what2, "unclear situation");
-                    unreachable!("I don't think this should ever occur");
                 }
             }
         }

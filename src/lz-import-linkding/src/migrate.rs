@@ -141,7 +141,7 @@ impl<'c> Migration<'c> {
                         .expect("bookmark has been seen");
                     let tag_ids = batch
                         .iter()
-                        .map(|tag_id| *self.tag_ids.get(&tag_id).expect("tag id has been seen"));
+                        .map(|tag_id| *self.tag_ids.get(tag_id).expect("tag id has been seen"));
                     self.db.add_bookmark_tags(bm_id, tag_ids).await?;
                     tracing::debug!(tag_count=batch.len(), bookmark=?bm_id, linkding_bookmark=last_id, "tagged bookmark");
                     // reset.

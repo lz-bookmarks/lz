@@ -34,9 +34,9 @@ pub struct Tag<ID: IdType<TagId>> {
     pub created_at: chrono::DateTime<chrono::Utc>,
 }
 
-impl Into<TagId> for Tag<TagId> {
-    fn into(self) -> TagId {
-        self.id
+impl From<Tag<TagId>> for TagId {
+    fn from(val: Tag<TagId>) -> Self {
+        val.id
     }
 }
 

@@ -44,7 +44,7 @@ impl<'a> TryFrom<&'a str> for OptionalUrl {
     type Error = <Url as TryFrom<&'a str>>::Error;
 
     fn try_from(value: &'_ str) -> Result<Self, Self::Error> {
-        if value == "" {
+        if value.is_empty() {
             Ok(OptionalUrl(None))
         } else {
             Ok(OptionalUrl(Some(Url::try_from(value)?)))
@@ -86,7 +86,7 @@ impl Bookmark {
         let mut other = lz_db::Bookmark {
             id: (),
             user_id: (),
-            url: url,
+            url,
             created_at: Default::default(),
             modified_at: Default::default(),
             accessed_at: Default::default(),
@@ -119,7 +119,7 @@ impl Bookmark {
                         let mut by_system = HashMap::new();
                         by_system.insert(
                             lz_db::ImportableSystem::Linkding,
-                            serde_json::to_value(&self)
+                            serde_json::to_value(self)
                                 .expect("cleanly convert to serde_json::Value"),
                         );
                         by_system
@@ -129,7 +129,7 @@ impl Bookmark {
             |mut existing| {
                 existing.0.by_system.insert(
                     lz_db::ImportableSystem::Linkding,
-                    serde_json::to_value(&self).expect("cleanly convert to serde_json::Value"),
+                    serde_json::to_value(self).expect("cleanly convert to serde_json::Value"),
                 );
                 Some(existing)
             },
@@ -145,7 +145,7 @@ impl Bookmark {
         other.website_description = self.website_description.clone();
         other.notes = match self.notes.as_ref() {
             None => None,
-            Some(n) if n.len() == 0 => None,
+            Some(n) if n.is_empty() => None,
             Some(n) => Some(n.to_string()),
         };
         other.unread = self.unread;

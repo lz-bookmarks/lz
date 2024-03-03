@@ -1,6 +1,6 @@
 //! Routines that translate Linkding's models into ours.
 
-use std::collections::HashMap;
+use std::{collections::HashMap, pin};
 
 use anyhow::Context as _;
 use futures::{stream::StreamExt as _, TryStreamExt as _};
@@ -55,6 +55,10 @@ impl<'c> Migration<'c> {
             bookmark_count = self.bookmark_ids.iter().len(),
             "Bookmarks imported"
         );
+
+        self.tag_bookmarks()
+            .await
+            .context("tagging imported bookmarks")?;
         self.db.commit().await?;
         Ok(())
     }
@@ -108,6 +112,51 @@ impl<'c> Migration<'c> {
             })?;
             self.bookmark_ids.insert(bookmark.id, added_id);
             tracing::debug!(url=%to_add.url, ?added_id, "added bookmark");
+        }
+        Ok(())
+    }
+
+    #[tracing::instrument(skip(self))]
+    async fn tag_bookmarks(&mut self) -> Result<(), sqlx::Error> {
+        let mut tagging_stream = pin::pin!(self.linkding_tx.all_taggings().peekable());
+        let mut last_bm_id: Option<i64> = None;
+        let mut batch: Vec<i64> = vec![];
+        while let Some(tagging) = tagging_stream.as_mut().peek().await {
+            match (tagging, last_bm_id) {
+                (Ok(tagging), None) => {
+                    // "next" bookmark, set up first batch.
+                    last_bm_id = Some(tagging.bookmark_id);
+                    continue;
+                }
+                (Ok(tagging), Some(last_id)) if tagging.bookmark_id == last_id => {
+                    // collect the following bookmark's tags into a batch.
+                    let current = tagging_stream.try_next().await?;
+                    batch.push(current.expect("peeked tagging to exist").tag_id);
+                }
+                (Ok(tagging), Some(last_id)) if tagging.bookmark_id != last_id => {
+                    // write the batch out.
+                    let bm_id = *self
+                        .bookmark_ids
+                        .get(&last_id)
+                        .expect("bookmark has been seen");
+                    let tag_ids = batch
+                        .iter()
+                        .map(|tag_id| *self.tag_ids.get(&tag_id).expect("tag id has been seen"));
+                    self.db.add_bookmark_tags(bm_id, tag_ids).await?;
+                    tracing::debug!(tag_count=batch.len(), bookmark=?bm_id, linkding_bookmark=last_id, "tagged bookmark");
+                    // reset.
+                    last_bm_id = Some(tagging.bookmark_id);
+                    batch = vec![];
+                }
+                (Err(e), _) => {
+                    tracing::error!(error=%e, error_debug=?e, "encountered error");
+                    tagging_stream.try_next().await?;
+                }
+                (Ok(what), what2) => {
+                    tracing::error!(?what, ?what2, "unclear situation");
+                    unreachable!("I don't think this should ever occur");
+                }
+            }
         }
         Ok(())
     }

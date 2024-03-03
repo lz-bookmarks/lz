@@ -34,6 +34,12 @@ pub struct Tag<ID: IdType<TagId>> {
     pub created_at: chrono::DateTime<chrono::Utc>,
 }
 
+impl Into<TagId> for Tag<TagId> {
+    fn into(self) -> TagId {
+        self.id
+    }
+}
+
 /// # Working with [`Tag`]s
 impl<'c> Transaction<'c> {
     /// Return all existing tags matching the given names.
@@ -134,11 +140,15 @@ impl<'c> Transaction<'c> {
     /// Any existing tagging will be removed and replaced with the
     /// given set of tags. Tags are not garbage-collected and will
     /// stick around, so they are available for re-use.
-    pub async fn set_bookmark_tags<T: std::fmt::Debug + IntoIterator<Item = Tag<TagId>>>(
+    pub async fn set_bookmark_tags<TS, T>(
         &mut self,
         bookmark_id: BookmarkId,
-        tags: T,
-    ) -> Result<(), sqlx::Error> {
+        tags: TS,
+    ) -> Result<(), sqlx::Error>
+    where
+        TS: std::fmt::Debug + IntoIterator<Item = T>,
+        T: Into<TagId>,
+    {
         let me = self.user().id;
         query!(
             r#"
@@ -152,20 +162,7 @@ impl<'c> Transaction<'c> {
         .execute(&mut *self.txn)
         .await?;
 
-        for tag in tags {
-            query!(
-                r#"
-              INSERT INTO bookmark_tags (
-                bookmark_id, tag_id
-              ) VALUES (?, ?)
-            "#,
-                bookmark_id,
-                tag.id,
-            )
-            .execute(&mut *self.txn)
-            .await?;
-        }
-        Ok(())
+        self.add_bookmark_tags(bookmark_id, tags).await
     }
 
     /// Retrieve a bookmark's tags.
@@ -187,6 +184,32 @@ impl<'c> Transaction<'c> {
         .bind(bookmark_id)
         .fetch_all(&mut *self.txn)
         .await
+    }
+
+    pub async fn add_bookmark_tags<TS, T>(
+        &mut self,
+        bookmark_id: BookmarkId,
+        tags: TS,
+    ) -> Result<(), sqlx::Error>
+    where
+        TS: std::fmt::Debug + IntoIterator<Item = T>,
+        T: Into<TagId>,
+    {
+        for tag in tags {
+            let tag_id = tag.into();
+            query!(
+                r#"
+              INSERT INTO bookmark_tags (
+                bookmark_id, tag_id
+              ) VALUES (?, ?)
+            "#,
+                bookmark_id,
+                tag_id,
+            )
+            .execute(&mut *self.txn)
+            .await?;
+        }
+        Ok(())
     }
 }
 

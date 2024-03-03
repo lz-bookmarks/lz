@@ -26,6 +26,11 @@ impl<'c> LinkdingTransaction<'c> {
     pub(crate) fn all_bookmarks(&mut self) -> BoxStream<Result<Bookmark, sqlx::Error>> {
         sqlx::query_as(r#"SELECT * FROM bookmarks_bookmark"#).fetch(&mut *self.txn)
     }
+
+    pub(crate) fn all_taggings(&mut self) -> BoxStream<Result<BookmarkTag, sqlx::Error>> {
+        sqlx::query_as(r#"SELECT * FROM bookmarks_bookmark_tags ORDER BY bookmark_id"#)
+            .fetch(&mut *self.txn)
+    }
 }
 
 /// An optional URL.

@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use anyhow::Context as _;
 use clap::Parser;
 
 #[derive(Clone, Debug, PartialEq, Eq, Parser)]
@@ -10,6 +11,10 @@ struct Args {
     /// The lz database to import into
     #[clap(long)]
     to: PathBuf,
+
+    /// What to do when encountering a bookmark under the same URL
+    #[clap(long, default_value_t, value_enum)]
+    on_duplicate: lz_import_linkding::DuplicateBehavior,
 
     /// The username on the lz side to import as.
     #[clap(long)]
@@ -25,14 +30,17 @@ async fn main() -> anyhow::Result<()> {
         "sqlite:{}",
         args.linkding_backup.to_string_lossy()
     ))
-    .await?;
+    .await
+    .with_context(|| format!("origin DB file {}", args.linkding_backup.to_string_lossy()))?;
     let linkding_tx =
         lz_import_linkding::schema::LinkdingTransaction::from_pool(&mut linkding_db).await?;
 
-    let lz_db_pool = sqlx::Pool::connect(&format!("sqlite:{}", args.to.to_string_lossy())).await?;
+    let lz_db_pool = sqlx::Pool::connect(&format!("sqlite:{}", args.to.to_string_lossy()))
+        .await
+        .with_context(|| format!("destination DB file {}", args.to.to_string_lossy()))?;
     let lz = lz_db::Connection::from_pool(lz_db_pool);
     let mut tx = lz.begin_for_user(&args.user).await?;
-    lz_import_linkding::migrate::migrate(linkding_tx, &mut tx).await?;
+    lz_import_linkding::migrate::migrate(linkding_tx, &mut tx, args.on_duplicate).await?;
     tx.commit().await?;
     Ok(())
 }

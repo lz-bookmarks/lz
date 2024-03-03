@@ -133,6 +133,86 @@ impl<'c> Transaction<'c> {
         .fetch_one(&mut *self.txn)
         .await
     }
+
+    /// Find all users' bookmarks with the given URL.
+    #[tracing::instrument(skip(self))]
+    pub async fn find_bookmarks_by_url_for_everyone(
+        &mut self,
+        url: Url,
+    ) -> Result<Vec<Bookmark<BookmarkId, UserId>>, sqlx::Error> {
+        sqlx::query_as(
+            r#"
+               SELECT * FROM bookmarks WHERE url = ?;
+            "#,
+        )
+        .bind(url.to_string())
+        .fetch_all(&mut *self.txn)
+        .await
+    }
+
+    /// Find the current user's bookmark with the given URL, if it exists.
+    #[tracing::instrument(skip(self))]
+    pub async fn find_bookmark_with_url(
+        &mut self,
+        url: &Url,
+    ) -> Result<Option<Bookmark<BookmarkId, UserId>>, sqlx::Error> {
+        sqlx::query_as(
+            r#"
+               SELECT * FROM bookmarks WHERE url = ? AND user_id = ?;
+            "#,
+        )
+        .bind(url.to_string())
+        .bind(self.user().id)
+        .fetch_optional(&mut *self.txn)
+        .await
+    }
+
+    /// Update the values on a bookmark for a user.
+    ///
+    ///
+    /// ## Fields not modified
+    /// - `id` and `user_id` - A user may only update the bookmarks belonging to them.
+    ///
+    /// - `accessed_at` and `created_at` - these timestamps can't be
+    ///   manually reset.
+    #[tracing::instrument(skip(self))]
+    pub async fn update_bookmark(
+        &mut self,
+        bm: &Bookmark<BookmarkId, UserId>,
+    ) -> Result<(), sqlx::Error> {
+        let url = bm.url.as_str();
+        sqlx::query!(
+            r#"
+              UPDATE bookmarks
+              SET
+                modified_at = datetime(),
+                url = ?,
+                title = ?,
+                description = ?,
+                website_title = ?,
+                website_description = ?,
+                unread = ?,
+                shared = ?,
+                notes = ?,
+                import_properties = ?
+              WHERE bookmark_id = ? AND user_id = ?
+            "#,
+            url,
+            bm.title,
+            bm.description,
+            bm.website_title,
+            bm.website_description,
+            bm.unread,
+            bm.shared,
+            bm.notes,
+            bm.import_properties,
+            bm.id,
+            bm.user_id,
+        )
+        .execute(&mut *self.txn)
+        .await
+        .map(|_| ())
+    }
 }
 
 #[cfg(test)]
@@ -182,7 +262,7 @@ mod tests {
                 created_at: to_add.created_at,
                 modified_at: to_add.modified_at,
                 accessed_at: to_add.accessed_at,
-                url: to_add.url,
+                url: to_add.url.clone(),
                 title: to_add.title,
                 description: to_add.description,
                 website_title: to_add.website_title,
@@ -193,6 +273,9 @@ mod tests {
                 unread: to_add.unread,
             }
         );
+
+        let retrieved_by_url = txn.find_bookmark_with_url(&to_add.url).await?;
+        assert_eq!(Some(retrieved), retrieved_by_url);
         txn.commit().await?;
         Ok(())
     }

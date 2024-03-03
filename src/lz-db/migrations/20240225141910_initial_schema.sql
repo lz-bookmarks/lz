@@ -27,6 +27,8 @@ CREATE TABLE "bookmarks" (
   FOREIGN KEY ("user_id") REFERENCES "users"("user_id")
 );
 
+CREATE UNIQUE INDEX "bookmarks_by_user_and_url" ON "bookmarks" ("user_id", "url");
+
 CREATE TABLE "tags" (
   "tag_id" INTEGER NOT NULL PRIMARY KEY,
   "created_at" datetime NOT NULL,

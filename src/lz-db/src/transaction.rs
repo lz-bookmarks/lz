@@ -1,6 +1,14 @@
 use crate::Connection;
 
-/// A database transaction
+/// A database transaction, operating on the behalf of an `lz` user.
+///
+/// Transactions are the main way that `lz` code uses the database:
+/// This structure exposes operations on the DB, which allow working
+/// with bookmarks, tags, and so on.
+///
+/// Once "done" with the unit of operation (be it a full import run or
+/// an HTTP request), the transaction needs to be
+/// [`commit`][Transaction::commit]ed.
 #[derive(Debug)]
 pub struct Transaction<'c> {
     txn: sqlx::Transaction<'c, sqlx::sqlite::Sqlite>,

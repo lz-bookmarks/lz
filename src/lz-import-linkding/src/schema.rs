@@ -77,33 +77,75 @@ pub(crate) struct Bookmark {
 
 impl Bookmark {
     pub fn as_lz_bookmark(&self) -> lz_db::Bookmark<(), ()> {
-        let mut by_system = HashMap::new();
-        by_system.insert(
-            lz_db::ImportableSystem::Linkding,
-            serde_json::to_value(&self).expect("cleanly convert to serde_json::Value"),
+        let url = self.url.clone();
+        let mut other = lz_db::Bookmark {
+            id: (),
+            user_id: (),
+            url: url,
+            created_at: Default::default(),
+            modified_at: Default::default(),
+            accessed_at: Default::default(),
+            title: Default::default(),
+            description: Default::default(),
+            website_title: Default::default(),
+            website_description: Default::default(),
+            notes: Default::default(),
+            unread: Default::default(),
+            shared: Default::default(),
+            import_properties: Default::default(),
+        };
+        self.overwrite_into_lz_bookmark(&mut other);
+        other
+    }
+
+    pub fn overwrite_into_lz_bookmark<
+        ID: lz_db::IdType<lz_db::BookmarkId>,
+        UID: lz_db::IdType<lz_db::UserId>,
+    >(
+        &self,
+        other: &mut lz_db::Bookmark<ID, UID>,
+    ) {
+        let existing_import_properties = other.import_properties.clone();
+
+        let import_properties = existing_import_properties.map_or_else(
+            || {
+                Some(sqlx::types::Json(lz_db::ImportProperties {
+                    by_system: {
+                        let mut by_system = HashMap::new();
+                        by_system.insert(
+                            lz_db::ImportableSystem::Linkding,
+                            serde_json::to_value(&self)
+                                .expect("cleanly convert to serde_json::Value"),
+                        );
+                        by_system
+                    },
+                }))
+            },
+            |mut existing| {
+                existing.0.by_system.insert(
+                    lz_db::ImportableSystem::Linkding,
+                    serde_json::to_value(&self).expect("cleanly convert to serde_json::Value"),
+                );
+                Some(existing)
+            },
         );
-        let import_properties = Some(sqlx::types::Json(lz_db::ImportProperties { by_system }));
-        let notes = match self.notes.as_ref() {
+
+        other.created_at = self.date_added;
+        other.modified_at = self.date_modified;
+        other.accessed_at = self.date_accessed;
+        other.url = self.url.clone();
+        other.title = self.title.clone();
+        other.description = self.description.clone();
+        other.website_title = self.website_title.clone();
+        other.website_description = self.website_description.clone();
+        other.notes = match self.notes.as_ref() {
             None => None,
             Some(n) if n.len() == 0 => None,
             Some(n) => Some(n.to_string()),
         };
-        lz_db::Bookmark {
-            id: (),
-            user_id: (),
-            created_at: self.date_added,
-            modified_at: self.date_modified,
-            accessed_at: self.date_accessed,
-            url: self.url.clone(),
-            title: self.title.clone(),
-            description: self.description.clone(),
-            website_title: self.website_title.clone(),
-            website_description: self.website_description.clone(),
-            notes,
-            unread: self.unread,
-            shared: self.shared,
-            import_properties,
-        }
+        other.unread = self.unread;
+        other.shared = self.shared;
+        other.import_properties = import_properties;
     }
 }
 

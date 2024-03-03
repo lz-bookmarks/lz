@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 pub mod schema;
 
 pub mod migrate;
+pub use migrate::Migration;
 
 /// What to do about duplicate bookmarks.
 ///

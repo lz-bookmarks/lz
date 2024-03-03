@@ -3,6 +3,7 @@ resolver = "2"
 
 # We place member crates in the src/ directory:
 members = [
-  "src/lz-db",
+  "src/lz-db", 
+  "src/lz-import-linkding",
   "src/lz-web"
 ]

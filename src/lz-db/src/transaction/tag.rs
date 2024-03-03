@@ -21,7 +21,7 @@ impl IdType<TagId> for TagId {
 /// A named tag, possibly assigned to multiple bookmarks.
 ///
 /// See the section in [Transaction][Transaction#working-with-tags]
-#[derive(Serialize, Deserialize, PartialEq, Eq, Hash, Debug, FromRow)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Hash, Debug, FromRow)]
 pub struct Tag<ID: IdType<TagId>> {
     /// Database identifier of the tag.
     #[sqlx(rename = "tag_id")]
@@ -29,6 +29,15 @@ pub struct Tag<ID: IdType<TagId>> {
 
     /// Name of the tag.
     pub name: String,
+
+    /// When the tag was first created.
+    pub created_at: chrono::DateTime<chrono::Utc>,
+}
+
+impl From<Tag<TagId>> for TagId {
+    fn from(val: Tag<TagId>) -> Self {
+        val.id
+    }
 }
 
 /// # Working with [`Tag`]s
@@ -97,7 +106,7 @@ impl<'c> Transaction<'c> {
         for name in missing_names {
             let tag = sqlx::query_as(
                 r#"
-                  INSERT INTO tags (name) VALUES (?) RETURNING *;
+                  INSERT INTO tags (name, created_at) VALUES (?, datetime()) RETURNING *;
                 "#,
             )
             .bind(name)
@@ -131,11 +140,15 @@ impl<'c> Transaction<'c> {
     /// Any existing tagging will be removed and replaced with the
     /// given set of tags. Tags are not garbage-collected and will
     /// stick around, so they are available for re-use.
-    pub async fn set_bookmark_tags<T: std::fmt::Debug + IntoIterator<Item = Tag<TagId>>>(
+    pub async fn set_bookmark_tags<TS, T>(
         &mut self,
         bookmark_id: BookmarkId,
-        tags: T,
-    ) -> Result<(), sqlx::Error> {
+        tags: TS,
+    ) -> Result<(), sqlx::Error>
+    where
+        TS: std::fmt::Debug + IntoIterator<Item = T>,
+        T: Into<TagId>,
+    {
         let me = self.user().id;
         query!(
             r#"
@@ -149,20 +162,7 @@ impl<'c> Transaction<'c> {
         .execute(&mut *self.txn)
         .await?;
 
-        for tag in tags {
-            query!(
-                r#"
-              INSERT INTO bookmark_tags (
-                bookmark_id, tag_id
-              ) VALUES (?, ?)
-            "#,
-                bookmark_id,
-                tag.id,
-            )
-            .execute(&mut *self.txn)
-            .await?;
-        }
-        Ok(())
+        self.add_bookmark_tags(bookmark_id, tags).await
     }
 
     /// Retrieve a bookmark's tags.
@@ -184,6 +184,33 @@ impl<'c> Transaction<'c> {
         .bind(bookmark_id)
         .fetch_all(&mut *self.txn)
         .await
+    }
+
+    pub async fn add_bookmark_tags<TS, T>(
+        &mut self,
+        bookmark_id: BookmarkId,
+        tags: TS,
+    ) -> Result<(), sqlx::Error>
+    where
+        TS: std::fmt::Debug + IntoIterator<Item = T>,
+        T: Into<TagId>,
+    {
+        for tag in tags {
+            let tag_id = tag.into();
+            query!(
+                r#"
+              INSERT INTO bookmark_tags (
+                bookmark_id, tag_id
+              ) VALUES (?, ?)
+              ON CONFLICT DO NOTHING
+            "#,
+                bookmark_id,
+                tag_id,
+            )
+            .execute(&mut *self.txn)
+            .await?;
+        }
+        Ok(())
     }
 }
 
@@ -238,12 +265,17 @@ mod tests {
                 id: (),
                 user_id: (),
                 created_at: Default::default(),
+                modified_at: None,
+                accessed_at: None,
                 url: Url::parse("https://github.com/antifuchs/lz")?,
                 title: "The lz repo".to_string(),
-                description: "Our extremely high-quality repo".to_string(),
+                description: Some("Our extremely high-quality repo".to_string()),
                 website_title: None,
                 website_description: None,
-                notes: "".to_string(),
+                notes: Some("".to_string()),
+                import_properties: None,
+                shared: false,
+                unread: false,
             })
             .await?;
         let other_bookmark_id = txn
@@ -251,12 +283,17 @@ mod tests {
                 id: (),
                 user_id: (),
                 created_at: Default::default(),
+                modified_at: None,
+                accessed_at: None,
                 url: Url::parse("https://github.com/antifuchs/governor")?,
                 title: "The governor repo".to_string(),
-                description: "Another extremely high-quality repo".to_string(),
+                description: Some("Another extremely high-quality repo".to_string()),
                 website_title: None,
                 website_description: None,
-                notes: "".to_string(),
+                notes: Some("".to_string()),
+                import_properties: None,
+                shared: false,
+                unread: false,
             })
             .await?;
         let other_tags = txn.ensure_tags(["welp", "not-this"]).await?;

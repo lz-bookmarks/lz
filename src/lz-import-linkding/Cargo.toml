@@ -1,0 +1,18 @@
+[package]
+name = "lz-import-linkding"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.80"
+chrono = { version = "0.4.34", features = ["serde"] }
+clap = { version = "4.5.1", features = ["derive"] }
+futures = "0.3.30"
+lz-db = { version = "0.1.0", path = "../lz-db" }
+serde = "1.0.197"
+serde_json = { version = "1.0.114", features = ["raw_value"] }
+sqlx = { version = "0.7.3", features = ["sqlite", "migrate", "runtime-tokio", "chrono", "json"] }
+tokio = { version = "1.36.0", features = ["tracing", "macros", "rt-multi-thread"] }
+tracing = "0.1.40"
+tracing-subscriber = { version = "0.3.18", features = ["json"] }
+url = "2.5.0"

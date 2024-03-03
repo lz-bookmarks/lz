@@ -102,7 +102,7 @@ impl<'c> Transaction<'c> {
         let all_tags: BTreeSet<String> = tag_iter.map(|t| t.as_ref().to_string()).collect();
         let missing_names = all_tags.difference(&existing_names);
         let mut inserted = vec![];
-        tracing::info!(?existing_names, "Ensuring tags");
+        tracing::debug!(?existing_names, "Ensuring tags");
         for name in missing_names {
             let tag = sqlx::query_as(
                 r#"

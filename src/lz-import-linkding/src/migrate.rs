@@ -60,6 +60,7 @@ impl<'c> Migration<'c> {
             .await
             .context("tagging imported bookmarks")?;
         self.db.commit().await?;
+        tracing::info!("Import done");
         Ok(())
     }
 

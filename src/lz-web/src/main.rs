@@ -24,7 +24,11 @@ async fn main() {
 }
 
 /// basic handler that responds with a static string
-#[utoipa::path(get, path = "/")]
+#[utoipa::path(get, path = "/",
+    responses(
+        (status = 200, description = "Hello world."),
+    ),
+)]
 async fn root() -> &'static str {
     "Hello, World!"
 }

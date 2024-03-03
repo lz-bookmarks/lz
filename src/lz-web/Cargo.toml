@@ -13,3 +13,5 @@ sqlx = { version = "0.7.3", features = ["runtime-tokio"] }
 tokio = { version = "1.36.0", features = ["tracing", "macros", "rt-multi-thread"] }
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["json"] }
+utoipa = { version = "4.2.0", features = ["axum_extras"] }
+utoipa-rapidoc = { version = "3.0.0", features = ["axum"] }

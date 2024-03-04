@@ -25,3 +25,5 @@ static_assertions = "1.1.0"
 validator = { version = "=0.16.1", features = ["derive"] }
 utoipa-redoc = { version = "3.0.0", features = ["axum"] }
 utoipa-swagger-ui = { version = "6.0.0", features = ["axum"] }
+tower = { version = "0.4.13", features = ["tracing"] }
+tower-http = { version = "0.5.2", features = ["tracing", "full"] }

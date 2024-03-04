@@ -4,6 +4,8 @@ use axum::Router;
 
 use clap::Parser;
 use lz_web::db::GlobalWebAppState;
+use tower::ServiceBuilder;
+use tower_http::trace::TraceLayer;
 use utoipa::OpenApi as _;
 use utoipa_redoc::{Redoc, Servable as _};
 use utoipa_swagger_ui::SwaggerUi;
@@ -31,7 +33,10 @@ struct Args {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     // initialize tracing
-    tracing_subscriber::fmt::init();
+    tracing_subscriber::fmt()
+        .with_target(false)
+        .compact()
+        .init();
 
     let args = Args::parse();
 

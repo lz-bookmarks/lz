@@ -9,6 +9,8 @@ use axum_valid::Valid;
 use lz_db::{BookmarkId, ExistingBookmark, ExistingTag, IdType as _, UserId};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use tower::ServiceBuilder;
+use tower_http::trace::TraceLayer;
 use utoipa::{OpenApi, ToResponse, ToSchema};
 use validator::Validate;
 
@@ -28,8 +30,19 @@ use crate::db::{DbTransaction, GlobalWebAppState};
 pub struct ApiDoc;
 
 pub fn router() -> Router<Arc<GlobalWebAppState>> {
-    
-    Router::new().route("/bookmarks", get(list_bookmarks))
+    Router::new()
+        .route("/bookmarks", get(list_bookmarks))
+        .layer(
+            ServiceBuilder::new().layer(
+                TraceLayer::new_for_http()
+                    .make_span_with(
+                        tower_http::trace::DefaultMakeSpan::new().level(tracing::Level::INFO),
+                    )
+                    .on_response(
+                        tower_http::trace::DefaultOnResponse::new().level(tracing::Level::INFO),
+                    ),
+            ),
+        )
 }
 
 #[derive(Serialize, Deserialize, Debug, ToSchema, Error)]

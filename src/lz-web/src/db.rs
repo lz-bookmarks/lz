@@ -18,11 +18,29 @@ use axum::{
 /// This isn't all that useful (or safe) in a web request handler. Use
 /// [`DbTransaction`] (extracted from the request) instead.
 pub struct GlobalWebAppState {
-    pub pool: lz_db::Connection,
-    pub authentication_header_name: String,
-    pub default_user_name: Option<String>,
+    pool: lz_db::Connection,
+    authentication_header_name: String,
+    default_user_name: Option<String>,
 }
 
+impl GlobalWebAppState {
+    pub fn new(
+        pool: lz_db::Connection,
+        authentication_header_name: String,
+        default_user_name: Option<String>,
+    ) -> Self {
+        Self {
+            pool,
+            authentication_header_name,
+            default_user_name,
+        }
+    }
+}
+
+/// A DB transaction that is started with each request.
+///
+/// The transaction does not get auto-committed at all: If your
+/// request causes any changes to the DB, it _must_ call `commit`.
 pub struct DbTransaction {
     txn: lz_db::Transaction,
 }

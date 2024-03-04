@@ -1,5 +1,3 @@
-
-
 /// A connection to an sqlite DB holding our bookmark data.
 pub struct Connection {
     pub(crate) db: sqlx::sqlite::SqlitePool,

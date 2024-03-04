@@ -8,15 +8,27 @@ use axum::{debug_handler, extract::Query, http::StatusCode, routing::get, Json, 
 use axum_valid::Valid;
 use lz_db::{Bookmark, BookmarkId, IdType as _, Tag, TagId, UserId};
 use serde::{Deserialize, Serialize};
-use static_assertions::assert_impl_all;
 use thiserror::Error;
-use utoipa::ToSchema;
+use utoipa::{OpenApi, ToResponse, ToSchema};
 use validator::Validate;
 
 use crate::db::{DbTransaction, GlobalWebAppState};
 
+#[derive(OpenApi)]
+#[openapi(
+    paths(list_bookmarks),
+    security(),
+    servers((url = "/api/v1")),
+    components(
+        schemas(Pagination),
+        responses(AnnotatedBookmark)
+    )
+)]
+pub struct ApiDoc;
+
 pub fn router() -> Router<Arc<GlobalWebAppState>> {
-    Router::new().route("/bookmarks", get(list_bookmarks))
+    let router = Router::new().route("/bookmarks", get(list_bookmarks));
+    router
 }
 
 #[derive(Serialize, Deserialize, Debug, ToSchema, Error)]
@@ -38,26 +50,25 @@ where
     s.serialize_str("(nasty DB error omitted)")
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Hash, Validate)]
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Hash, Validate, ToSchema)]
 struct Pagination {
     last_seen: Option<BookmarkId>,
     #[validate(range(min = 1, max = 500))]
     per_page: Option<u16>,
 }
 
-assert_impl_all!(Pagination: Validate);
-
-#[derive(Serialize, Debug, ToSchema)]
-struct AnnotatedBookmark {
+/// A bookmark, including tags set on it.
+#[derive(Serialize, Debug, ToSchema, ToResponse)]
+pub struct AnnotatedBookmark {
     bookmark: Bookmark<BookmarkId, UserId>,
     tags: Vec<Tag<TagId>>,
 }
 
 /// Lists the user's bookmarks, newest to oldest
 #[debug_handler(state = Arc<GlobalWebAppState>)]
-#[utoipa::path(get, path = "/api/bookmarks",
+#[utoipa::path(get, path = "/bookmarks",
     responses(
-        (status = 200, description = "Lists all bookmarks"),
+        (status = 200, body = inline(Vec<AnnotatedBookmark>), description = "Lists all bookmarks"),
     ),
 )]
 #[tracing::instrument(skip(txn))]

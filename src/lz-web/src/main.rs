@@ -1,10 +1,10 @@
 use std::{net::SocketAddr, path::PathBuf, sync::Arc};
 
-use axum::{routing::get, Router};
+use axum::Router;
 
 use clap::Parser;
-use lz_web::db::{DbTransaction, GlobalWebAppState};
-use utoipa::OpenApi;
+use lz_web::db::GlobalWebAppState;
+use utoipa::OpenApi as _;
 use utoipa_rapidoc::RapiDoc;
 
 /// The lz tagged bookmark manager web server
@@ -34,38 +34,24 @@ async fn main() -> anyhow::Result<()> {
 
     let args = Args::parse();
 
-    #[derive(OpenApi)]
-    #[openapi(paths(root, lz_web::api::list_bookmarks))]
-    struct ApiDoc;
-
     let pool =
         lz_db::Connection::from_pool(sqlx::SqlitePool::connect(&args.db.to_string_lossy()).await?);
-    let db_conns = Arc::new(GlobalWebAppState {
+    let db_conns = Arc::new(GlobalWebAppState::new(
         pool,
-        authentication_header_name: args.authentication_header_name,
-        default_user_name: args.default_user_name,
-    });
+        args.authentication_header_name,
+        args.default_user_name,
+    ));
+    let api_router = lz_web::api::router();
     let app = Router::new()
-        .merge(RapiDoc::with_openapi("/api-docs/openapi2.json", ApiDoc::openapi()).path("/rapidoc"))
-        // `GET /` goes to `root`
-        .route("/", get(root))
-        .nest("/api", lz_web::api::router())
+        .merge(
+            RapiDoc::with_openapi("/api-docs/openapi2.json", lz_web::api::ApiDoc::openapi())
+                .path("/docs/api"),
+        )
+        .nest("/api/v1", api_router)
         .with_state(db_conns);
 
     // run our app with hyper, listening globally on port 3000
     let listener = tokio::net::TcpListener::bind(args.listen_on).await.unwrap();
     axum::serve(listener, app).await.unwrap();
     Ok(())
-}
-
-/// basic handler that responds with a static string
-#[utoipa::path(get, path = "/",
-    responses(
-        (status = 200, description = "Hello world."),
-    ),
-)]
-#[tracing::instrument()]
-async fn root(txn: DbTransaction) -> &'static str {
-    tracing::info!(user = ?(*txn).user().id);
-    "Hello, World!"
 }

@@ -1,4 +1,4 @@
-use std::{path::PathBuf, sync::Arc};
+use std::{net::SocketAddr, path::PathBuf, sync::Arc};
 
 use axum::{routing::get, Router};
 
@@ -21,6 +21,10 @@ struct Args {
     /// Username to use if HTTP headers don't contain one. Useful mainly for tests.
     #[clap(long)]
     default_user_name: Option<String>,
+
+    /// Address to listen on.
+    #[clap(long, default_value = "0.0.0.0:8000")]
+    listen_on: SocketAddr,
 }
 
 #[tokio::main]
@@ -48,7 +52,7 @@ async fn main() -> anyhow::Result<()> {
         .with_state(db_conns);
 
     // run our app with hyper, listening globally on port 3000
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
+    let listener = tokio::net::TcpListener::bind(args.listen_on).await.unwrap();
     axum::serve(listener, app).await.unwrap();
     Ok(())
 }

@@ -79,7 +79,7 @@ impl Transaction {
         for bmt in tags_by_bookmark {
             value
                 .entry(bmt.bookmark_id)
-                .or_insert_with(|| Vec::new())
+                .or_insert_with(Vec::new)
                 .push(bmt.tag);
         }
         Ok(value)

@@ -28,8 +28,8 @@ use crate::db::{DbTransaction, GlobalWebAppState};
 pub struct ApiDoc;
 
 pub fn router() -> Router<Arc<GlobalWebAppState>> {
-    let router = Router::new().route("/bookmarks", get(list_bookmarks));
-    router
+    
+    Router::new().route("/bookmarks", get(list_bookmarks))
 }
 
 #[derive(Serialize, Deserialize, Debug, ToSchema, Error)]

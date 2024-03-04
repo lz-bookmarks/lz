@@ -4,11 +4,14 @@
 
 use std::sync::Arc;
 
-use axum::{extract::Query, http::StatusCode, routing::get, Json, Router};
+use axum::{debug_handler, extract::Query, http::StatusCode, routing::get, Json, Router};
+use axum_valid::Valid;
 use lz_db::{Bookmark, BookmarkId, IdType as _, Tag, TagId, UserId};
 use serde::{Deserialize, Serialize};
+use static_assertions::assert_impl_all;
 use thiserror::Error;
 use utoipa::ToSchema;
+use validator::Validate;
 
 use crate::db::{DbTransaction, GlobalWebAppState};
 
@@ -35,11 +38,14 @@ where
     s.serialize_str("(nasty DB error omitted)")
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Hash, Validate)]
 struct Pagination {
     last_seen: Option<BookmarkId>,
+    #[validate(range(min = 1, max = 500))]
     per_page: Option<u16>,
 }
+
+assert_impl_all!(Pagination: Validate);
 
 #[derive(Serialize, Debug, ToSchema)]
 struct AnnotatedBookmark {
@@ -48,6 +54,7 @@ struct AnnotatedBookmark {
 }
 
 /// Lists the user's bookmarks, newest to oldest
+#[debug_handler(state = Arc<GlobalWebAppState>)]
 #[utoipa::path(get, path = "/api/bookmarks",
     responses(
         (status = 200, description = "Lists all bookmarks"),
@@ -56,7 +63,7 @@ struct AnnotatedBookmark {
 #[tracing::instrument(skip(txn))]
 async fn list_bookmarks(
     mut txn: DbTransaction,
-    Query(pagination): Query<Pagination>,
+    Valid(Query(pagination)): Valid<Query<Pagination>>,
 ) -> Result<Json<Vec<AnnotatedBookmark>>, (StatusCode, Json<ApiError>)> {
     let bms = txn
         .list_bookmarks(pagination.per_page.unwrap_or(20), pagination.last_seen)

@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 lz-db = { path = "../lz-db" }
-axum = "0.7.4"
+axum = { version = "0.7.4", features = ["macros"] }
 serde = "1.0.197"
 serde_json = "1.0.114"
 sqlx = { version = "0.7.3", features = ["runtime-tokio"] }
@@ -20,3 +20,6 @@ clap = { version = "4.5.1", features = ["derive"] }
 anyhow = { version = "1.0.80", features = ["backtrace"] }
 async-trait = "0.1.77"
 thiserror = "1.0.57"
+axum-valid = { version = "0.16.0", features = ["into_json"] }
+static_assertions = "1.1.0"
+validator = { version = "=0.16.1", features = ["derive"] }

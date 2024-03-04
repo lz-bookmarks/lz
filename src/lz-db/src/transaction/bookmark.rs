@@ -72,6 +72,18 @@ pub struct Bookmark<ID: IdType<BookmarkId>, UID: IdType<UserId>> {
     pub import_properties: Option<sqlx::types::Json<crate::ImportProperties>>,
 }
 
+impl<U: IdType<UserId>> From<&Bookmark<BookmarkId, U>> for BookmarkId {
+    fn from(val: &Bookmark<BookmarkId, U>) -> Self {
+        val.id
+    }
+}
+
+impl<U: IdType<UserId>> From<Bookmark<BookmarkId, U>> for BookmarkId {
+    fn from(val: Bookmark<BookmarkId, U>) -> Self {
+        val.id
+    }
+}
+
 /// # Working with Bookmarks
 impl Transaction {
     /// Store a new bookmark in the database.

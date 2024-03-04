@@ -40,6 +40,12 @@ impl From<Tag<TagId>> for TagId {
     }
 }
 
+impl From<&Tag<TagId>> for TagId {
+    fn from(val: &Tag<TagId>) -> Self {
+        val.id
+    }
+}
+
 /// # Working with [`Tag`]s
 impl Transaction {
     /// Return all existing tags matching the given names.

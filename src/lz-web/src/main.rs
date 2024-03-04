@@ -35,7 +35,7 @@ async fn main() -> anyhow::Result<()> {
     let args = Args::parse();
 
     #[derive(OpenApi)]
-    #[openapi(paths(root))]
+    #[openapi(paths(root, lz_web::api::list_bookmarks))]
     struct ApiDoc;
 
     let pool =
@@ -49,6 +49,7 @@ async fn main() -> anyhow::Result<()> {
         .merge(RapiDoc::with_openapi("/api-docs/openapi2.json", ApiDoc::openapi()).path("/rapidoc"))
         // `GET /` goes to `root`
         .route("/", get(root))
+        .nest("/api", lz_web::api::router())
         .with_state(db_conns);
 
     // run our app with hyper, listening globally on port 3000

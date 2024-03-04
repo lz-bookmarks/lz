@@ -19,3 +19,4 @@ utoipa-rapidoc = { version = "3.0.0", features = ["axum"] }
 clap = { version = "4.5.1", features = ["derive"] }
 anyhow = { version = "1.0.80", features = ["backtrace"] }
 async-trait = "0.1.77"
+thiserror = "1.0.57"

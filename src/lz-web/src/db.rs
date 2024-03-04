@@ -8,10 +8,9 @@ use std::{
 
 use async_trait::async_trait;
 use axum::{
-    extract::{FromRequestParts, State},
+    extract::FromRequestParts,
     http::{request::Parts, StatusCode},
     response::IntoResponse,
-    Extension,
 };
 
 /// An axum state object containing a connection pool to the SQLite DB.
@@ -71,12 +70,26 @@ impl FromRequestParts<Arc<GlobalWebAppState>> for DbTransaction {
             .headers
             .get(&state.authentication_header_name)
             .map(|hv| hv.to_str())
-            .or_else(|| state.default_user_name.as_ref().map(|s| Ok(s.as_str())));
+            .or_else(|| {
+                let username = state.default_user_name.as_ref().map(|s| Ok(s.as_str()));
+                if let Some(default_username) = &username {
+                    tracing::debug!(
+                        ?default_username,
+                        "request did not set user name, using default"
+                    );
+                }
+                username
+            });
         let txn = state
             .pool
             .begin_for_user(
-                user.ok_or(DbTransactionRejection)?
-                    .map_err(|_| DbTransactionRejection)?,
+                user.ok_or_else(|| {
+                    tracing::error!("No user name could be determined from HTTP headers.");
+                    DbTransactionRejection})?
+                    .map_err(|e| {
+                        tracing::warn!(error=%e, error_debug=?e, "HTTP headers contained a user name with invalid characters");
+                        DbTransactionRejection
+                    } )?,
             )
             .await
             .map_err(|e| {

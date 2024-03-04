@@ -1,11 +1,24 @@
 use serde::{Deserialize, Serialize};
 use sqlx::{prelude::*, query_scalar, types::Text};
 use url::Url;
+use utoipa::{ToResponse, ToSchema};
 
 use crate::{IdType, Transaction, UserId};
 
 /// The database ID of a bookmark.
-#[derive(Serialize, Deserialize, PartialEq, Eq, Hash, Debug, Clone, Copy, sqlx::Type)]
+#[derive(
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    Hash,
+    Debug,
+    Clone,
+    Copy,
+    sqlx::Type,
+    ToSchema,
+    ToResponse,
+)]
 #[sqlx(transparent)]
 pub struct BookmarkId(i64);
 
@@ -20,7 +33,10 @@ impl IdType<BookmarkId> for BookmarkId {
 /// A bookmark saved by a user.
 ///
 /// See the section in [Transaction][Transaction#working-with-bookmarks]
-#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone, FromRow)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone, FromRow, ToSchema, ToResponse)]
+#[aliases(
+    ExistingBookmark = Bookmark<BookmarkId, UserId>,
+)]
 pub struct Bookmark<ID: IdType<BookmarkId>, UID: IdType<UserId>> {
     /// Database identifier of the bookmark
     #[sqlx(rename = "bookmark_id")]
@@ -69,6 +85,7 @@ pub struct Bookmark<ID: IdType<BookmarkId>, UID: IdType<UserId>> {
     pub shared: bool,
 
     /// Properties imported from other systems.
+    #[serde(skip_deserializing)]
     pub import_properties: Option<sqlx::types::Json<crate::ImportProperties>>,
 }
 

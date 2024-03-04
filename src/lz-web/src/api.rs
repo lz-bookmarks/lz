@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use axum::{debug_handler, extract::Query, http::StatusCode, routing::get, Json, Router};
 use axum_valid::Valid;
-use lz_db::{Bookmark, BookmarkId, IdType as _, Tag, TagId, UserId};
+use lz_db::{BookmarkId, ExistingBookmark, ExistingTag, IdType as _, UserId};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use utoipa::{OpenApi, ToResponse, ToSchema};
@@ -16,12 +16,13 @@ use crate::db::{DbTransaction, GlobalWebAppState};
 
 #[derive(OpenApi)]
 #[openapi(
+    tags((name = "Bookmarks", description = "Managing one's bookmarks")),
     paths(list_bookmarks),
     security(),
-    servers((url = "/api/v1")),
+    servers((url = "/api/v1/")),
     components(
-        schemas(Pagination),
-        responses(AnnotatedBookmark)
+        schemas(UserId, BookmarkId, ExistingBookmark, ExistingTag, Pagination),
+        responses(AnnotatedBookmark, UserId, ExistingBookmark, ExistingTag)
     )
 )]
 pub struct ApiDoc;
@@ -50,9 +51,22 @@ where
     s.serialize_str("(nasty DB error omitted)")
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Hash, Validate, ToSchema)]
+/// Parameters that govern non-offset based pagination.
+///
+/// Pagination in `lz` works by getting the next page based on what
+/// the previous page's last element was. To that end, fill the
+/// `last_seen` parameter.
+#[derive(
+    Deserialize, Serialize, Debug, Clone, Default, PartialEq, Eq, Hash, Validate, ToSchema,
+)]
+#[schema(default)]
 struct Pagination {
+    /// The last batch's last (oldest) bookmark ID
+    #[schema(example = None)]
     last_seen: Option<BookmarkId>,
+
+    /// How many items to return
+    #[schema(example = 50)]
     #[validate(range(min = 1, max = 500))]
     per_page: Option<u16>,
 }
@@ -60,13 +74,22 @@ struct Pagination {
 /// A bookmark, including tags set on it.
 #[derive(Serialize, Debug, ToSchema, ToResponse)]
 pub struct AnnotatedBookmark {
-    bookmark: Bookmark<BookmarkId, UserId>,
-    tags: Vec<Tag<TagId>>,
+    bookmark: ExistingBookmark,
+    tags: Vec<ExistingTag>,
 }
 
-/// Lists the user's bookmarks, newest to oldest
+/// List the user's bookmarks, newest to oldest.
 #[debug_handler(state = Arc<GlobalWebAppState>)]
-#[utoipa::path(get, path = "/bookmarks",
+#[utoipa::path(get,
+    path = "/bookmarks",
+    tag = "Bookmarks",
+    params(
+        ("pagination" = inline(Option<Pagination>),
+            Query,
+            style = Form,
+            explode,
+        ),
+    ),
     responses(
         (status = 200, body = inline(Vec<AnnotatedBookmark>), description = "Lists all bookmarks"),
     ),
@@ -74,8 +97,9 @@ pub struct AnnotatedBookmark {
 #[tracing::instrument(skip(txn))]
 async fn list_bookmarks(
     mut txn: DbTransaction,
-    Valid(Query(pagination)): Valid<Query<Pagination>>,
+    pagination: Option<Valid<Query<Pagination>>>,
 ) -> Result<Json<Vec<AnnotatedBookmark>>, (StatusCode, Json<ApiError>)> {
+    let pagination = pagination.unwrap_or_default();
     let bms = txn
         .list_bookmarks(pagination.per_page.unwrap_or(20), pagination.last_seen)
         .await

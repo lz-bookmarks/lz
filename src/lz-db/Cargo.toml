@@ -1,7 +1,8 @@
 [package]
 name = "lz-db"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
 
 [dependencies]
 anyhow = "1.0.80"
@@ -14,6 +15,7 @@ url = { version = "2.5.0", features = ["serde"] }
 sqlx = { version = "0.7.3", features = ["sqlite", "migrate", "runtime-tokio", "json", "chrono"] }
 serde_json = { version = "1.0.114", features = ["raw_value"] }
 chrono = { version = "0.4.34", features = ["serde"] }
+utoipa = { version = "4.2.0", features = ["chrono", "url"] }
 
 [dev-dependencies]
 test-log = { version = "0.2.14", features = ["trace"], default-features = false }

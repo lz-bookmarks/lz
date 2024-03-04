@@ -8,9 +8,22 @@
 use crate::{IdType, Transaction};
 use serde::{Deserialize, Serialize};
 use sqlx::{prelude::*, query_as};
+use utoipa::{ToResponse, ToSchema};
 
 /// The database ID of a user.
-#[derive(Serialize, Deserialize, PartialEq, Eq, Hash, Debug, Clone, Copy, sqlx::Type)]
+#[derive(
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    Hash,
+    Debug,
+    Clone,
+    Copy,
+    sqlx::Type,
+    ToSchema,
+    ToResponse,
+)]
 #[sqlx(transparent)]
 pub struct UserId(i64);
 
@@ -26,7 +39,7 @@ impl IdType<UserId> for UserId {
 ///
 /// The currently active user can be retrieved via
 /// [`Transaction::user`].
-#[derive(Serialize, Deserialize, PartialEq, Eq, Hash, Debug, FromRow)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Hash, Debug, FromRow, ToSchema, ToResponse)]
 pub struct User<ID: IdType<UserId>> {
     /// Database identifier of the user.
     #[sqlx(rename = "user_id")]

@@ -2,11 +2,24 @@ use std::collections::BTreeSet;
 
 use serde::{Deserialize, Serialize};
 use sqlx::{prelude::*, query};
+use utoipa::{ToResponse, ToSchema};
 
 use crate::{BookmarkId, IdType, Transaction};
 
 /// The database ID of a tag.
-#[derive(Serialize, Deserialize, PartialEq, Eq, Hash, Debug, Clone, Copy, sqlx::Type)]
+#[derive(
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    Hash,
+    Debug,
+    Clone,
+    Copy,
+    sqlx::Type,
+    ToSchema,
+    ToResponse,
+)]
 #[sqlx(transparent)]
 pub struct TagId(i64);
 
@@ -21,10 +34,16 @@ impl IdType<TagId> for TagId {
 /// A named tag, possibly assigned to multiple bookmarks.
 ///
 /// See the section in [Transaction][Transaction#working-with-tags]
-#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Hash, Debug, FromRow)]
+#[derive(
+    Serialize, Deserialize, PartialEq, Eq, Clone, Hash, Debug, FromRow, ToSchema, ToResponse,
+)]
+#[aliases(
+    ExistingTag = Tag<TagId>,
+)]
 pub struct Tag<ID: IdType<TagId>> {
     /// Database identifier of the tag.
     #[sqlx(rename = "tag_id")]
+    #[serde(skip_deserializing)]
     pub id: ID,
 
     /// Name of the tag.

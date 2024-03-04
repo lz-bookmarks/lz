@@ -3,7 +3,12 @@ resolver = "2"
 
 # We place member crates in the src/ directory:
 members = [
-  "src/lz-db", 
+  "src/lz-db",
   "src/lz-import-linkding",
   "src/lz-web"
 ]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"

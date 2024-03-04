@@ -5,7 +5,8 @@ use axum::Router;
 use clap::Parser;
 use lz_web::db::GlobalWebAppState;
 use utoipa::OpenApi as _;
-use utoipa_rapidoc::RapiDoc;
+use utoipa_redoc::{Redoc, Servable as _};
+use utoipa_swagger_ui::SwaggerUi;
 
 /// The lz tagged bookmark manager web server
 #[derive(Clone, Eq, PartialEq, Debug, Parser)]
@@ -44,9 +45,10 @@ async fn main() -> anyhow::Result<()> {
     let api_router = lz_web::api::router();
     let app = Router::new()
         .merge(
-            RapiDoc::with_openapi("/api-docs/openapi2.json", lz_web::api::ApiDoc::openapi())
-                .path("/docs/api"),
+            SwaggerUi::new("/docs/swagger")
+                .url("/docs/openapi.json", lz_web::api::ApiDoc::openapi()),
         )
+        .merge(Redoc::with_url("/docs/api", lz_web::api::ApiDoc::openapi()))
         .nest("/api/v1", api_router)
         .with_state(db_conns);
 

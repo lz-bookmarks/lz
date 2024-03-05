@@ -20,6 +20,7 @@
         inputs.flake-parts.flakeModules.easyOverlay
         inputs.flake-root.flakeModule
         inputs.proc-flake.flakeModule
+        inputs.pre-commit-hooks-nix.flakeModule
       ];
 
       perSystem = {
@@ -85,6 +86,11 @@
                 name = "dev-server";
                 package = config.proc.groups.dev-server.package;
               }
+              {
+                help = "Set up the pre-commit hook for this repo";
+                name = "setup-pre-commit";
+                command = config.pre-commit.installationScript;
+              }
             ];
             packages = [
               pkgs.sqlx-cli
@@ -115,6 +121,14 @@
         proc.groups.dev-server.processes = {
           backend.command = "${pkgs.cargo-watch}/bin/cargo-watch -- cargo run --color always --bin lz-web -- --db dev-db.sqlite --authentication-header-name X-Tailscale-User-LoginName --default-user-name=developer --listen-on=127.0.0.1:3000";
         };
+
+        pre-commit.settings = {
+          hooks = {
+            alejandra.enable = true;
+            rustfmt.enable = true;
+            clippy.enable = true;
+          };
+        };
       };
     };
 
@@ -123,6 +137,7 @@
     devshell.url = "github:numtide/devshell";
     proc-flake.url = "github:srid/proc-flake";
     flake-root.url = "github:srid/flake-root";
+    pre-commit-hooks-nix.url = "github:cachix/pre-commit-hooks.nix";
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     flake-compat = {
       url = "github:edolstra/flake-compat";

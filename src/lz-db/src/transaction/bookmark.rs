@@ -85,7 +85,7 @@ pub struct Bookmark<ID: IdType<BookmarkId>, UID: IdType<UserId>> {
     pub shared: bool,
 
     /// Properties imported from other systems.
-    #[serde(skip_deserializing)]
+    #[serde(skip_deserializing, skip_serializing)]
     pub import_properties: Option<sqlx::types::Json<crate::ImportProperties>>,
 }
 

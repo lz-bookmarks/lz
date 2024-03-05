@@ -82,14 +82,45 @@
             ];
             commands = [
               {
-                help = "Run all servers for development";
+                category = "development";
+                help = "run all servers for development";
                 name = "dev-server";
                 package = config.proc.groups.dev-server.package;
               }
               {
-                help = "Set up the pre-commit hook for this repo";
+                category = "development";
+                help = "setup the pre-commit hook for this repo";
                 name = "setup-pre-commit";
                 command = config.pre-commit.installationScript;
+              }
+
+              {
+                category = "maintenance";
+                help = "regenerate the frontend TS types from our OpenAPI spec";
+                name = "regenerate-openapi-spec";
+                package = pkgs.writeShellApplication {
+                  name = "regenerate-openapi-spec";
+                  text = ''
+                    spec="$(mktemp)"
+                    trap 'rm "$spec"' EXIT
+                    cargo run --bin generate-openapi-specs > "$spec"
+                    cd lz-frontend
+                    npm install --no-fund
+                    ./node_modules/.bin/openapi-typescript "$spec" -o src/api/v1.d.ts
+                  '';
+                };
+              }
+              {
+                category = "maintenance";
+                help = "set up and migrate the dev database";
+                name = "setup-db";
+                package = pkgs.writeShellApplication {
+                  name = "setup-db";
+                  text = ''
+                    sqlx database reset
+                    cargo sqlx prepare --workspace
+                  '';
+                };
               }
             ];
             packages = [

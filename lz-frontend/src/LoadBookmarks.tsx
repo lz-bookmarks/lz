@@ -18,10 +18,8 @@ export function LoadBookmarks() {
       <ul>
         {bookmarks.map(({ bookmark, tags }) => (
           <li key={bookmark.id}>
-            <a href={bookmark.url}>
-              {bookmark.title || bookmark.website_title}
-            </a>
-            <div>{bookmark.description || bookmark.website_description}</div>
+            <a href={bookmark.url}>{bookmark.title}</a>
+            <div>{bookmark.description}</div>
             <ul className="tags">
               {tags.map((tag) => (
                 <li key={tag.name}>{tag.name}</li>

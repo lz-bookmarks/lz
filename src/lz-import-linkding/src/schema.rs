@@ -135,12 +135,30 @@ impl Bookmark {
             },
         );
 
+        // Sometime in 2023, linkding started saving an empty
+        // description if none was set by the user. Let's undo this,
+        // it's annoying:
+        let title = match (
+            self.title.as_str(),
+            self.website_title.as_ref().map(|wt| wt.as_str()),
+        ) {
+            ("", wt) => wt.map(String::from).unwrap_or_default().clone(),
+            (title, _) => title.to_string(),
+        };
+        let description = match (
+            self.description.as_ref().map(|s| s.as_str()),
+            self.website_description.as_ref().map(|wd| wd.as_str()),
+        ) {
+            (Some("") | None, Some(wd)) => Some(wd.to_string().clone()),
+            (description, _) => description.map(|d| d.to_string()),
+        };
+
         other.created_at = self.date_added;
         other.modified_at = self.date_modified;
         other.accessed_at = self.date_accessed;
         other.url = self.url.clone();
-        other.title = self.title.clone();
-        other.description = self.description.clone();
+        other.title = title;
+        other.description = description;
         other.website_title = self.website_title.clone();
         other.website_description = self.website_description.clone();
         other.notes = match self.notes.as_ref() {

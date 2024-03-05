@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n              INSERT INTO bookmark_tags (\n                bookmark_id, tag_id\n              ) VALUES (?, ?)\n              ON CONFLICT DO NOTHING\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "5e274514b5a4ba7cd92c7133130936609894ac2dc7efe754a2c7d6a75e90c79f"
+}

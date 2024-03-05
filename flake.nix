@@ -96,6 +96,8 @@
               pkgs.sqlx-cli
               pkgs.sqlite
               pkgs.cargo-watch
+              pkgs.nodejs_21
+              pkgs.nodePackages.typescript-language-server
             ];
             language.rust = {
               enableDefaultToolchain = false;
@@ -120,10 +122,13 @@
 
         proc.groups.dev-server.processes = {
           backend.command = ''
-            ${pkgs.cargo-watch}/bin/cargo-watch -i *.nix -- cargo run --color always --bin lz-web -- --db dev-db.sqlite --authentication-header-name X-Tailscale-User-LoginName --default-user-name=developer --listen-on=127.0.0.1:3000
+            ${pkgs.cargo-watch}/bin/cargo-watch -i *.nix -i lz-frontend -- cargo run --color always --bin lz-web -- --db dev-db.sqlite --authentication-header-name X-Tailscale-User-LoginName --default-user-name=developer --listen-on=127.0.0.1:3000
           '';
           sqlite-web = {
             command = "${pkgs.sqlite-web}/bin/sqlite_web -x -r dev-db.sqlite";
+          };
+          frontend = {
+            command = "cd lz-frontend && npm i && npm run dev -- --strictPort --open";
           };
         };
 

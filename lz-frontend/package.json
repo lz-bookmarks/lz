@@ -27,6 +27,7 @@
     "openapi-typescript": "^6.7.4",
     "openapi-typescript-helpers": "^0.0.7",
     "typescript": "^5.2.2",
+    "typescript-eslint-language-service": "^5.0.5",
     "vite": "^5.1.4"
   }
 }

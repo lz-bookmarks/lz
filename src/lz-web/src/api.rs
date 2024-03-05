@@ -10,7 +10,7 @@ use lz_db::{BookmarkId, ExistingBookmark, ExistingTag, IdType as _, UserId};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tower::ServiceBuilder;
-use tower_http::trace::TraceLayer;
+use tower_http::{cors::CorsLayer, trace::TraceLayer};
 use utoipa::{OpenApi, ToResponse, ToSchema};
 use validator::Validate;
 
@@ -32,6 +32,7 @@ pub struct ApiDoc;
 pub fn router() -> Router<Arc<GlobalWebAppState>> {
     Router::new()
         .route("/bookmarks", get(list_bookmarks))
+        .layer(CorsLayer::permissive())
         .layer(
             ServiceBuilder::new().layer(
                 TraceLayer::new_for_http()

@@ -18,6 +18,8 @@
       imports = [
         inputs.devshell.flakeModule
         inputs.flake-parts.flakeModules.easyOverlay
+        inputs.flake-root.flakeModule
+        inputs.proc-flake.flakeModule
       ];
 
       perSystem = {
@@ -77,9 +79,17 @@
               "${inputs.devshell}/extra/language/rust.nix"
               "${inputs.devshell}/extra/language/c.nix"
             ];
+            commands = [
+              {
+                help = "Run all servers for development";
+                name = "dev-server";
+                package = config.proc.groups.dev-server.package;
+              }
+            ];
             packages = [
               pkgs.sqlx-cli
               pkgs.sqlite
+              pkgs.cargo-watch
             ];
             language.rust = {
               enableDefaultToolchain = false;
@@ -101,12 +111,18 @@
             language.c.libraries = cLibs;
           };
         };
+
+        proc.groups.dev-server.processes = {
+          backend.command = "${pkgs.cargo-watch}/bin/cargo-watch -- cargo run --color always --bin lz-web -- --db dev-db.sqlite --authentication-header-name X-Tailscale-User-LoginName --default-user-name=developer --listen-on=127.0.0.1:3000";
+        };
       };
     };
 
   inputs = {
     flake-parts.url = "github:hercules-ci/flake-parts";
     devshell.url = "github:numtide/devshell";
+    proc-flake.url = "github:srid/proc-flake";
+    flake-root.url = "github:srid/flake-root";
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     flake-compat = {
       url = "github:edolstra/flake-compat";

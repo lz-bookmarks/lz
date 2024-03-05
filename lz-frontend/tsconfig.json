@@ -20,10 +20,8 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     /* recommended by openapi-typescript: */
-    "noUncheckedIndexedAccess": true,
-    "plugins": [{ "name": "typescript-eslint-language-service" }]
+    "noUncheckedIndexedAccess": true
   },
   "include": ["src"],
-  "exclude": ["node_modules"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

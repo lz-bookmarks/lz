@@ -10,7 +10,7 @@ export function LoadBookmarks() {
   if (isLoading) {
     return <h1>Loading...</h1>;
   }
-  if (!bookmarks || error) return <div>An error occurred. Retrying...</div>;
+  if (!bookmarks || error) return <div>An error occurred: {error}</div>;
 
   return (
     <>

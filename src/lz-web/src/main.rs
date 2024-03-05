@@ -4,8 +4,8 @@ use axum::Router;
 
 use clap::Parser;
 use lz_web::db::GlobalWebAppState;
-use tower::ServiceBuilder;
-use tower_http::trace::TraceLayer;
+
+
 use utoipa::OpenApi as _;
 use utoipa_redoc::{Redoc, Servable as _};
 use utoipa_swagger_ui::SwaggerUi;

@@ -161,6 +161,9 @@
           frontend = {
             command = "cd lz-frontend && npm i && npm run dev -- --strictPort --open";
           };
+          regenerate-openapi = {
+            command = "${pkgs.cargo-watch}/bin/cargo-watch --why -w src/lz-web -- regenerate-openapi-spec";
+          };
         };
 
         pre-commit.settings = {

@@ -20,7 +20,7 @@ import api from "./openapi-client";
 
 type QueryOptions = { queryOpts?: Partial<UseQueryOptions> };
 
-type CreateUseQuery<Paths extends {}> = {
+type CreateUseQuery<Paths extends object> = {
   useFetch<T extends HttpMethod, P extends PathsWithMethod<Paths, T>>(
     method: T,
     url: P,

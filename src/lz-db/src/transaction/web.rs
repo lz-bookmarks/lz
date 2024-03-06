@@ -46,9 +46,10 @@ impl Transaction {
         .await
     }
 
-    /// Retrieve bookmarks with a given tag.
+    /// Retrieve bookmarks with any of the given tags.
     ///
-    /// TODO: This currently only supports the current user's bookmarks
+    /// TODO: This currently only supports the current user's bookmarks.
+    /// TODO: Restrict to bookmarks only matching _all_ the tags.
     pub async fn list_bookmarks_with_tag_names<S: AsRef<str>>(
         &mut self,
         tags: Vec<S>,

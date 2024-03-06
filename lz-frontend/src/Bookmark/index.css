@@ -1,5 +1,7 @@
 ul.tags {
     display: flex;
+    margin-block-start: none;
+    flex-wrap: wrap;
 }
 ul.tags > li {
     flex-basis: auto;

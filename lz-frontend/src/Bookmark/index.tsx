@@ -7,20 +7,20 @@ export function Bookmark({
 }: components["schemas"]["AnnotatedBookmark"]) {
   return (
     <article key={bookmark.id}>
-      <div>
-        <a href={bookmark.url}>{bookmark.title}</a>
+      <a href={bookmark.url}>{bookmark.title}</a>
+      {bookmark.description && bookmark.description !== "" && (
         <div>{bookmark.description}</div>
-        <ul className="tags">
-          {tags.map((tag) => (
-            <li key={tag.name}>
-              <a href="#" key={tag.name}>
-                {tag.name}
-              </a>
-            </li>
-          ))}
-        </ul>
-        {bookmark.notes && <blockquote>{bookmark.notes}</blockquote>}
-      </div>
+      )}
+      <ul className="tags">
+        {tags.map((tag) => (
+          <li key={tag.name}>
+            <a href="#" key={tag.name}>
+              {tag.name}
+            </a>
+          </li>
+        ))}
+      </ul>
+      {bookmark.notes && <blockquote>{bookmark.notes}</blockquote>}
     </article>
   );
 }

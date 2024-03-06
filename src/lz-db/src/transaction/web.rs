@@ -90,3 +90,59 @@ impl Transaction {
         Ok(value)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use anyhow::Context as _;
+    use sqlx::SqlitePool;
+    use url::Url;
+
+    use crate::*;
+
+    #[test_log::test(sqlx::test(migrator = "MIGRATOR"))]
+    fn paginate_bookmarks(pool: SqlitePool) -> anyhow::Result<()> {
+        let conn = Connection::from_pool(pool);
+        let mut txn = conn.begin_for_user("tester").await?;
+
+        let bookmark_count = 60; // how many to generate
+        let page_size = 50; // how many to retrieve in a batch
+
+        let mut reference_time = chrono::DateTime::default()
+            .checked_sub_days(chrono::Days::new(bookmark_count))
+            .unwrap();
+        for i in 0..bookmark_count {
+            let bookmark = Bookmark {
+                id: (),
+                user_id: (),
+                created_at: reference_time,
+                modified_at: Some(Default::default()),
+                accessed_at: Some(Default::default()),
+                url: Url::parse(&format!("https://github.com/antifuchs/lz?key={i}"))?,
+                title: "The lz repo".to_string(),
+                description: Some("This is a great repo with excellent code.".to_string()),
+                website_title: Some("lz, the bookmarks manager".to_string()),
+                website_description: Some(
+                    "Please do not believe in the quality of this code.".to_string(),
+                ),
+                notes: Some("No need to run tests.".to_string()),
+                import_properties: None,
+                shared: true,
+                unread: true,
+            };
+            reference_time = reference_time
+                .checked_add_days(chrono::Days::new(1))
+                .unwrap();
+            txn.add_bookmark(bookmark.clone())
+                .await
+                .with_context(|| format!("adding bookmark {i}"))?;
+        }
+        let bookmarks_batch_1 = txn.list_bookmarks(page_size, None).await?;
+        assert_eq!(bookmarks_batch_1.len(), (page_size + 1) as usize);
+
+        let bookmarks_batch_2 = txn
+            .list_bookmarks(page_size, bookmarks_batch_1.last().map(|bm| bm.id))
+            .await?;
+        assert_eq!(bookmarks_batch_2.len(), 10);
+        Ok(())
+    }
+}

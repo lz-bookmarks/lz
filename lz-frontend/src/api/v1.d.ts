@@ -18,6 +18,11 @@ export type webhooks = Record<string, never>;
 
 export interface components {
   schemas: {
+    /** @description A bookmark, including tags set on it. */
+    AnnotatedBookmark: {
+      bookmark: components["schemas"]["ExistingBookmark"];
+      tags: components["schemas"]["ExistingTag"][];
+    };
     /**
      * Format: int64
      * @description The database ID of a bookmark.
@@ -86,22 +91,34 @@ export interface components {
       name: string;
     };
     /**
+     * @description The response returned by the `list_bookmarks` API endpoint.
+     *
+     * This response contains pagination information; if `next_cursor` is
+     * set, passing that value to the `cursor` pagination parameter will
+     * fetch the next page.
+     */
+    ListBookmarkResult: {
+      bookmarks: components["schemas"]["AnnotatedBookmark"][];
+      nextCursor?: components["schemas"]["BookmarkId"] | null;
+    };
+    /**
      * @description Parameters that govern non-offset based pagination.
      *
      * Pagination in `lz` works by getting the next page based on what
-     * the previous page's last element was. To that end, fill the
-     * `last_seen` parameter.
+     * the previous page's last element was, aka "cursor-based
+     * pagination". To that end, use the previous call's `nextCursor`
+     * parameter into this call's `cursor` parameter.
      */
     Pagination: {
       /** @default null */
-      last_seen?: components["schemas"]["BookmarkId"] | null;
+      cursor?: components["schemas"]["BookmarkId"] | null;
       /**
        * Format: int32
        * @description How many items to return
        * @default null
        * @example 50
        */
-      per_page?: number | null;
+      perPage?: number | null;
     };
     /**
      * Format: int64
@@ -172,6 +189,21 @@ export interface components {
       };
     };
     /**
+     * @description The response returned by the `list_bookmarks` API endpoint.
+     *
+     * This response contains pagination information; if `next_cursor` is
+     * set, passing that value to the `cursor` pagination parameter will
+     * fetch the next page.
+     */
+    ListBookmarkResult: {
+      content: {
+        "application/json": {
+          bookmarks: components["schemas"]["AnnotatedBookmark"][];
+          nextCursor?: components["schemas"]["BookmarkId"] | null;
+        };
+      };
+    };
+    /**
      * @description A named tag, possibly assigned to multiple bookmarks.
      *
      * See the section in [Transaction][Transaction#working-with-tags]
@@ -217,14 +249,14 @@ export interface operations {
       query?: {
         pagination?: ({
           /** @default null */
-          last_seen?: components["schemas"]["BookmarkId"] | null;
+          cursor?: components["schemas"]["BookmarkId"] | null;
           /**
            * Format: int32
            * @description How many items to return
            * @default null
            * @example 50
            */
-          per_page?: number | null;
+          perPage?: number | null;
         }) | null;
       };
     };
@@ -233,9 +265,9 @@ export interface operations {
       200: {
         content: {
           "application/json": {
-              bookmark: components["schemas"]["ExistingBookmark"];
-              tags: components["schemas"]["ExistingTag"][];
-            }[];
+            bookmarks: components["schemas"]["AnnotatedBookmark"][];
+            nextCursor?: components["schemas"]["BookmarkId"] | null;
+          };
         };
       };
     };

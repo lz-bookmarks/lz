@@ -12,11 +12,16 @@ impl Transaction {
     ///
     /// ## Pagination
     ///
-    /// The pagination mechanism works according to the "last seen"
+    /// The pagination mechanism works according to the cursor
     /// principle: Instead of a offset/limit, the web app passes a
-    /// "last seen" ID (the last bookmark in the previous batch). That
-    /// results in an indexed query that doesn't have to traverse
-    /// arbitrary numbers of potential results.
+    /// "next" ID (the highest-ID bookmark that would be
+    /// eligible). That results in an indexed query that doesn't have
+    /// to traverse arbitrary numbers of potential results.
+    ///
+    /// To ensure the web app can tell that there is a next batch,
+    /// this function returns one more element than was requested. If
+    /// page_size+1 elements are returned, that last element's ID
+    /// should be the next cursor ID.
     #[tracing::instrument(skip(self))]
     pub async fn list_bookmarks(
         &mut self,
@@ -29,7 +34,7 @@ impl Transaction {
               SELECT bookmarks.* FROM bookmarks
               WHERE
                 user_id = ?
-                AND bookmark_id < ?
+                AND bookmark_id <= ?
               ORDER BY
                 created_at DESC, bookmark_id DESC
               LIMIT ?
@@ -37,7 +42,7 @@ impl Transaction {
         )
         .bind(self.user().id)
         .bind(last_seen)
-        .bind(page_size)
+        .bind(page_size + 1)
         .fetch_all(&mut *self.txn)
         .await
     }

@@ -23,8 +23,8 @@ use crate::db::{DbTransaction, GlobalWebAppState};
     security(),
     servers((url = "/api/v1/")),
     components(
-        schemas(UserId, BookmarkId, ExistingBookmark, ExistingTag, Pagination),
-        responses(AnnotatedBookmark, UserId, ExistingBookmark, ExistingTag)
+        schemas(ListBookmarkResult, AnnotatedBookmark, UserId, BookmarkId, ExistingBookmark, ExistingTag, Pagination),
+        responses(ListBookmarkResult, AnnotatedBookmark, UserId, ExistingBookmark, ExistingTag)
     )
 )]
 pub struct ApiDoc;
@@ -68,21 +68,35 @@ where
 /// Parameters that govern non-offset based pagination.
 ///
 /// Pagination in `lz` works by getting the next page based on what
-/// the previous page's last element was. To that end, fill the
-/// `last_seen` parameter.
+/// the previous page's last element was, aka "cursor-based
+/// pagination". To that end, use the previous call's `nextCursor`
+/// parameter into this call's `cursor` parameter.
 #[derive(
     Deserialize, Serialize, Debug, Clone, Default, PartialEq, Eq, Hash, Validate, ToSchema,
 )]
 #[schema(default)]
+#[serde(rename_all = "camelCase")]
 struct Pagination {
     /// The last batch's last (oldest) bookmark ID
     #[schema(example = None)]
-    last_seen: Option<BookmarkId>,
+    cursor: Option<BookmarkId>,
 
     /// How many items to return
     #[schema(example = 50)]
     #[validate(range(min = 1, max = 500))]
     per_page: Option<u16>,
+}
+
+/// The response returned by the `list_bookmarks` API endpoint.
+///
+/// This response contains pagination information; if `next_cursor` is
+/// set, passing that value to the `cursor` pagination parameter will
+/// fetch the next page.
+#[derive(Serialize, Debug, ToSchema, ToResponse)]
+#[serde(rename_all = "camelCase")]
+pub struct ListBookmarkResult {
+    bookmarks: Vec<AnnotatedBookmark>,
+    next_cursor: Option<BookmarkId>,
 }
 
 /// A bookmark, including tags set on it.
@@ -105,28 +119,35 @@ pub struct AnnotatedBookmark {
         ),
     ),
     responses(
-        (status = 200, body = inline(Vec<AnnotatedBookmark>), description = "Lists all bookmarks"),
+        (status = 200, body = inline(ListBookmarkResult), description = "Lists all bookmarks"),
     ),
 )]
 #[tracing::instrument(skip(txn))]
 async fn list_bookmarks(
     mut txn: DbTransaction,
     pagination: Option<Valid<Query<Pagination>>>,
-) -> Result<Json<Vec<AnnotatedBookmark>>, (StatusCode, Json<ApiError>)> {
+) -> Result<Json<ListBookmarkResult>, (StatusCode, Json<ApiError>)> {
     let pagination = pagination.unwrap_or_default();
+    let per_page = pagination.per_page.unwrap_or(20);
     let bms = txn
-        .list_bookmarks(pagination.per_page.unwrap_or(20), pagination.last_seen)
+        .list_bookmarks(per_page, pagination.cursor)
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiError::from(e))))?;
     let mut taggings = txn.tags_on_bookmarks(&bms).await.map_err(|e| {
         tracing::error!(error=%e, error_debug=?e, "could not query tags for bookmarks");
         (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiError::from(e)))
     })?;
+    let mut next_cursor = None;
     let mut bookmarks = vec![];
-    for bm in bms {
+    for (elt, bm) in bms.into_iter().enumerate() {
+        if elt == usize::from(per_page) {
+            // The "next cursor" element:
+            next_cursor = Some(bm.id);
+            break;
+        }
         let id = bm.id;
         bookmarks.push(AnnotatedBookmark {
-            bookmark: bm,
+            bookmark: bm.clone(),
             tags: taggings.remove(&id).ok_or_else(|| {
                 (
                     StatusCode::INTERNAL_SERVER_ERROR,
@@ -138,5 +159,8 @@ async fn list_bookmarks(
             })?,
         })
     }
-    Ok(Json(bookmarks))
+    Ok(Json(ListBookmarkResult {
+        bookmarks,
+        next_cursor,
+    }))
 }

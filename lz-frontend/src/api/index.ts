@@ -107,8 +107,8 @@ export const createUseQuery: CreateUseQuery<paths> = {
       queryFn: async ({ pageParam, signal }) => {
         // @ts-expect-error All good, we know this method exists
         const { data, error } = await api[method.toUpperCase()](url, {
-          params: { query: { cursor: pageParam } },
           ...options,
+          params: { query: { cursor: pageParam }, ...(options?.params || {}) },
           signal,
         });
         if (data) return data;

@@ -1,6 +1,6 @@
 import React from "react";
 import { createUseQuery } from "./api";
-import { Bookmark } from "./Bookmark";
+import { ListBookmarks } from "./ListBookmarks";
 
 export function LoadBookmarks() {
   const {
@@ -18,17 +18,7 @@ export function LoadBookmarks() {
   return (
     <>
       <h1>LZ - bookmarks</h1>
-      {data.pages.map((group, i) => {
-        return (
-          group.bookmarks && (
-            <React.Fragment key={i}>
-              {group.bookmarks.map((args) => (
-                <Bookmark {...args} />
-              ))}
-            </React.Fragment>
-          )
-        );
-      })}
+      <ListBookmarks pages={data.pages} />
       <button
         onClick={() => fetchNextPage()}
         disabled={!hasNextPage || isFetchingNextPage}

@@ -1,4 +1,4 @@
-import type { components } from "./api/v1.d.ts";
+import type { components } from "../api/v1.d.ts";
 import "./index.css";
 
 export function Bookmark({

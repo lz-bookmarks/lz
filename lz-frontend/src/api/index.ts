@@ -75,6 +75,8 @@ type CreateUseQuery<Paths extends object> = {
   >;
 };
 
+export type v1Paths = paths;
+
 export const createUseQuery: CreateUseQuery<paths> = {
   // @ts-expect-error It does return the correct type
   useFetch(method, url, ...init) {

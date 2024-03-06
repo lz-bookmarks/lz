@@ -6,7 +6,15 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { MyBookmarks } from "./MyBookmarks.tsx";
 import { TaggedBookmarks } from "./TaggedBookmarks.tsx";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      networkMode: "offlineFirst",
+      refetchOnWindowFocus: false,
+      retry: true,
+    },
+  },
+});
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

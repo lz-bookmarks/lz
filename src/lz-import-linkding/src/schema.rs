@@ -20,15 +20,16 @@ impl<'c> LinkdingTransaction<'c> {
 
 impl<'c> LinkdingTransaction<'c> {
     pub(crate) fn all_tags(&mut self) -> BoxStream<Result<Tag, sqlx::Error>> {
-        sqlx::query_as(r#"SELECT * FROM bookmarks_tag"#).fetch(&mut *self.txn)
+        sqlx::query_as(r#"SELECT * FROM bookmarks_tag ORDER BY date_added"#).fetch(&mut *self.txn)
     }
 
     pub(crate) fn all_bookmarks(&mut self) -> BoxStream<Result<Bookmark, sqlx::Error>> {
-        sqlx::query_as(r#"SELECT * FROM bookmarks_bookmark"#).fetch(&mut *self.txn)
+        sqlx::query_as(r#"SELECT * FROM bookmarks_bookmark ORDER BY date_added, id"#)
+            .fetch(&mut *self.txn)
     }
 
     pub(crate) fn all_taggings(&mut self) -> BoxStream<Result<BookmarkTag, sqlx::Error>> {
-        sqlx::query_as(r#"SELECT * FROM bookmarks_bookmark_tags ORDER BY bookmark_id"#)
+        sqlx::query_as(r#"SELECT * FROM bookmarks_bookmark_tags ORDER BY bookmark_id, id"#)
             .fetch(&mut *self.txn)
     }
 }

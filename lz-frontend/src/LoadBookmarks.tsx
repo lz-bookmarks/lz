@@ -18,25 +18,29 @@ export function LoadBookmarks() {
     <>
       <h1>LZ - bookmarks</h1>
       {data.pages.map((group, i) => {
-        console.log(group);
-
         return (
           group.bookmarks && (
             <React.Fragment key={i}>
-              <ul>
-                {group.bookmarks.map(({ bookmark, tags }) => (
-                  <li key={bookmark.id}>
+              {group.bookmarks.map(({ bookmark, tags }) => (
+                <article key={bookmark.id}>
+                  <div>
                     <a href={bookmark.url}>{bookmark.title}</a>
                     <div>{bookmark.description}</div>
                     <ul className="tags">
                       {tags.map((tag) => (
-                        <li key={tag.name}>{tag.name}</li>
+                        <li key={tag.name}>
+                          <a href="#" key={tag.name}>
+                            {tag.name}
+                          </a>
+                        </li>
                       ))}
                     </ul>
-                    <div>{bookmark.notes}</div>
-                  </li>
-                ))}
-              </ul>
+                    {bookmark.notes && (
+                      <blockquote>{bookmark.notes}</blockquote>
+                    )}
+                  </div>
+                </article>
+              ))}
             </React.Fragment>
           )
         );

@@ -1,4 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import "water.css";
 import "./App.css";
 import { LoadBookmarks } from "./LoadBookmarks.tsx";
 

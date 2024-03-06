@@ -12,7 +12,7 @@ export function ListBookmarks({ pages }: ListBookmarksArgs) {
       group.bookmarks && (
         <React.Fragment key={i}>
           {group.bookmarks.map((args) => (
-            <Bookmark {...args} />
+            <Bookmark key={args.bookmark.id} {...args} />
           ))}
         </React.Fragment>
       )

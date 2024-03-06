@@ -171,7 +171,7 @@ async fn list_bookmarks(
 /// List bookmarks matching a tag, newest to oldest.
 #[debug_handler(state = Arc<GlobalWebAppState>)]
 #[utoipa::path(get,
-    path = "/bookmarks/tagged/:tag",
+    path = "/bookmarks/tagged/{tag}",
     tag = "Bookmarks",
     params(
         ("tag" = inline(String), Path,),

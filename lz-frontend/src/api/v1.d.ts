@@ -12,7 +12,7 @@ export interface paths {
      */
     get: operations["list_bookmarks"];
   };
-  "/bookmarks/tagged/:tag": {
+  "/bookmarks/tagged/{tag}": {
     /**
      * List bookmarks matching a tag, newest to oldest.
      * @description List bookmarks matching a tag, newest to oldest.

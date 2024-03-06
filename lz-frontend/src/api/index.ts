@@ -3,7 +3,7 @@
 // https://gist.github.com/AshMW2724/7c7d248c35db3a894376686025e2df67,
 // with modifications.
 
-import { paths } from "./v1";
+import { paths, components } from "./v1";
 import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 import type {
   UseQueryOptions,
@@ -19,6 +19,7 @@ import type {
   HasRequiredKeys,
   HttpMethod,
   SuccessResponse,
+  ErrorResponse,
   ResponseObjectMap,
   MediaType,
 } from "openapi-typescript-helpers";
@@ -68,14 +69,17 @@ type CreateUseQuery<Paths extends object> = {
         MediaType
       >
     >,
-    FetchResponse<
-      InfiniteData<T extends keyof Paths[P] ? Paths[P][T] : unknown>,
-      FetchOptions<FilterKeys<Paths[P], T>> & InfiniteQueryOptions
-    >["error"]
+    FilterKeys<
+      ErrorResponse<
+        ResponseObjectMap<T extends keyof Paths[P] ? Paths[P][T] : unknown>
+      >,
+      MediaType
+    >
   >;
 };
 
 export type v1Paths = paths;
+export type v1Components = components;
 
 export const createUseQuery: CreateUseQuery<paths> = {
   // @ts-expect-error It does return the correct type

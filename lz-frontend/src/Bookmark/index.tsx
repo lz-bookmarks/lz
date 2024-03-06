@@ -1,6 +1,6 @@
 import type { components } from "../api/v1.d.ts";
 import "./index.css";
-import { Outlet, Link } from "react-router-dom";
+import { Link } from "react-router-dom";
 
 export function Bookmark({
   bookmark,

@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { LoadBookmarks } from "./LoadBookmarks.tsx";
+import { MyBookmarks } from "./MyBookmarks.tsx";
 
 function App() {
   const queryClient = new QueryClient();
@@ -7,7 +7,7 @@ function App() {
   return (
     <>
       <QueryClientProvider client={queryClient}>
-        <LoadBookmarks />
+        <MyBookmarks />
       </QueryClientProvider>
     </>
   );

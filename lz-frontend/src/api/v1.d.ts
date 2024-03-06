@@ -12,6 +12,13 @@ export interface paths {
      */
     get: operations["list_bookmarks"];
   };
+  "/bookmarks/tagged/:tag": {
+    /**
+     * List bookmarks matching a tag, newest to oldest.
+     * @description List bookmarks matching a tag, newest to oldest.
+     */
+    get: operations["list_bookmarks_with_tag"];
+  };
 }
 
 export type webhooks = Record<string, never>;
@@ -262,6 +269,41 @@ export interface operations {
     };
     responses: {
       /** @description Lists all bookmarks */
+      200: {
+        content: {
+          "application/json": {
+            bookmarks: components["schemas"]["AnnotatedBookmark"][];
+            nextCursor?: components["schemas"]["BookmarkId"] | null;
+          };
+        };
+      };
+    };
+  };
+  /**
+   * List bookmarks matching a tag, newest to oldest.
+   * @description List bookmarks matching a tag, newest to oldest.
+   */
+  list_bookmarks_with_tag: {
+    parameters: {
+      query?: {
+        pagination?: ({
+          /** @default null */
+          cursor?: components["schemas"]["BookmarkId"] | null;
+          /**
+           * Format: int32
+           * @description How many items to return
+           * @default null
+           * @example 50
+           */
+          perPage?: number | null;
+        }) | null;
+      };
+      path: {
+        tag: string;
+      };
+    };
+    responses: {
+      /** @description Lists bookmarks matching the tag */
       200: {
         content: {
           "application/json": {

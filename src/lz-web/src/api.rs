@@ -4,7 +4,9 @@
 
 use std::sync::Arc;
 
-use axum::{debug_handler, extract::Query, http::StatusCode, routing::get, Json, Router};
+use axum::{
+    debug_handler, extract::Path, extract::Query, http::StatusCode, routing::get, Json, Router,
+};
 use axum_valid::Valid;
 use lz_db::{BookmarkId, ExistingBookmark, ExistingTag, IdType as _, UserId};
 use serde::{Deserialize, Serialize};
@@ -19,7 +21,7 @@ use crate::db::{DbTransaction, GlobalWebAppState};
 #[derive(OpenApi)]
 #[openapi(
     tags((name = "Bookmarks", description = "Managing one's bookmarks")),
-    paths(list_bookmarks),
+    paths(list_bookmarks, list_bookmarks_with_tag),
     security(),
     servers((url = "/api/v1/")),
     components(
@@ -32,6 +34,7 @@ pub struct ApiDoc;
 pub fn router() -> Router<Arc<GlobalWebAppState>> {
     Router::new()
         .route("/bookmarks", get(list_bookmarks))
+        .route("/bookmarks/tagged/:path", get(list_bookmarks_with_tag))
         .layer(CorsLayer::permissive())
         .layer(
             ServiceBuilder::new().layer(
@@ -131,6 +134,67 @@ async fn list_bookmarks(
     let per_page = pagination.per_page.unwrap_or(20);
     let bms = txn
         .list_bookmarks(per_page, pagination.cursor)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiError::from(e))))?;
+    let mut taggings = txn.tags_on_bookmarks(&bms).await.map_err(|e| {
+        tracing::error!(error=%e, error_debug=?e, "could not query tags for bookmarks");
+        (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiError::from(e)))
+    })?;
+    let mut next_cursor = None;
+    let mut bookmarks = vec![];
+    for (elt, bm) in bms.into_iter().enumerate() {
+        if elt == usize::from(per_page) {
+            // The "next cursor" element:
+            next_cursor = Some(bm.id);
+            break;
+        }
+        let id = bm.id;
+        bookmarks.push(AnnotatedBookmark {
+            bookmark: bm.clone(),
+            tags: taggings.remove(&id).ok_or_else(|| {
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(ApiError::NotFound(format!(
+                        "Bookmark ID {} was mistreated",
+                        id.id()
+                    ))),
+                )
+            })?,
+        })
+    }
+    Ok(Json(ListBookmarkResult {
+        bookmarks,
+        next_cursor,
+    }))
+}
+
+/// List bookmarks matching a tag, newest to oldest.
+#[debug_handler(state = Arc<GlobalWebAppState>)]
+#[utoipa::path(get,
+    path = "/bookmarks/tagged/:tag",
+    tag = "Bookmarks",
+    params(
+        ("tag" = inline(String), Path,),
+        ("pagination" = inline(Option<Pagination>),
+            Query,
+            style = Form,
+            explode,
+        ),
+    ),
+    responses(
+        (status = 200, body = inline(ListBookmarkResult), description = "Lists bookmarks matching the tag"),
+    ),
+)]
+#[tracing::instrument(skip(txn))]
+async fn list_bookmarks_with_tag(
+    Path(tag): Path<String>,
+    mut txn: DbTransaction,
+    pagination: Option<Valid<Query<Pagination>>>,
+) -> Result<Json<ListBookmarkResult>, (StatusCode, Json<ApiError>)> {
+    let pagination = pagination.unwrap_or_default();
+    let per_page = pagination.per_page.unwrap_or(20);
+    let bms = txn
+        .list_bookmarks_with_tag_names(vec![tag], per_page, pagination.cursor)
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiError::from(e))))?;
     let mut taggings = txn.tags_on_bookmarks(&bms).await.map_err(|e| {

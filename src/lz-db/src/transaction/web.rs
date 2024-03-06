@@ -7,21 +7,20 @@ use sqlx::prelude::*;
 use crate::{Bookmark, BookmarkId, IdType, Tag, TagId, Transaction, UserId};
 
 /// # Queries relevant to the `lz` web app
+/// ## Pagination
+///
+/// The pagination mechanism works according to the cursor
+/// principle: Instead of a offset/limit, the web app passes a
+/// "next" ID (the highest-ID bookmark that would be
+/// eligible). That results in an indexed query that doesn't have
+/// to traverse arbitrary numbers of potential results.
+///
+/// To ensure the web app can tell that there is a next batch,
+/// this function returns one more element than was requested. If
+/// page_size+1 elements are returned, that last element's ID
+/// should be the next cursor ID.
 impl Transaction {
     /// Retrieve a user's bookmarks from the database, paginated
-    ///
-    /// ## Pagination
-    ///
-    /// The pagination mechanism works according to the cursor
-    /// principle: Instead of a offset/limit, the web app passes a
-    /// "next" ID (the highest-ID bookmark that would be
-    /// eligible). That results in an indexed query that doesn't have
-    /// to traverse arbitrary numbers of potential results.
-    ///
-    /// To ensure the web app can tell that there is a next batch,
-    /// this function returns one more element than was requested. If
-    /// page_size+1 elements are returned, that last element's ID
-    /// should be the next cursor ID.
     #[tracing::instrument(skip(self))]
     pub async fn list_bookmarks(
         &mut self,
@@ -45,6 +44,43 @@ impl Transaction {
         .bind(page_size + 1)
         .fetch_all(&mut *self.txn)
         .await
+    }
+
+    /// Retrieve bookmarks with a given tag.
+    ///
+    /// TODO: This currently only supports the current user's bookmarks
+    pub async fn list_bookmarks_with_tag_names<S: AsRef<str>>(
+        &mut self,
+        tags: Vec<S>,
+        page_size: u16,
+        last_seen: Option<BookmarkId>,
+    ) -> Result<Vec<Bookmark<BookmarkId, UserId>>, sqlx::Error> {
+        let last_seen = last_seen.map(|id| id.id()).unwrap_or(i64::MAX);
+        let tag_placeholders = tags.iter().map(|_| "?").collect::<Vec<&str>>().join(", ");
+        let sql = format!(
+            r#"
+              SELECT bookmarks.*
+              FROM bookmarks
+                   JOIN bookmark_tags USING (bookmark_id)
+                   JOIN tags USING (tag_id)
+              WHERE
+                user_id = ?
+                AND bookmark_id <= ?
+                AND tags.name IN ({})
+              ORDER BY
+                created_at DESC, bookmark_id DESC
+              LIMIT ?
+            "#,
+            tag_placeholders
+        );
+        let mut query = sqlx::query_as(&sql).bind(self.user().id).bind(last_seen);
+        for tag in tags {
+            let tag = tag.as_ref().to_string();
+            query = query.bind(tag);
+        }
+        query = query.bind(page_size + 1);
+
+        query.fetch_all(&mut *self.txn).await
     }
 
     #[tracing::instrument(skip(self))]

@@ -32,7 +32,9 @@ CREATE UNIQUE INDEX "bookmarks_by_user_and_url" ON "bookmarks" ("user_id", "url"
 CREATE TABLE "tags" (
   "tag_id" INTEGER NOT NULL PRIMARY KEY,
   "created_at" datetime NOT NULL,
-  "name" TEXT NOT NULL UNIQUE
+  "name" TEXT NOT NULL UNIQUE,
+
+  CHECK("name" NOT LIKE '% %' AND length("name") >= 1)
 );
 
 CREATE UNIQUE INDEX "tags_by_name" ON "tags" ("name");

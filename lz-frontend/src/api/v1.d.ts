@@ -299,6 +299,7 @@ export interface operations {
         }) | null;
       };
       path: {
+        /** @description List of tags that must all be applied to the returned bookmarks. */
         tag: string;
       };
     };

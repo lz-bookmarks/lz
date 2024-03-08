@@ -116,7 +116,7 @@ pub struct AnnotatedBookmark {
         (status = 200, body = inline(ListBookmarkResult), description = "Lists all bookmarks"),
     ),
 )]
-#[tracing::instrument(skip(txn))]
+#[tracing::instrument(err(Debug, level = tracing::Level::WARN), skip(txn))]
 async fn list_bookmarks(
     mut txn: DbTransaction,
     pagination: Option<Valid<Query<Pagination>>>,
@@ -176,7 +176,7 @@ async fn list_bookmarks(
         (status = 200, body = inline(ListBookmarkResult), description = "Lists bookmarks matching the tag"),
     ),
 )]
-#[tracing::instrument(skip(txn))]
+#[tracing::instrument(err(Debug, level = tracing::Level::WARN), skip(txn))]
 async fn list_bookmarks_with_tag(
     Path(tag): Path<String>,
     mut txn: DbTransaction,

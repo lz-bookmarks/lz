@@ -21,7 +21,7 @@ use crate::{Bookmark, BookmarkId, IdType, Tag, TagId, Transaction, UserId};
 /// should be the next cursor ID.
 impl Transaction {
     /// Retrieve a user's bookmarks from the database, paginated
-    #[tracing::instrument(skip(self))]
+    #[tracing::instrument(err(Debug, level = tracing::Level::WARN), skip(self))]
     pub async fn list_bookmarks(
         &mut self,
         page_size: u16,
@@ -50,7 +50,8 @@ impl Transaction {
     ///
     /// TODO: This currently only supports the current user's bookmarks.
     /// TODO: Restrict to bookmarks only matching _all_ the tags.
-    pub async fn list_bookmarks_with_tag_names<S: AsRef<str>>(
+    #[tracing::instrument(err(Debug, level = tracing::Level::WARN), skip(self))]
+    pub async fn list_bookmarks_with_tag_names<S: AsRef<str> + fmt::Debug>(
         &mut self,
         tags: Vec<S>,
         page_size: u16,
@@ -84,7 +85,7 @@ impl Transaction {
         query.fetch_all(&mut *self.txn).await
     }
 
-    #[tracing::instrument(skip(self))]
+    #[tracing::instrument(err(Debug, level = tracing::Level::WARN), skip(self))]
     pub async fn tags_on_bookmarks<
         I: IntoIterator<Item = B, IntoIter = C> + Clone + fmt::Debug,
         C: Clone + std::iter::Iterator<Item = B>,

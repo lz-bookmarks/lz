@@ -73,7 +73,7 @@ impl Transaction {
     /// in the returned set. The method [`Transaction::ensure_tags`]
     /// will create any that are missing and return all the matching
     /// tags.
-    #[tracing::instrument(skip(self))]
+    #[tracing::instrument(err(Debug, level = tracing::Level::WARN), skip(self))]
     pub async fn get_tags_with_names<
         T: std::fmt::Debug + IntoIterator<Item = S, IntoIter = C>,
         C: Clone + std::iter::Iterator<Item = S>,
@@ -112,7 +112,7 @@ impl Transaction {
     /// This method is the ad-hoc-creating mirror to
     /// [`Transaction::get_tags_with_names`]. Use `ensure_tags` to
     /// ensure all the tags with the given name exist in the database.
-    #[tracing::instrument(skip(self))]
+    #[tracing::instrument(err(Debug, level = tracing::Level::WARN), skip(self))]
     pub async fn ensure_tags<
         T: std::fmt::Debug + IntoIterator<Item = S, IntoIter = C>,
         C: std::fmt::Debug + Clone + std::iter::Iterator<Item = S>,
@@ -165,6 +165,7 @@ impl Transaction {
     /// Any existing tagging will be removed and replaced with the
     /// given set of tags. Tags are not garbage-collected and will
     /// stick around, so they are available for re-use.
+    #[tracing::instrument(err(Debug, level = tracing::Level::WARN), skip(self))]
     pub async fn set_bookmark_tags<TS, T>(
         &mut self,
         bookmark_id: BookmarkId,
@@ -191,6 +192,7 @@ impl Transaction {
     }
 
     /// Retrieve a bookmark's tags.
+    #[tracing::instrument(err(Debug, level = tracing::Level::WARN), skip(self))]
     pub async fn get_bookmark_tags(
         &mut self,
         bookmark_id: BookmarkId,
@@ -211,6 +213,7 @@ impl Transaction {
         .await
     }
 
+    #[tracing::instrument(err(Debug, level = tracing::Level::WARN), skip(self))]
     pub async fn add_bookmark_tags<TS, T>(
         &mut self,
         bookmark_id: BookmarkId,

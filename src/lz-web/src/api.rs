@@ -142,18 +142,17 @@ async fn list_bookmarks(
             break;
         }
         let id = bm.id;
-        bookmarks.push(AnnotatedBookmark {
-            bookmark: bm.clone(),
-            tags: taggings.remove(&id).ok_or_else(|| {
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(ApiError::NotFound(format!(
-                        "Bookmark ID {} was mistreated",
-                        id.id()
-                    ))),
-                )
-            })?,
-        })
+        if let Some(tags) = taggings.remove(&id) {
+            bookmarks.push(AnnotatedBookmark {
+                bookmark: bm.clone(),
+                tags,
+            });
+        } else {
+            tracing::warn!(
+                bookmark_id=?id,
+                "somehow this bookmark seems to have appeared twice in the list of bookmarks?"
+            );
+        }
     }
     Ok(Json(ListBookmarkResult {
         bookmarks,
@@ -203,18 +202,17 @@ async fn list_bookmarks_with_tag(
             break;
         }
         let id = bm.id;
-        bookmarks.push(AnnotatedBookmark {
-            bookmark: bm.clone(),
-            tags: taggings.remove(&id).ok_or_else(|| {
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(ApiError::NotFound(format!(
-                        "Bookmark ID {} was mistreated",
-                        id.id()
-                    ))),
-                )
-            })?,
-        })
+        if let Some(tags) = taggings.remove(&id) {
+            bookmarks.push(AnnotatedBookmark {
+                bookmark: bm.clone(),
+                tags,
+            });
+        } else {
+            tracing::warn!(
+                bookmark_id=?id,
+                "somehow this bookmark seems to have appeared twice in the list of bookmarks?"
+            );
+        }
     }
     Ok(Json(ListBookmarkResult {
         bookmarks,

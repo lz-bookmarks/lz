@@ -103,7 +103,10 @@
                   text = ''
                     spec="$(mktemp)"
                     trap 'rm "$spec"' EXIT
-                    cargo run --bin generate-openapi-specs > "$spec"
+                    while ! curl -s http://localhost:3000/openapi.json > "$spec" ; do
+                      echo "OpenAPI spec is not online yet, waiting..." >&2
+                      sleep 1
+                    done
                     cd lz-frontend
                     npm install --no-fund
                     ./node_modules/.bin/openapi-typescript "$spec" -o src/api/v1.d.ts
@@ -162,7 +165,7 @@
             command = "cd lz-frontend && npm i && npm run dev -- --strictPort --open";
           };
           regenerate-openapi = {
-            command = "${pkgs.cargo-watch}/bin/cargo-watch --why -w src/lz-web -- regenerate-openapi-spec";
+            command = "sleep 5; ${pkgs.cargo-watch}/bin/cargo-watch -d 20 --why -w src/lz-web -- regenerate-openapi-spec";
           };
         };
 

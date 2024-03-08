@@ -53,10 +53,7 @@ async fn main() -> anyhow::Result<()> {
     ));
     let api_router = lz_web::api::router();
     let app = Router::new()
-        .merge(
-            SwaggerUi::new("/docs/swagger")
-                .url("/docs/openapi.json", lz_web::api::ApiDoc::openapi()),
-        )
+        .merge(SwaggerUi::new("/docs/swagger").url("/openapi.json", lz_web::api::ApiDoc::openapi()))
         .merge(Redoc::with_url("/docs/api", lz_web::api::ApiDoc::openapi()))
         .nest("/api/v1", api_router)
         .with_state(db_conns);

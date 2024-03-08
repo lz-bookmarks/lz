@@ -2,6 +2,9 @@
 //!
 //! We use OpenAPI via the [utoipa] crate to generate an OpenAPI spec.
 
+mod observability;
+mod searching;
+
 use std::sync::Arc;
 
 use axum::{
@@ -16,8 +19,7 @@ use utoipa::{OpenApi, ToResponse, ToSchema};
 use validator::Validate;
 
 use crate::db::{DbTransaction, GlobalWebAppState};
-
-mod observability;
+use searching::{TagName, TagQuery};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -26,7 +28,7 @@ mod observability;
     security(),
     servers((url = "/api/v1/")),
     components(
-        schemas(ListBookmarkResult, AnnotatedBookmark, UserId, BookmarkId, ExistingBookmark, ExistingTag, Pagination),
+        schemas(ListBookmarkResult, AnnotatedBookmark, UserId, BookmarkId, ExistingBookmark, ExistingTag, Pagination, TagName, TagQuery),
         responses(ListBookmarkResult, AnnotatedBookmark, UserId, ExistingBookmark, ExistingTag)
     )
 )]
@@ -35,7 +37,7 @@ pub struct ApiDoc;
 pub fn router() -> Router<Arc<GlobalWebAppState>> {
     let router = Router::new()
         .route("/bookmarks", get(list_bookmarks))
-        .route("/bookmarks/tagged/:path", get(list_bookmarks_with_tag))
+        .route("/bookmarks/tagged/*query", get(list_bookmarks_with_tag))
         .layer(CorsLayer::permissive());
     observability::add_layers(router)
 }
@@ -162,10 +164,10 @@ async fn list_bookmarks(
 /// List bookmarks matching a tag, newest to oldest.
 #[debug_handler(state = Arc<GlobalWebAppState>)]
 #[utoipa::path(get,
-    path = "/bookmarks/tagged/{tag}",
+    path = "/bookmarks/tagged/{query}",
     tag = "Bookmarks",
     params(
-        ("tag" = inline(String), Path,),
+        ("query" = inline(String), Path,),
         ("pagination" = inline(Option<Pagination>),
             Query,
             style = Form,
@@ -178,14 +180,14 @@ async fn list_bookmarks(
 )]
 #[tracing::instrument(err(Debug, level = tracing::Level::WARN), skip(txn))]
 async fn list_bookmarks_with_tag(
-    Path(tag): Path<String>,
+    TagQuery { tags }: TagQuery,
     mut txn: DbTransaction,
     pagination: Option<Valid<Query<Pagination>>>,
 ) -> Result<Json<ListBookmarkResult>, (StatusCode, Json<ApiError>)> {
     let pagination = pagination.unwrap_or_default();
     let per_page = pagination.per_page.unwrap_or(20);
     let bms = txn
-        .list_bookmarks_with_tag_names(vec![tag], per_page, pagination.cursor)
+        .list_bookmarks_with_tag_names(tags, per_page, pagination.cursor)
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiError::from(e))))?;
     let mut taggings = txn.tags_on_bookmarks(&bms).await.map_err(|e| {

@@ -13,8 +13,8 @@ export function TaggedBookmarks() {
 
   const queryResult = createUseQuery.useInfiniteFetch(
     "get",
-    "/bookmarks/tagged/{tag}",
-    { params: { path: { tag: tag! } } },
+    "/bookmarks/tagged/{query}",
+    { params: { path: { query: tag! } } },
   );
   return <BookmarksPage {...queryResult}></BookmarksPage>;
 }

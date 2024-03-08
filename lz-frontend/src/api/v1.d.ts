@@ -12,7 +12,7 @@ export interface paths {
      */
     get: operations["list_bookmarks"];
   };
-  "/bookmarks/tagged/{tag}": {
+  "/bookmarks/tagged/{query}": {
     /**
      * List bookmarks matching a tag, newest to oldest.
      * @description List bookmarks matching a tag, newest to oldest.
@@ -126,6 +126,17 @@ export interface components {
        * @example 50
        */
       perPage?: number | null;
+    };
+    TagName: string;
+    /**
+     * @description A search query for retrieving bookmarks via the tags assigned to them.
+     *
+     * These tag queries are made in a URL path, separated by space
+     * (`%20`) characters.
+     */
+    TagQuery: {
+      /** @description Tags that all returned items should have. */
+      tags: components["schemas"]["TagName"][];
     };
     /**
      * Format: int64
@@ -299,7 +310,7 @@ export interface operations {
         }) | null;
       };
       path: {
-        tag: string;
+        query: string;
       };
     };
     responses: {

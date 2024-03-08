@@ -2,17 +2,24 @@
 //!
 //! We use OpenAPI via the [utoipa] crate to generate an OpenAPI spec.
 
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 
 use axum::{
-    debug_handler, extract::Path, extract::Query, http::StatusCode, routing::get, Json, Router,
+    body::{Body, Bytes},
+    debug_handler,
+    extract::Path,
+    extract::Query,
+    http::{Request, Response, StatusCode},
+    routing::get,
+    Json, Router,
 };
 use axum_valid::Valid;
 use lz_db::{BookmarkId, ExistingBookmark, ExistingTag, IdType as _, UserId};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tower::ServiceBuilder;
-use tower_http::{cors::CorsLayer, trace::TraceLayer};
+use tower_http::{body::Full, cors::CorsLayer, trace::TraceLayer};
+use tracing::Span;
 use utoipa::{OpenApi, ToResponse, ToSchema};
 use validator::Validate;
 
@@ -39,11 +46,34 @@ pub fn router() -> Router<Arc<GlobalWebAppState>> {
         .layer(
             ServiceBuilder::new().layer(
                 TraceLayer::new_for_http()
-                    .make_span_with(
-                        tower_http::trace::DefaultMakeSpan::new().level(tracing::Level::INFO),
-                    )
+                    .make_span_with(|request: &Request<Body>| {
+                        tracing::info_span!(
+                            "http request",
+                            method = %request.method(),
+                            uri = %request.uri(),
+                            version = ?request.version(),
+                            headers = ?request.headers(),
+                            // Fields that get filled later:
+                            status_code = tracing::field::Empty,
+                            status = tracing::field::Empty,
+                            latency_ms = tracing::field::Empty,
+                            response_headers = tracing::field::Empty,
+                        )
+                    })
                     .on_response(
-                        tower_http::trace::DefaultOnResponse::new().level(tracing::Level::INFO),
+                        |response: &Response<Body>, latency: Duration, span: &Span| {
+                            span.record(
+                                "status_code",
+                                &tracing::field::display(response.status().as_u16()),
+                            );
+                            span.record("status", &tracing::field::display(response.status()));
+                            span.record(
+                                "response_headers",
+                                &tracing::field::debug(response.headers()),
+                            );
+                            span.record("response.latency_ms", latency.as_millis());
+                            tracing::debug!("response generated")
+                        },
                     ),
             ),
         )

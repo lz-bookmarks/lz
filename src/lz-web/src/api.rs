@@ -2,28 +2,22 @@
 //!
 //! We use OpenAPI via the [utoipa] crate to generate an OpenAPI spec.
 
-use std::{sync::Arc, time::Duration};
+use std::sync::Arc;
 
 use axum::{
-    body::Body,
-    debug_handler,
-    extract::Path,
-    extract::Query,
-    http::{Request, Response, StatusCode},
-    routing::get,
-    Json, Router,
+    debug_handler, extract::Path, extract::Query, http::StatusCode, routing::get, Json, Router,
 };
 use axum_valid::Valid;
 use lz_db::{BookmarkId, ExistingBookmark, ExistingTag, IdType as _, UserId};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use tower::ServiceBuilder;
-use tower_http::{cors::CorsLayer, trace::TraceLayer};
-use tracing::Span;
+use tower_http::cors::CorsLayer;
 use utoipa::{OpenApi, ToResponse, ToSchema};
 use validator::Validate;
 
 use crate::db::{DbTransaction, GlobalWebAppState};
+
+mod observability;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -39,44 +33,11 @@ use crate::db::{DbTransaction, GlobalWebAppState};
 pub struct ApiDoc;
 
 pub fn router() -> Router<Arc<GlobalWebAppState>> {
-    Router::new()
+    let router = Router::new()
         .route("/bookmarks", get(list_bookmarks))
         .route("/bookmarks/tagged/:path", get(list_bookmarks_with_tag))
-        .layer(CorsLayer::permissive())
-        .layer(
-            ServiceBuilder::new().layer(
-                TraceLayer::new_for_http()
-                    .make_span_with(|request: &Request<Body>| {
-                        tracing::info_span!(
-                            "http request",
-                            method = %request.method(),
-                            uri = %request.uri(),
-                            version = ?request.version(),
-                            headers = ?request.headers(),
-                            // Fields that get filled later:
-                            status_code = tracing::field::Empty,
-                            status = tracing::field::Empty,
-                            latency_ms = tracing::field::Empty,
-                            response_headers = tracing::field::Empty,
-                        )
-                    })
-                    .on_response(
-                        |response: &Response<Body>, latency: Duration, span: &Span| {
-                            span.record(
-                                "status_code",
-                                &tracing::field::display(response.status().as_u16()),
-                            );
-                            span.record("status", &tracing::field::display(response.status()));
-                            span.record(
-                                "response_headers",
-                                &tracing::field::debug(response.headers()),
-                            );
-                            span.record("response.latency_ms", latency.as_millis());
-                            tracing::debug!("response generated")
-                        },
-                    ),
-            ),
-        )
+        .layer(CorsLayer::permissive());
+    observability::add_layers(router)
 }
 
 #[derive(Serialize, Deserialize, Debug, ToSchema, Error)]

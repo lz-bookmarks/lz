@@ -5,7 +5,7 @@
 use std::{sync::Arc, time::Duration};
 
 use axum::{
-    body::{Body, Bytes},
+    body::Body,
     debug_handler,
     extract::Path,
     extract::Query,
@@ -18,7 +18,7 @@ use lz_db::{BookmarkId, ExistingBookmark, ExistingTag, IdType as _, UserId};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tower::ServiceBuilder;
-use tower_http::{body::Full, cors::CorsLayer, trace::TraceLayer};
+use tower_http::{cors::CorsLayer, trace::TraceLayer};
 use tracing::Span;
 use utoipa::{OpenApi, ToResponse, ToSchema};
 use validator::Validate;

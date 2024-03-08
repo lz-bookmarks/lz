@@ -1,20 +1,16 @@
-use std::{fmt, io, net::SocketAddr, path::PathBuf, sync::Arc};
+use std::{io, net::SocketAddr, path::PathBuf, sync::Arc};
 
 use axum::Router;
 
 use clap::Parser;
 use lz_web::db::GlobalWebAppState;
 
-use opentelemetry::{trace::TracerProvider as _, KeyValue};
-use opentelemetry_otlp::WithExportConfig as _;
-use opentelemetry_sdk::{
-    trace::{Config, TracerProvider},
-    Resource,
-};
-use serde::{Deserialize, Serialize};
-use tracing::instrument::WithSubscriber;
+use opentelemetry::KeyValue;
+
+use opentelemetry_sdk::Resource;
+
 use tracing_subscriber::{layer::SubscriberExt as _, EnvFilter, Layer as _, Registry};
-use url::Url;
+
 use utoipa::OpenApi as _;
 use utoipa_redoc::{Redoc, Servable as _};
 use utoipa_swagger_ui::SwaggerUi;
@@ -64,7 +60,7 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn init_observability(args: &Args) -> anyhow::Result<()> {
+fn init_observability(_args: &Args) -> anyhow::Result<()> {
     // Create a new OpenTelemetry trace pipeline that prints to stdout
     let tracer = opentelemetry_otlp::new_pipeline()
         .tracing()

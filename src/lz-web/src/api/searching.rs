@@ -35,9 +35,6 @@ pub(crate) struct TagQuery {
 
 #[derive(Error, Debug)]
 pub enum TagQueryRejection {
-    #[error("Invalid format on `{0}`")]
-    InvalidTagFormat(String),
-
     #[error("Internal error: The handler has no `*query` parameter defined")]
     NoStarQueryParameterDefined(#[from] PathRejection),
 }

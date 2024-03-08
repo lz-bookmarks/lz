@@ -7,9 +7,7 @@ mod searching;
 
 use std::sync::Arc;
 
-use axum::{
-    debug_handler, extract::Path, extract::Query, http::StatusCode, routing::get, Json, Router,
-};
+use axum::{debug_handler, extract::Query, http::StatusCode, routing::get, Json, Router};
 use axum_valid::Valid;
 use lz_db::{BookmarkId, ExistingBookmark, ExistingTag, IdType as _, UserId};
 use serde::{Deserialize, Serialize};

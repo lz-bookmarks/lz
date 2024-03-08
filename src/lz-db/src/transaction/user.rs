@@ -55,7 +55,7 @@ pub struct User<ID: IdType<UserId>> {
 }
 
 impl crate::Connection {
-    #[tracing::instrument(err(Debug, level = tracing::Level::WARN), ret, skip(txn))]
+    #[tracing::instrument(err(Debug, level = tracing::Level::WARN), ret(level = tracing::Level::DEBUG), skip(txn))]
     pub(crate) async fn ensure_user(
         txn: &mut sqlx::Transaction<'static, sqlx::Sqlite>,
         name: &str,

@@ -1,10 +1,20 @@
-use std::{net::SocketAddr, path::PathBuf, sync::Arc};
+use std::{fmt, io, net::SocketAddr, path::PathBuf, sync::Arc};
 
 use axum::Router;
 
 use clap::Parser;
 use lz_web::db::GlobalWebAppState;
 
+use opentelemetry::{trace::TracerProvider as _, KeyValue};
+use opentelemetry_otlp::WithExportConfig as _;
+use opentelemetry_sdk::{
+    trace::{Config, TracerProvider},
+    Resource,
+};
+use serde::{Deserialize, Serialize};
+use tracing::instrument::WithSubscriber;
+use tracing_subscriber::{layer::SubscriberExt as _, EnvFilter, Layer as _, Registry};
+use url::Url;
 use utoipa::OpenApi as _;
 use utoipa_redoc::{Redoc, Servable as _};
 use utoipa_swagger_ui::SwaggerUi;
@@ -31,13 +41,8 @@ struct Args {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    // initialize tracing
-    tracing_subscriber::fmt()
-        .with_target(false)
-        .compact()
-        .init();
-
     let args = Args::parse();
+    init_observability(&args)?;
 
     let pool =
         lz_db::Connection::from_pool(sqlx::SqlitePool::connect(&args.db.to_string_lossy()).await?);
@@ -59,5 +64,32 @@ async fn main() -> anyhow::Result<()> {
     // run our app with hyper, listening globally on port 3000
     let listener = tokio::net::TcpListener::bind(args.listen_on).await.unwrap();
     axum::serve(listener, app).await.unwrap();
+    Ok(())
+}
+
+fn init_observability(args: &Args) -> anyhow::Result<()> {
+    // Create a new OpenTelemetry trace pipeline that prints to stdout
+    let tracer = opentelemetry_otlp::new_pipeline()
+        .tracing()
+        .with_exporter(opentelemetry_otlp::new_exporter().tonic())
+        .with_trace_config(
+            opentelemetry_sdk::trace::Config::default()
+                .with_resource(Resource::new([KeyValue::new("service.name", "lz-web")])),
+        )
+        .install_batch(opentelemetry_sdk::runtime::Tokio)
+        .expect("Couldn't create OTLP tracer");
+
+    // Create a tracing layer for OTLP, if we have a collector running:
+    let telemetry = Some(tracing_opentelemetry::layer().with_tracer(tracer));
+    let stderr_log = tracing_subscriber::fmt::layer()
+        .with_target(false)
+        .with_writer(io::stderr)
+        .compact()
+        .with_filter(EnvFilter::from_default_env());
+
+    let subscriber = Registry::default().with(stderr_log);
+    let subscriber = subscriber.with(telemetry);
+    tracing::subscriber::set_global_default(subscriber).expect("Unable to set global subscriber");
+
     Ok(())
 }

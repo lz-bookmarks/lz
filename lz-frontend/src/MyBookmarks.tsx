@@ -3,5 +3,5 @@ import { BookmarksPage } from "./BookmarksPage";
 
 export function MyBookmarks() {
   const queryResult = createUseQuery.useInfiniteFetch("get", "/bookmarks");
-  return <BookmarksPage {...queryResult}></BookmarksPage>;
+  return <BookmarksPage title="All bookmarks" {...queryResult}></BookmarksPage>;
 }

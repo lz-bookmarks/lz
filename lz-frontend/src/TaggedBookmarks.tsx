@@ -16,5 +16,10 @@ export function TaggedBookmarks() {
     "/bookmarks/tagged/{query}",
     { params: { path: { query: tag! } } },
   );
-  return <BookmarksPage {...queryResult}></BookmarksPage>;
+  return (
+    <BookmarksPage
+      title={`Bookmarks tagged ${tag}`}
+      {...queryResult}
+    ></BookmarksPage>
+  );
 }

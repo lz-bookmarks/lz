@@ -23,6 +23,9 @@ enum Commands {
         /// The URL to add
         link: String
     },
+    /// List bookmarks
+    #[clap(alias = "ls")]
+    List {},
 }
 
 #[tokio::main]
@@ -42,7 +45,21 @@ async fn _main() -> Result<()> {
         Commands::Add { link } => {
             let bookmark_id = add(link.to_string()).await?;
             println!("Added bookmark #{:?}", bookmark_id);
+        },
+        Commands::List {} => {
+            list_bookmarks().await?;
         }
+    }
+    Ok(())
+}
+
+async fn list_bookmarks() -> Result<()> {
+    let pool = sqlx::sqlite::SqlitePool::connect("sqlite:lz.db").await?;
+    let conn = Connection::from_pool(pool);
+    let mut txn = conn.begin_for_user("local").await?;
+    let bookmarks = txn.all_bookmarks(None).await?;
+    for i in &bookmarks {
+        println!("{}: {}", i.title, i.url);
     }
     Ok(())
 }

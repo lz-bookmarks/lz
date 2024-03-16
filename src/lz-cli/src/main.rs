@@ -46,9 +46,11 @@ async fn main() {
     }
 }
 
-// ls filtering: date, tag, host
-// associate subcommand
-// tag subcommand
+// TODO: ls filtering: date, tag, host
+// TODO: pretty-print ls with tabled
+// TODO: associate subcommand
+// TODO: tag subcommand
+// TODO: --backdate on add
 // TODO: Config file for location of sqlite3 file
 // TODO: Handle creation of the database if it doesn't exist
 // TODO: Custom error message on duplicate URL
@@ -149,11 +151,17 @@ async fn lookup_link(link: String) -> Result<Bookmark<(), ()>> {
         Some(el) => el.inner_html(),
         None => "".to_string(),
     };
-    // TODO: Parse out meta description if available. (meta tag, name="description")
+    let found_description = root_ref
+        .select(&Selector::parse(r#"meta[name="description"]"#).unwrap())
+        .next();
+    let description = match found_description {
+        Some(el) => el.value().attr("content").map(|meta_val| meta_val.to_string()),
+        None => None,
+    };
     let to_add = Bookmark {
         accessed_at: Default::default(),
         created_at: Default::default(),
-        description: None,
+        description: description.clone(),
         id: (),
         import_properties: None,
         modified_at: None,
@@ -166,9 +174,9 @@ async fn lookup_link(link: String) -> Result<Bookmark<(), ()>> {
         website_title: if title.as_str() == "" {
             None
         } else {
-            Some(title)
+            Some(title.clone())
         },
-        website_description: None,
+        website_description: description.clone(),
     };
     Ok(to_add)
 }

@@ -20,6 +20,9 @@ enum Commands {
     Add {
         /// The URL to add
         link: String,
+        /// User-provided description for the link
+        #[arg(long)]
+        description: Option<String>,
         /// Tag (or tags as a comma-delineated list) for the link
         #[arg(short, long, value_delimiter = ',', num_args = 1..)]
         tag: Option<Vec<String>>,
@@ -40,7 +43,6 @@ async fn main() {
     }
 }
 
-// TODO: --description
 // TODO: --notes
 // tag subcommand
 // TODO: Config file for location of sqlite3 file
@@ -51,25 +53,22 @@ async fn main() {
 async fn _main() -> Result<()> {
     let cli = Cli::parse();
     match &cli.command {
-        Commands::Add { link, tag, title } => {
-            let pool = sqlx::sqlite::SqlitePool::connect("sqlite:lz.db").await?;
-            let conn = Connection::from_pool(pool);
-            let mut txn = conn.begin_for_user("local").await?;
-            let bookmark_id = add(&mut txn, link.to_string(), title).await?;
-            if let Some(tag_strings) = tag {
-                let tags = txn.ensure_tags(tag_strings).await?;
-                txn.set_bookmark_tags(bookmark_id, tags).await?;
-            }
-            txn.commit().await?;
+        Commands::Add {
+            link,
+            description,
+            tag,
+            title,
+        } => {
+            add_cmd(link, description, tag, title).await?;
         }
         Commands::List {} => {
-            list_bookmarks().await?;
+            list_cmd().await?;
         }
     }
     Ok(())
 }
 
-async fn list_bookmarks() -> Result<()> {
+async fn list_cmd() -> Result<()> {
     let pool = sqlx::sqlite::SqlitePool::connect("sqlite:lz.db").await?;
     let conn = Connection::from_pool(pool);
     let mut txn = conn.begin_for_user("local").await?;
@@ -80,10 +79,36 @@ async fn list_bookmarks() -> Result<()> {
     Ok(())
 }
 
-async fn add(txn: &mut Transaction, link: String, title: &Option<String>) -> Result<BookmarkId> {
+async fn add_cmd(
+    link: &String,
+    description: &Option<String>,
+    tag: &Option<Vec<String>>,
+    title: &Option<String>,
+) -> Result<()> {
+    let pool = sqlx::sqlite::SqlitePool::connect("sqlite:lz.db").await?;
+    let conn = Connection::from_pool(pool);
+    let mut txn = conn.begin_for_user("local").await?;
+    let bookmark_id = add(&mut txn, link.to_string(), description, title).await?;
+    if let Some(tag_strings) = tag {
+        let tags = txn.ensure_tags(tag_strings).await?;
+        txn.set_bookmark_tags(bookmark_id, tags).await?;
+    }
+    txn.commit().await?;
+    Ok(())
+}
+
+async fn add(
+    txn: &mut Transaction,
+    link: String,
+    description: &Option<String>,
+    title: &Option<String>,
+) -> Result<BookmarkId> {
     let mut bookmark = lookup_link(link).await?;
     if let Some(user_title) = title {
         bookmark.title = user_title.to_string();
+    }
+    if let Some(user_description) = description {
+        bookmark.description = Some(user_description.to_string());
     }
     match txn.add_bookmark(bookmark.clone()).await {
         Ok(v) => Ok(v),

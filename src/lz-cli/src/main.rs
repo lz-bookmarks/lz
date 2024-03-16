@@ -46,16 +46,6 @@ async fn main() {
     }
 }
 
-// TODO: ls filtering: date, tag, host
-// TODO: pretty-print ls with tabled
-// TODO: associate subcommand
-// TODO: tag subcommand
-// TODO: --backdate on add
-// TODO: Config file for location of sqlite3 file
-// TODO: Handle creation of the database if it doesn't exist
-// TODO: Custom error message on duplicate URL
-// TODO: --force tag on `add` to support upsert
-
 async fn _main() -> Result<()> {
     let cli = Cli::parse();
     match &cli.command {

@@ -23,6 +23,9 @@ enum Commands {
         /// User-provided description for the link
         #[arg(long)]
         description: Option<String>,
+        /// Freeform notes for this link
+        #[arg(long)]
+        notes: Option<String>,
         /// Tag (or tags as a comma-delineated list) for the link
         #[arg(short, long, value_delimiter = ',', num_args = 1..)]
         tag: Option<Vec<String>>,
@@ -43,12 +46,13 @@ async fn main() {
     }
 }
 
-// TODO: --notes
+// ls filtering: date, tag, host
+// associate subcommand
 // tag subcommand
 // TODO: Config file for location of sqlite3 file
 // TODO: Handle creation of the database if it doesn't exist
 // TODO: Custom error message on duplicate URL
-// TODO: --force tagg on `add` to support upsert
+// TODO: --force tag on `add` to support upsert
 
 async fn _main() -> Result<()> {
     let cli = Cli::parse();
@@ -56,10 +60,11 @@ async fn _main() -> Result<()> {
         Commands::Add {
             link,
             description,
+            notes,
             tag,
             title,
         } => {
-            add_cmd(link, description, tag, title).await?;
+            add_cmd(link, description, notes, tag, title).await?;
         }
         Commands::List {} => {
             list_cmd().await?;
@@ -82,13 +87,14 @@ async fn list_cmd() -> Result<()> {
 async fn add_cmd(
     link: &String,
     description: &Option<String>,
+    notes: &Option<String>,
     tag: &Option<Vec<String>>,
     title: &Option<String>,
 ) -> Result<()> {
     let pool = sqlx::sqlite::SqlitePool::connect("sqlite:lz.db").await?;
     let conn = Connection::from_pool(pool);
     let mut txn = conn.begin_for_user("local").await?;
-    let bookmark_id = add(&mut txn, link.to_string(), description, title).await?;
+    let bookmark_id = add_link(&mut txn, link.to_string(), description, notes, title).await?;
     if let Some(tag_strings) = tag {
         let tags = txn.ensure_tags(tag_strings).await?;
         txn.set_bookmark_tags(bookmark_id, tags).await?;
@@ -97,10 +103,11 @@ async fn add_cmd(
     Ok(())
 }
 
-async fn add(
+async fn add_link(
     txn: &mut Transaction,
     link: String,
     description: &Option<String>,
+    notes: &Option<String>,
     title: &Option<String>,
 ) -> Result<BookmarkId> {
     let mut bookmark = lookup_link(link).await?;
@@ -110,6 +117,7 @@ async fn add(
     if let Some(user_description) = description {
         bookmark.description = Some(user_description.to_string());
     }
+    bookmark.notes = notes.as_ref().map(|n| n.to_string());
     match txn.add_bookmark(bookmark.clone()).await {
         Ok(v) => Ok(v),
         Err(sqlx::Error::Database(db_err)) if db_err.is_unique_violation() => {
@@ -128,23 +136,19 @@ async fn add(
 }
 
 async fn lookup_link(link: String) -> Result<Bookmark<(), ()>> {
-    // This currently assumes all lookups are against HTML pages that have titles,
-    // which is a reasonable starting point but would prevent e.g. bookmarking
-    // images.
-    // TODO: Handle non-HTML files
-    // TODO: Handle HTML without title elements -- just an empty string, I guess?
+    // This currently assumes all lookups are against HTML pages, which is a
+    // reasonable starting point but would prevent e.g. bookmarking images.
     let url = Url::parse(&link).context("Invalid link")?;
     let response = reqwest::get(link).await?;
     response.error_for_status_ref()?;
     let body = response.text().await?;
     let doc = Html::parse_document(&body);
     let root_ref = doc.root_element();
-    let title = root_ref
-        .select(&Selector::parse("title").unwrap())
-        .next()
-        .context("Unable to find title")
-        .unwrap()
-        .inner_html();
+    let found_title = root_ref.select(&Selector::parse("title").unwrap()).next();
+    let title = match found_title {
+        Some(el) => el.inner_html(),
+        None => "".to_string(),
+    };
     // TODO: Parse out meta description if available. (meta tag, name="description")
     let to_add = Bookmark {
         accessed_at: Default::default(),
@@ -159,7 +163,11 @@ async fn lookup_link(link: String) -> Result<Bookmark<(), ()>> {
         unread: true,
         url,
         user_id: (),
-        website_title: Some(title.clone()),
+        website_title: if title.as_str() == "" {
+            None
+        } else {
+            Some(title)
+        },
         website_description: None,
     };
     Ok(to_add)

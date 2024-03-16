@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
-use lz_db::{Bookmark, BookmarkId, Connection};
+use lz_db::{Bookmark, BookmarkId, Connection, Transaction};
 use reqwest;
 use scraper::{Html, Selector};
 use sqlx;
@@ -21,7 +21,10 @@ enum Commands {
     /// Add a link to lz
     Add {
         /// The URL to add
-        link: String
+        link: String,
+        #[arg(short, long, value_delimiter = ',', num_args = 1..)]
+        /// Tag (or tags as a comma-delineated list) for the link
+        tag: Option<Vec<String>>,
     },
     /// List bookmarks
     #[clap(alias = "ls")]
@@ -36,15 +39,28 @@ async fn main() {
     }
 }
 
+// TODO: --title to support title
+// TODO: --description
+// TODO: --notes
+// tag subcommand
 // TODO: Config file for location of sqlite3 file
 // TODO: Handle creation of the database if it doesn't exist
+// TODO: Custom error message on duplicate URL
+// TODO: --force tagg on `add` to support upsert
 
 async fn _main() -> Result<()> {
     let cli = Cli::parse();
     match &cli.command {
-        Commands::Add { link } => {
-            let bookmark_id = add(link.to_string()).await?;
-            println!("Added bookmark #{:?}", bookmark_id);
+        Commands::Add { link, tag } => {
+            let pool = sqlx::sqlite::SqlitePool::connect("sqlite:lz.db").await?;
+            let conn = Connection::from_pool(pool);
+            let mut txn = conn.begin_for_user("local").await?;
+            let bookmark_id = add(&mut txn, link.to_string()).await?;
+            if let Some(tag_strings) = tag {
+                let tags = txn.ensure_tags(tag_strings).await?;
+                txn.set_bookmark_tags(bookmark_id, tags).await?;
+            }
+            txn.commit().await?;
         },
         Commands::List {} => {
             list_bookmarks().await?;
@@ -64,14 +80,10 @@ async fn list_bookmarks() -> Result<()> {
     Ok(())
 }
 
-async fn add(link: String) -> Result<BookmarkId> {
+async fn add(txn: &mut Transaction, link: String) -> Result<BookmarkId> {
     let bookmark = lookup_link(link).await?;
-    let pool = sqlx::sqlite::SqlitePool::connect("sqlite:lz.db").await?;
-    let conn = Connection::from_pool(pool);
-    let mut txn = conn.begin_for_user("local").await?;
     match txn.add_bookmark(bookmark.clone()).await {
         Ok(v) => {
-            txn.commit().await?;
             Ok(v)
         },
         Err(sqlx::Error::Database(db_err)) if db_err.is_unique_violation() => {

@@ -33,6 +33,9 @@ enum Commands {
         /// User-provided description for the link
         #[arg(long)]
         description: Option<String>,
+        /// Overwrite values for any existing bookmarks
+        #[arg(long, action)]
+        force: bool,
         /// Freeform notes for this link
         #[arg(long)]
         notes: Option<String>,
@@ -78,11 +81,12 @@ async fn _main() -> Result<()> {
         Commands::Add {
             link,
             description,
+            force,
             notes,
             tag,
             title,
         } => {
-            add_cmd(txn, link, description, notes, tag, title).await?;
+            add_cmd(txn, link, description, force, notes, tag, title).await?;
         }
         Commands::List {
             created_after,
@@ -161,16 +165,18 @@ async fn add_cmd(
     mut txn: Transaction,
     link: &String,
     description: &Option<String>,
+    force: &bool,
     notes: &Option<String>,
     tag: &Option<Vec<String>>,
     title: &Option<String>,
 ) -> Result<()> {
-    let bookmark_id = add_link(&mut txn, link.to_string(), description, notes, title).await?;
+    let bookmark_id = add_link(&mut txn, link.to_string(), description, force, notes, title).await?;
     if let Some(tag_strings) = tag {
         let tags = txn.ensure_tags(tag_strings).await?;
         txn.set_bookmark_tags(bookmark_id, tags).await?;
     }
     txn.commit().await?;
+    println!("Added bookmark for {}", link);
     Ok(())
 }
 
@@ -178,10 +184,11 @@ async fn add_link(
     txn: &mut Transaction,
     link: String,
     description: &Option<String>,
+    force: &bool,
     notes: &Option<String>,
     title: &Option<String>,
 ) -> Result<BookmarkId> {
-    let mut bookmark = lookup_link_from_web(link).await?;
+    let mut bookmark = lookup_link_from_web(&link).await?;
     if let Some(user_title) = title {
         bookmark.title = user_title.to_string();
     }
@@ -192,24 +199,35 @@ async fn add_link(
     match txn.add_bookmark(bookmark.clone()).await {
         Ok(v) => Ok(v),
         Err(sqlx::Error::Database(db_err)) if db_err.is_unique_violation() => {
-            // TODO:
-            // This is recoverable -- what's the right thing to do when the
-            // user adds an existing tag?
-            // I guess the sensible thing to do here as we abstract this into a
-            // shared library is potentially support a force flag, which could
-            // be set from the caller based on context? But e.g. in the web client
-            // what should we do with the new description etc.?
-            Err(db_err.into())
+            if *force {
+                // Known to be valid or we would have errored out on the URL parse
+                let url = Url::parse(&link).unwrap();
+                let mut existing_bookmark = txn.find_bookmark_with_url(&url).await?.unwrap();
+                existing_bookmark.description = bookmark.description;
+                existing_bookmark.notes = bookmark.notes;
+                existing_bookmark.title = bookmark.title;
+                existing_bookmark.website_description = bookmark.website_description;
+                existing_bookmark.website_title = bookmark.website_title;
+                match txn.update_bookmark(&existing_bookmark).await {
+                    Ok(_) => Ok(existing_bookmark.id),
+                    Err(err) => Err(err.into()),
+                }
+            } else {
+                Err(anyhow!(
+                    "`{}` is already bookmarked; use --force to override",
+                    &link
+                ))
+            }
         }
         Err(err) => Err(err.into()),
     }
 }
 
-async fn lookup_link_from_web(link: String) -> Result<Bookmark<(), ()>> {
+async fn lookup_link_from_web(link: &String) -> Result<Bookmark<(), ()>> {
     // This currently assumes all lookups are against HTML pages, which is a
     // reasonable starting point but would prevent e.g. bookmarking images.
     let now = chrono::Utc::now();
-    let url = Url::parse(&link).context("Invalid link")?;
+    let url = Url::parse(link).context("Invalid link")?;
     let response = reqwest::get(link).await?;
     response.error_for_status_ref()?;
     let body = response.text().await?;

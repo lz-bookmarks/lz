@@ -4,6 +4,7 @@ import type {
 } from "@tanstack/react-query";
 import { ListBookmarks } from "../ListBookmarks";
 import { v1Components } from "../api";
+import { Button, Heading, Stack, Text } from "@chakra-ui/react";
 
 type Params = UseInfiniteQueryResult<
   InfiniteData<v1Components["schemas"]["ListBookmarkResult"], unknown>
@@ -26,18 +27,22 @@ export function BookmarksPage({
   if (!data || error) return <div>An error occurred: {error?.message}</div>;
   return (
     <>
-      <h1>LZ - {title}</h1>
-      <ListBookmarks pages={data.pages} />
-      <button
-        onClick={() => fetchNextPage()}
-        disabled={!hasNextPage || isFetchingNextPage}
-      >
-        {isFetchingNextPage
-          ? "Loading more..."
-          : hasNextPage
-          ? "Load More"
-          : "Nothing more to load"}
-      </button>
+      <Heading>LZ - {title}</Heading>
+      <Stack>
+        <ListBookmarks pages={data.pages} />
+        {isFetchingNextPage ? (
+          <Text>Loading more...</Text>
+        ) : (
+          hasNextPage && (
+            <Button
+              onClick={() => fetchNextPage()}
+              disabled={!hasNextPage || isFetchingNextPage}
+            >
+              Load more
+            </Button>
+          )
+        )}
+      </Stack>
     </>
   );
 }

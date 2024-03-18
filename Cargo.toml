@@ -5,7 +5,8 @@ resolver = "2"
 members = [
   "src/lz-db",
   "src/lz-import-linkding",
-  "src/lz-web"
+  "src/lz-web",
+  "src/lz-cli"
 ]
 
 [workspace.package]

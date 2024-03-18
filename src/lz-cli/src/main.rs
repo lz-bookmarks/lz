@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 use lz_db::{Bookmark, BookmarkId, Connection, Transaction};
@@ -12,6 +14,13 @@ use url::Url;
 struct Cli {
     #[command(subcommand)]
     command: Commands,
+
+    /// Path to the database to use
+    #[clap(long, default_value = "db.sqlite")]
+    db: PathBuf,
+
+    #[clap(long, default_value = "local")]
+    user: String,
 }
 
 #[derive(Subcommand, Debug)]
@@ -48,6 +57,11 @@ async fn main() {
 
 async fn _main() -> Result<()> {
     let cli = Cli::parse();
+    let pool =
+        sqlx::sqlite::SqlitePool::connect(&format!("sqlite:{}", cli.db.to_string_lossy())).await?;
+    let conn = Connection::from_pool(pool);
+    let txn = conn.begin_for_user(&cli.user).await?;
+
     match &cli.command {
         Commands::Add {
             link,
@@ -56,36 +70,41 @@ async fn _main() -> Result<()> {
             tag,
             title,
         } => {
-            add_cmd(link, description, notes, tag, title).await?;
+            add_cmd(txn, link, description, notes, tag, title).await?;
         }
         Commands::List {} => {
-            list_cmd().await?;
+            list_cmd(txn).await?;
         }
     }
     Ok(())
 }
 
-async fn list_cmd() -> Result<()> {
-    let pool = sqlx::sqlite::SqlitePool::connect("sqlite:lz.db").await?;
-    let conn = Connection::from_pool(pool);
-    let mut txn = conn.begin_for_user("local").await?;
-    let bookmarks = txn.all_bookmarks(None).await?;
-    for i in &bookmarks {
-        println!("{}: {}", i.title, i.url);
+async fn list_cmd(mut txn: Transaction) -> Result<()> {
+    let mut last_seen = None;
+    let page_size = 1000;
+    loop {
+        let bookmarks = txn.list_bookmarks(page_size, last_seen).await?;
+        for (elt, bm) in bookmarks.iter().enumerate() {
+            if elt == usize::from(page_size) {
+                last_seen = Some(bm.id);
+                break;
+            }
+            println!("{}: {}", bm.title, bm.url);
+        }
+        if bookmarks.len() < usize::from(page_size) + 1 {
+            return Ok(());
+        }
     }
-    Ok(())
 }
 
 async fn add_cmd(
+    mut txn: Transaction,
     link: &String,
     description: &Option<String>,
     notes: &Option<String>,
     tag: &Option<Vec<String>>,
     title: &Option<String>,
 ) -> Result<()> {
-    let pool = sqlx::sqlite::SqlitePool::connect("sqlite:lz.db").await?;
-    let conn = Connection::from_pool(pool);
-    let mut txn = conn.begin_for_user("local").await?;
     let bookmark_id = add_link(&mut txn, link.to_string(), description, notes, title).await?;
     if let Some(tag_strings) = tag {
         let tags = txn.ensure_tags(tag_strings).await?;
@@ -145,7 +164,10 @@ async fn lookup_link(link: String) -> Result<Bookmark<(), ()>> {
         .select(&Selector::parse(r#"meta[name="description"]"#).unwrap())
         .next();
     let description = match found_description {
-        Some(el) => el.value().attr("content").map(|meta_val| meta_val.to_string()),
+        Some(el) => el
+            .value()
+            .attr("content")
+            .map(|meta_val| meta_val.to_string()),
         None => None,
     };
     let to_add = Bookmark {

@@ -80,5 +80,4 @@ pub use user::*;
 mod import_properties;
 pub use import_properties::*;
 
-pub mod cli;
 pub mod web;

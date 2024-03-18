@@ -1,4 +1,3 @@
-import React from "react";
 import type { components } from "../api/v1.d.ts";
 import { Bookmark } from "../Bookmark";
 import { Stack } from "@chakra-ui/react";

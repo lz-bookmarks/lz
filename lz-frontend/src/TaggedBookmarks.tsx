@@ -2,6 +2,9 @@ import invariant from "tiny-invariant";
 import { useParams } from "react-router-dom";
 import { createUseQuery } from "./api";
 import { BookmarksPage } from "./BookmarksPage";
+import { Text, HStack, Tag, TagLabel, TagLeftIcon } from "@chakra-ui/react";
+import { CiHashtag } from "react-icons/ci";
+import { BookmarkTag } from "./BookmarkTag";
 
 type Params = {
   tag: string;
@@ -18,7 +21,11 @@ export function TaggedBookmarks() {
   );
   return (
     <BookmarksPage
-      title={`Bookmarks tagged ${tag}`}
+      title={[<Text>Bookmarks tagged</Text>].concat(
+        tag
+          .split(" ")
+          .map((name) => <BookmarkTag name={name} existingTags={{}} />),
+      )}
       {...queryResult}
     ></BookmarksPage>
   );

@@ -4,12 +4,12 @@ import type {
 } from "@tanstack/react-query";
 import { ListBookmarks } from "../ListBookmarks";
 import { v1Components } from "../api";
-import { Button, Heading, Stack, Text } from "@chakra-ui/react";
+import { Button, HStack, Heading, Stack, Text } from "@chakra-ui/react";
 
 type Params = UseInfiniteQueryResult<
   InfiniteData<v1Components["schemas"]["ListBookmarkResult"], unknown>
 > & {
-  title: string;
+  title: React.ReactElement[];
 };
 
 export function BookmarksPage({
@@ -27,7 +27,12 @@ export function BookmarksPage({
   if (!data || error) return <div>An error occurred: {error?.message}</div>;
   return (
     <>
-      <Heading>LZ - {title}</Heading>
+      <Heading>
+        <HStack>
+          <Text>LZ - </Text>
+          {title}
+        </HStack>
+      </Heading>
       <Stack>
         <ListBookmarks pages={data.pages} />
         {isFetchingNextPage ? (

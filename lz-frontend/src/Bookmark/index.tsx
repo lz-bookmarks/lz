@@ -1,22 +1,8 @@
-import {
-  Card,
-  CardBody,
-  HStack,
-  Heading,
-  Stack,
-  StackDivider,
-  Tag,
-  TagLabel,
-  TagLeftIcon,
-  Text,
-} from "@chakra-ui/react";
+import { Card, CardBody, HStack, Heading, Stack, Text } from "@chakra-ui/react";
 import type { components } from "../api/v1.d.ts";
-import { Link, useLocation } from "react-router-dom";
-import { CiHashtag } from "react-icons/ci";
-
-interface TagSet {
-  [key: string]: boolean | undefined;
-}
+import { useLocation } from "react-router-dom";
+import { BookmarkTag } from "../BookmarkTag.tsx";
+import type { TagSet } from "../BookmarkTag.tsx";
 
 export function Bookmark({
   bookmark,
@@ -39,21 +25,7 @@ export function Bookmark({
         </Heading>
         <HStack>
           {tags.map(({ name }) => (
-            <Tag key={name}>
-              <TagLeftIcon as={CiHashtag} />
-              <TagLabel>
-                <Link
-                  to={{
-                    pathname: `/tag/${Object.keys({
-                      ...existingTags,
-                      [name]: true,
-                    }).join(" ")}`,
-                  }}
-                >
-                  {name}
-                </Link>
-              </TagLabel>
-            </Tag>
+            <BookmarkTag name={name} existingTags={existingTags}></BookmarkTag>
           ))}
         </HStack>
         <Stack spacing={2}>

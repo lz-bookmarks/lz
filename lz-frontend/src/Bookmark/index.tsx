@@ -25,7 +25,7 @@ export function Bookmark({
         </Heading>
         <HStack>
           {tags.map(({ name }) => (
-            <BookmarkTag name={name} existingTags={existingTags}></BookmarkTag>
+            <BookmarkTag key={name} name={name}></BookmarkTag>
           ))}
         </HStack>
         <Stack spacing={2}>

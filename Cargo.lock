@@ -1532,6 +1532,43 @@ dependencies = [
 ]
 
 [[package]]
+name = "lz-workspace-hack"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "byteorder",
+ "cc",
+ "chrono",
+ "crypto-common",
+ "digest",
+ "flate2",
+ "futures-channel",
+ "futures-core",
+ "futures-sink",
+ "futures-util",
+ "getrandom",
+ "indexmap 2.2.3",
+ "log",
+ "memchr",
+ "phf_shared 0.11.2",
+ "rand",
+ "regex",
+ "regex-automata 0.4.5",
+ "regex-syntax 0.8.2",
+ "sha2",
+ "smallvec",
+ "sqlx-core",
+ "sqlx-sqlite",
+ "syn 1.0.109",
+ "tokio",
+ "tracing-core",
+ "tracing-subscriber",
+ "url",
+ "utoipa",
+ "utoipa-gen",
+]
+
+[[package]]
 name = "mac"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

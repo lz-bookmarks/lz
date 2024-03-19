@@ -18,13 +18,14 @@ impl Transaction {
             r#"
               SELECT bookmarks.* FROM bookmarks
               WHERE
-                user_id = "#);
-        query
-            .push_bind(self.user().id)
-            .push(r#"
+                user_id = "#,
+        );
+        query.push_bind(self.user().id).push(
+            r#"
               ORDER BY
                 created_at DESC, bookmark_id DESC
-            "#);
+            "#,
+        );
         if let Some(max_count) = limit {
             query.push(" LIMIT ");
             query.push_bind(max_count);

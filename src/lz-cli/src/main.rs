@@ -145,7 +145,10 @@ async fn lookup_link(link: String) -> Result<Bookmark<(), ()>> {
         .select(&Selector::parse(r#"meta[name="description"]"#).unwrap())
         .next();
     let description = match found_description {
-        Some(el) => el.value().attr("content").map(|meta_val| meta_val.to_string()),
+        Some(el) => el
+            .value()
+            .attr("content")
+            .map(|meta_val| meta_val.to_string()),
         None => None,
     };
     let to_add = Bookmark {

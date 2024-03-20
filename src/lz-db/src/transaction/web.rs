@@ -2,9 +2,12 @@
 
 use std::{collections::HashMap, fmt};
 
-use sqlx::prelude::*;
+use sqlx::{prelude::*, QueryBuilder};
 
-use crate::{Bookmark, BookmarkId, IdType, Tag, TagId, Transaction, UserId};
+use crate::{
+    Bookmark, BookmarkId, BookmarkSearch, BookmarkSearchCriteria, IdType, Tag, TagId, Transaction,
+    UserId,
+};
 
 /// # Queries relevant to the `lz` web app
 /// ## Pagination
@@ -46,50 +49,37 @@ impl Transaction {
         .await
     }
 
-    /// Retrieve bookmarks tagged with all of the given tags.
-    ///
-    /// TODO: This currently only supports the current user's bookmarks.
+    /// Retrieve bookmarks tagged matching the given criteria.
     #[tracing::instrument(err(Debug, level = tracing::Level::WARN), skip(self))]
-    pub async fn list_bookmarks_with_tag_names<S: AsRef<str> + fmt::Debug>(
+    pub async fn list_bookmarks_matching(
         &mut self,
-        tags: Vec<S>,
+        criteria: Vec<BookmarkSearch>,
         page_size: u16,
         last_seen: Option<BookmarkId>,
     ) -> Result<Vec<Bookmark<BookmarkId, UserId>>, sqlx::Error> {
         let last_seen = last_seen.map(|id| id.id()).unwrap_or(i64::MAX);
-        let tag_queries = tags
-            .iter()
-            .map(|_| {
-                r#"
-                 SELECT bookmark_id FROM tags JOIN bookmark_tags USING (tag_id) WHERE tags.name = ?
-                "#
-            })
-            .collect::<Vec<&str>>()
-            .join(" INTERSECT ");
-        let sql = format!(
+        let mut qb = QueryBuilder::new(
             r#"
-              SELECT DISTINCT bookmarks.*
-              FROM bookmarks JOIN ({}) USING (bookmark_id)
-              WHERE
-                user_id = ?
-                AND bookmark_id <= ?
-              ORDER BY
-                created_at DESC, bookmark_id DESC
-              LIMIT ?
-            "#,
-            tag_queries
+          SELECT bookmarks.*
+          FROM bookmarks JOIN (
+        "#,
         );
-        let mut query = sqlx::query_as(&sql);
-        for tag in tags {
-            let tag = tag.as_ref().to_string();
-            query = query.bind(tag);
+        for (i, criterium) in criteria.iter().enumerate() {
+            qb = criterium.bookmarks_join_table(qb, i == 0);
         }
-        query = query
-            .bind(self.user().id)
-            .bind(last_seen)
-            .bind(page_size + 1);
-
-        query.fetch_all(&mut *self.txn).await
+        qb.push(
+            r#"
+          ) USING (bookmark_id)
+          WHERE bookmark_id <=
+        "#,
+        );
+        qb.push_bind(last_seen);
+        for criterium in criteria.iter() {
+            qb = criterium.where_clause(qb, false);
+        }
+        qb.push(" LIMIT ");
+        qb.push_bind(page_size);
+        qb.build_query_as().fetch_all(&mut *self.txn).await
     }
 
     #[tracing::instrument(err(Debug, level = tracing::Level::WARN), skip(self))]

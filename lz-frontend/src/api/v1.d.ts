@@ -127,6 +127,7 @@ export interface components {
        */
       perPage?: number | null;
     };
+    /** @description The name representation of a tag. */
     TagName: string;
     /**
      * @description A search query for retrieving bookmarks via the tags assigned to them.

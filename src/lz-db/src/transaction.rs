@@ -81,3 +81,6 @@ mod import_properties;
 pub use import_properties::*;
 
 pub mod web;
+
+pub(crate) mod criteria;
+pub use criteria::{BookmarkSearch, BookmarkSearchCriteria};

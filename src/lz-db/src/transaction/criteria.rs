@@ -49,7 +49,6 @@ use crate::{IdType, TagId, TagName, UserId};
 /// you don't have to worry about precedence of logic operators.
 pub trait BookmarkSearchCriteria {
     /// Adds a table to the query builder that the bookmarks query gets joined with.
-    #[allow(unused_variables)]
     fn bookmarks_join_table<'qb, 'args, Sep: fmt::Display>(
         &self,
         sep: Separated<'qb, 'args, Sqlite, Sep>,
@@ -58,7 +57,6 @@ pub trait BookmarkSearchCriteria {
     }
 
     /// Inserts the data's criteria into a query WHERE clause, if applicable.
-    #[allow(unused_variables)]
     fn where_clause<'qb, 'args, Sep: fmt::Display>(
         &self,
         sep: Separated<'qb, 'args, Sqlite, Sep>,

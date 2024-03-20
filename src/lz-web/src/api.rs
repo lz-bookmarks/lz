@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 use axum::{debug_handler, extract::Query, http::StatusCode, routing::get, Json, Router};
 use axum_valid::Valid;
-use lz_db::{BookmarkId, ExistingBookmark, ExistingTag, IdType as _, UserId};
+use lz_db::{BookmarkId, BookmarkSearch, ExistingBookmark, ExistingTag, TagName, UserId};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tower_http::cors::CorsLayer;
@@ -17,7 +17,7 @@ use utoipa::{OpenApi, ToResponse, ToSchema};
 use validator::Validate;
 
 use crate::db::{DbTransaction, GlobalWebAppState};
-use searching::{TagName, TagQuery};
+use searching::TagQuery;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -123,8 +123,13 @@ async fn list_bookmarks(
 ) -> Result<Json<ListBookmarkResult>, (StatusCode, Json<ApiError>)> {
     let pagination = pagination.unwrap_or_default();
     let per_page = pagination.per_page.unwrap_or(20);
+    let user_id = txn.user().id;
     let bms = txn
-        .list_bookmarks(per_page, pagination.cursor)
+        .list_bookmarks_matching(
+            vec![BookmarkSearch::User { id: user_id }],
+            per_page,
+            pagination.cursor,
+        )
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiError::from(e))))?;
     let mut taggings = txn.tags_on_bookmarks(&bms).await.map_err(|e| {
@@ -183,8 +188,16 @@ async fn list_bookmarks_with_tag(
 ) -> Result<Json<ListBookmarkResult>, (StatusCode, Json<ApiError>)> {
     let pagination = pagination.unwrap_or_default();
     let per_page = pagination.per_page.unwrap_or(20);
+    let user_id = txn.user().id;
     let bms = txn
-        .list_bookmarks_with_tag_names(tags, per_page, pagination.cursor)
+        .list_bookmarks_matching(
+            tags.into_iter()
+                .map(|name| BookmarkSearch::TagByName { name })
+                .chain([BookmarkSearch::User { id: user_id }])
+                .collect(),
+            per_page,
+            pagination.cursor,
+        )
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiError::from(e))))?;
     let mut taggings = txn.tags_on_bookmarks(&bms).await.map_err(|e| {

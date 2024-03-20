@@ -2,9 +2,13 @@
 
 use std::{collections::HashMap, fmt};
 
-use sqlx::prelude::*;
+use sqlx::{prelude::*, QueryBuilder};
+use tracing::debug;
 
-use crate::{Bookmark, BookmarkId, IdType, Tag, TagId, Transaction, UserId};
+use crate::{
+    Bookmark, BookmarkId, BookmarkSearch, BookmarkSearchCriteria, IdType, Tag, TagId, Transaction,
+    UserId,
+};
 
 /// # Queries relevant to the `lz` web app
 /// ## Pagination
@@ -20,76 +24,46 @@ use crate::{Bookmark, BookmarkId, IdType, Tag, TagId, Transaction, UserId};
 /// page_size+1 elements are returned, that last element's ID
 /// should be the next cursor ID.
 impl Transaction {
-    /// Retrieve a user's bookmarks from the database, paginated
+    /// Retrieve bookmarks tagged matching the given criteria, paginated
     #[tracing::instrument(err(Debug, level = tracing::Level::WARN), skip(self))]
-    pub async fn list_bookmarks(
+    pub async fn list_bookmarks_matching(
         &mut self,
+        criteria: Vec<BookmarkSearch>,
         page_size: u16,
         last_seen: Option<BookmarkId>,
     ) -> Result<Vec<Bookmark<BookmarkId, UserId>>, sqlx::Error> {
         let last_seen = last_seen.map(|id| id.id()).unwrap_or(i64::MAX);
-        sqlx::query_as(
-            r#"
-              SELECT bookmarks.* FROM bookmarks
-              WHERE
-                user_id = ?
-                AND bookmark_id <= ?
-              ORDER BY
-                created_at DESC, bookmark_id DESC
-              LIMIT ?
-            "#,
-        )
-        .bind(self.user().id)
-        .bind(last_seen)
-        .bind(page_size + 1)
-        .fetch_all(&mut *self.txn)
-        .await
-    }
+        let mut qb = QueryBuilder::new("SELECT bookmarks.* FROM bookmarks");
 
-    /// Retrieve bookmarks tagged with all of the given tags.
-    ///
-    /// TODO: This currently only supports the current user's bookmarks.
-    #[tracing::instrument(err(Debug, level = tracing::Level::WARN), skip(self))]
-    pub async fn list_bookmarks_with_tag_names<S: AsRef<str> + fmt::Debug>(
-        &mut self,
-        tags: Vec<S>,
-        page_size: u16,
-        last_seen: Option<BookmarkId>,
-    ) -> Result<Vec<Bookmark<BookmarkId, UserId>>, sqlx::Error> {
-        let last_seen = last_seen.map(|id| id.id()).unwrap_or(i64::MAX);
-        let tag_queries = tags
-            .iter()
-            .map(|_| {
-                r#"
-                 SELECT bookmark_id FROM tags JOIN bookmark_tags USING (tag_id) WHERE tags.name = ?
-                "#
-            })
-            .collect::<Vec<&str>>()
-            .join(" INTERSECT ");
-        let sql = format!(
-            r#"
-              SELECT DISTINCT bookmarks.*
-              FROM bookmarks JOIN ({}) USING (bookmark_id)
-              WHERE
-                user_id = ?
-                AND bookmark_id <= ?
-              ORDER BY
-                created_at DESC, bookmark_id DESC
-              LIMIT ?
-            "#,
-            tag_queries
-        );
-        let mut query = sqlx::query_as(&sql);
-        for tag in tags {
-            let tag = tag.as_ref().to_string();
-            query = query.bind(tag);
+        // Limit the bookmarks by the relationships they have: For
+        // tags, we handle that by finding each tag's bookmark IDs and
+        // intersecting them. This _seems_ like it ought to be
+        // inefficient, but at "normal" numbers of bookmarks and tags,
+        // sqlite can get a pretty fast query plan out of it.
+        qb.push(" JOIN (");
+        let mut sep = qb.separated(" INTERSECT ");
+        for criterium in criteria.iter() {
+            sep = criterium.bookmarks_join_table(sep);
         }
-        query = query
-            .bind(self.user().id)
-            .bind(last_seen)
-            .bind(page_size + 1);
+        // A query for "all" bookmarks to ensure the JOIN works
+        // even if no criteria were given:
+        sep.push("SELECT bookmark_id FROM bookmarks");
+        qb.push(") USING (bookmark_id)");
 
-        query.fetch_all(&mut *self.txn).await
+        // Limit the bookmarks by any "additional" criteria that might
+        // apply (creation, user ID, and of course, pagination):
+        qb.push(" WHERE (");
+        let mut sep = qb.separated(") AND (");
+        sep.push("bookmark_id <=");
+        sep.push_bind_unseparated(last_seen);
+        for criterium in criteria.iter() {
+            sep = criterium.where_clause(sep);
+        }
+        qb.push(") ORDER BY created_at DESC, bookmark_id DESC LIMIT ");
+        qb.push_bind(page_size);
+
+        debug!(sql = qb.sql());
+        qb.build_query_as().fetch_all(&mut *self.txn).await
     }
 
     #[tracing::instrument(err(Debug, level = tracing::Level::WARN), skip(self))]

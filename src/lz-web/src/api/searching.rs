@@ -7,20 +7,12 @@ use axum::{
     http::{request::Parts, StatusCode},
     response::IntoResponse,
 };
+use lz_db::TagName;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use utoipa::{ToResponse, ToSchema};
 
 use crate::db::GlobalWebAppState;
-
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone, ToSchema, ToResponse)]
-pub(crate) struct TagName(#[schema(min_length = 1, pattern = "^[^ ]+$")] String);
-
-impl AsRef<str> for TagName {
-    fn as_ref(&self) -> &str {
-        self.0.as_ref()
-    }
-}
 
 /// A search query for retrieving bookmarks via the tags assigned to them.
 ///
@@ -46,7 +38,7 @@ impl IntoResponse for TagQueryRejection {
 }
 
 #[async_trait::async_trait]
-impl FromRequestParts<Arc<GlobalWebAppState>> for TagQuery {
+impl<'a> FromRequestParts<Arc<GlobalWebAppState>> for TagQuery {
     type Rejection = TagQueryRejection;
     async fn from_request_parts(
         parts: &mut Parts,
@@ -56,7 +48,7 @@ impl FromRequestParts<Arc<GlobalWebAppState>> for TagQuery {
         let tags = query
             .split(' ')
             .filter(|q| !q.is_empty())
-            .map(|q| TagName(q.to_string()))
+            .map(|name| TagName::from(name))
             .collect();
         Ok(TagQuery { tags })
     }

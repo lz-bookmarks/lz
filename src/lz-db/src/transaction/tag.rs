@@ -65,6 +65,28 @@ impl From<&Tag<TagId>> for TagId {
     }
 }
 
+/// The name representation of a tag.
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone, ToSchema, ToResponse)]
+pub struct TagName(#[schema(min_length = 1, pattern = "^[^ ]+$")] pub String);
+
+impl AsRef<str> for TagName {
+    fn as_ref(&self) -> &str {
+        self.0.as_ref()
+    }
+}
+
+impl<ID: IdType<TagId>> From<&Tag<ID>> for TagName {
+    fn from(tag: &Tag<ID>) -> Self {
+        TagName(tag.name.to_string())
+    }
+}
+
+impl From<&str> for TagName {
+    fn from(value: &str) -> Self {
+        TagName(value.to_string())
+    }
+}
+
 /// # Working with [`Tag`]s
 impl Transaction {
     /// Return all existing tags matching the given names.

@@ -33,12 +33,13 @@ impl Transaction {
         last_seen: Option<BookmarkId>,
     ) -> Result<Vec<Bookmark<BookmarkId, UserId>>, sqlx::Error> {
         let last_seen = last_seen.map(|id| id.id()).unwrap_or(i64::MAX);
-        let mut qb = QueryBuilder::new(
-            r#"
-          SELECT bookmarks.*
-          FROM bookmarks
-        "#,
-        );
+        let mut qb = QueryBuilder::new("SELECT bookmarks.* FROM bookmarks");
+
+        // Limit the bookmarks by the relationships they have: For
+        // tags, we handle that by finding each tag's bookmark IDs and
+        // intersecting them. This _seems_ like it ought to be
+        // inefficient, but at "normal" numbers of bookmarks and tags,
+        // sqlite can get a pretty fast query plan out of it.
         qb.push(" JOIN (");
         let mut sep = qb.separated(" INTERSECT ");
         for criterium in criteria.iter() {
@@ -48,6 +49,9 @@ impl Transaction {
         // even if no criteria were given:
         sep.push("SELECT bookmark_id FROM bookmarks");
         qb.push(") USING (bookmark_id)");
+
+        // Limit the bookmarks by any "additional" criteria that might
+        // apply (creation, user ID, and of course, pagination):
         qb.push(" WHERE ");
         let mut sep = qb.separated(" AND ");
         sep.push("bookmark_id <=");

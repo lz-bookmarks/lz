@@ -52,14 +52,14 @@ impl Transaction {
 
         // Limit the bookmarks by any "additional" criteria that might
         // apply (creation, user ID, and of course, pagination):
-        qb.push(" WHERE ");
-        let mut sep = qb.separated(" AND ");
+        qb.push(" WHERE (");
+        let mut sep = qb.separated(") AND (");
         sep.push("bookmark_id <=");
         sep.push_bind_unseparated(last_seen);
         for criterium in criteria.iter() {
             sep = criterium.where_clause(sep);
         }
-        qb.push(" ORDER BY created_at DESC, bookmark_id DESC LIMIT ");
+        qb.push(") ORDER BY created_at DESC, bookmark_id DESC LIMIT ");
         qb.push_bind(page_size);
 
         debug!(sql = qb.sql());

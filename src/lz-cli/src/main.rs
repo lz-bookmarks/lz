@@ -83,7 +83,9 @@ async fn list_cmd(mut txn: Transaction) -> Result<()> {
     let mut last_seen = None;
     let page_size = 1000;
     loop {
-        let bookmarks = txn.list_bookmarks(page_size, last_seen).await?;
+        let bookmarks = txn
+            .list_bookmarks_matching(vec![], page_size, last_seen)
+            .await?;
         for (elt, bm) in bookmarks.iter().enumerate() {
             if elt == usize::from(page_size) {
                 last_seen = Some(bm.id);

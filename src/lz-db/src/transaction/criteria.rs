@@ -1,36 +1,29 @@
 //! Search criteria translation in the DB
 
-use sqlx::{QueryBuilder, Sqlite};
+use std::fmt;
+
+use sqlx::{query_builder::Separated, Sqlite};
 
 use crate::{IdType, TagId, TagName, UserId};
 
 /// A trait that allows translating a type internal to lz-db to a set of database query criteria.
-pub trait BookmarkSearchCriteria<'args> {
+pub trait BookmarkSearchCriteria {
     /// Adds a table to the query builder that the bookmarks query gets joined with.
-    ///
-    /// The query must return `bookmark_id` field, and when adding it
-    /// to the query builder, must insert a preceding `INTERSECT` if
-    /// `is_first_clause` is true.
     #[allow(unused_variables)]
-    fn bookmarks_join_table(
+    fn bookmarks_join_table<'qb, 'args, Sep: fmt::Display>(
         &self,
-        qb: QueryBuilder<'args, Sqlite>,
-        is_first_clause: bool,
-    ) -> QueryBuilder<'args, Sqlite> {
-        qb
+        sep: Separated<'qb, 'args, Sqlite, Sep>,
+    ) -> Separated<'qb, 'args, Sqlite, Sep> {
+        sep
     }
 
     /// Inserts the data's criteria into a query WHERE clause, if applicable.
-    ///
-    /// It's expected that implementations of this insert an AND
-    /// operator, if `is_first_clause` is true.
     #[allow(unused_variables)]
-    fn where_clause(
+    fn where_clause<'qb, 'args, Sep: fmt::Display>(
         &self,
-        qb: QueryBuilder<'args, Sqlite>,
-        is_first_clause: bool,
-    ) -> QueryBuilder<'args, Sqlite> {
-        qb
+        sep: Separated<'qb, 'args, Sqlite, Sep>,
+    ) -> Separated<'qb, 'args, Sqlite, Sep> {
+        sep
     }
 }
 
@@ -43,78 +36,64 @@ pub enum BookmarkSearch {
     User { id: UserId },
 }
 
-impl<'args> BookmarkSearchCriteria<'args> for BookmarkSearch {
-    fn bookmarks_join_table(
+impl BookmarkSearchCriteria for BookmarkSearch {
+    fn bookmarks_join_table<'qb, 'args, Sep: fmt::Display>(
         &self,
-        qb: QueryBuilder<'args, Sqlite>,
-        is_first_clause: bool,
-    ) -> QueryBuilder<'args, Sqlite> {
+        sep: Separated<'qb, 'args, Sqlite, Sep>,
+    ) -> Separated<'qb, 'args, Sqlite, Sep> {
         match self {
-            BookmarkSearch::TagByName { name } => name.bookmarks_join_table(qb, is_first_clause),
-            BookmarkSearch::TagById { id } => id.bookmarks_join_table(qb, is_first_clause),
-            BookmarkSearch::User { id } => id.bookmarks_join_table(qb, is_first_clause),
+            BookmarkSearch::TagByName { name } => name.bookmarks_join_table(sep),
+            BookmarkSearch::TagById { id } => id.bookmarks_join_table(sep),
+            BookmarkSearch::User { id } => id.bookmarks_join_table(sep),
         }
     }
 
-    fn where_clause(
+    fn where_clause<'qb, 'args, Sep: fmt::Display>(
         &self,
-        qb: QueryBuilder<'args, Sqlite>,
-        is_first_clause: bool,
-    ) -> QueryBuilder<'args, Sqlite> {
+        sep: Separated<'qb, 'args, Sqlite, Sep>,
+    ) -> Separated<'qb, 'args, Sqlite, Sep> {
         match self {
-            BookmarkSearch::TagByName { name } => name.where_clause(qb, is_first_clause),
-            BookmarkSearch::TagById { id } => id.where_clause(qb, is_first_clause),
-            BookmarkSearch::User { id } => id.where_clause(qb, is_first_clause),
+            BookmarkSearch::TagByName { name } => name.where_clause(sep),
+            BookmarkSearch::TagById { id } => id.where_clause(sep),
+            BookmarkSearch::User { id } => id.where_clause(sep),
         }
     }
 }
 
 /// Constricts a bookmark query to only return bookmarks that have the given tag name.
-impl<'args> BookmarkSearchCriteria<'args> for TagName {
-    fn bookmarks_join_table(
+impl BookmarkSearchCriteria for TagName {
+    fn bookmarks_join_table<'qb, 'args, Sep: fmt::Display>(
         &self,
-        mut qb: QueryBuilder<'args, Sqlite>,
-        is_first_clause: bool,
-    ) -> QueryBuilder<'args, Sqlite> {
-        if !is_first_clause {
-            qb.push(" INTERSECT ");
-        }
-        qb.push(
+        mut sep: Separated<'qb, 'args, Sqlite, Sep>,
+    ) -> Separated<'qb, 'args, Sqlite, Sep> {
+        sep.push(
             r#"SELECT bookmark_id FROM tags JOIN bookmark_tags USING (tag_id) WHERE tags.name ="#,
         );
-        qb.push_bind(self.0.to_string());
-        qb
+        sep.push_bind_unseparated(self.0.to_string());
+        sep
     }
 }
 
 /// Constricts a bookmark query to only return bookmarks having a tag with the given ID.
-impl<'args> BookmarkSearchCriteria<'args> for TagId {
-    fn bookmarks_join_table(
+impl BookmarkSearchCriteria for TagId {
+    fn bookmarks_join_table<'qb, 'args, Sep: fmt::Display>(
         &self,
-        mut qb: QueryBuilder<'args, Sqlite>,
-        is_first_clause: bool,
-    ) -> QueryBuilder<'args, Sqlite> {
-        if !is_first_clause {
-            qb.push(" INTERSECT ");
-        }
-        qb.push(r#"SELECT bookmark_id FROM tags WHERE tags.id ="#);
-        qb.push_bind(self.id());
-        qb
+        mut sep: Separated<'qb, 'args, Sqlite, Sep>,
+    ) -> Separated<'qb, 'args, Sqlite, Sep> {
+        sep.push(r#"SELECT bookmark_id FROM tags WHERE tags.id ="#);
+        sep.push_bind_unseparated(self.id());
+        sep
     }
 }
 
 /// Constricts a bookmark query to only return bookmarks that belong to the given user.
-impl<'args> BookmarkSearchCriteria<'args> for UserId {
-    fn where_clause(
+impl BookmarkSearchCriteria for UserId {
+    fn where_clause<'qb, 'args, Sep: fmt::Display>(
         &self,
-        mut qb: QueryBuilder<'args, Sqlite>,
-        is_first_clause: bool,
-    ) -> QueryBuilder<'args, Sqlite> {
-        if !is_first_clause {
-            qb.push(" AND ");
-        }
-        qb.push("user_id = ");
-        qb.push_bind(self.id());
-        qb
+        mut sep: Separated<'qb, 'args, Sqlite, Sep>,
+    ) -> Separated<'qb, 'args, Sqlite, Sep> {
+        sep.push("user_id = ");
+        sep.push_bind_unseparated(self.id());
+        sep
     }
 }

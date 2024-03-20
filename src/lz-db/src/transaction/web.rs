@@ -3,6 +3,7 @@
 use std::{collections::HashMap, fmt};
 
 use sqlx::{prelude::*, QueryBuilder};
+use tracing::debug;
 
 use crate::{
     Bookmark, BookmarkId, BookmarkSearch, BookmarkSearchCriteria, IdType, Tag, TagId, Transaction,
@@ -23,33 +24,7 @@ use crate::{
 /// page_size+1 elements are returned, that last element's ID
 /// should be the next cursor ID.
 impl Transaction {
-    /// Retrieve a user's bookmarks from the database, paginated
-    #[tracing::instrument(err(Debug, level = tracing::Level::WARN), skip(self))]
-    pub async fn list_bookmarks(
-        &mut self,
-        page_size: u16,
-        last_seen: Option<BookmarkId>,
-    ) -> Result<Vec<Bookmark<BookmarkId, UserId>>, sqlx::Error> {
-        let last_seen = last_seen.map(|id| id.id()).unwrap_or(i64::MAX);
-        sqlx::query_as(
-            r#"
-              SELECT bookmarks.* FROM bookmarks
-              WHERE
-                user_id = ?
-                AND bookmark_id <= ?
-              ORDER BY
-                created_at DESC, bookmark_id DESC
-              LIMIT ?
-            "#,
-        )
-        .bind(self.user().id)
-        .bind(last_seen)
-        .bind(page_size + 1)
-        .fetch_all(&mut *self.txn)
-        .await
-    }
-
-    /// Retrieve bookmarks tagged matching the given criteria.
+    /// Retrieve bookmarks tagged matching the given criteria, paginated
     #[tracing::instrument(err(Debug, level = tracing::Level::WARN), skip(self))]
     pub async fn list_bookmarks_matching(
         &mut self,
@@ -61,24 +36,29 @@ impl Transaction {
         let mut qb = QueryBuilder::new(
             r#"
           SELECT bookmarks.*
-          FROM bookmarks JOIN (
+          FROM bookmarks
         "#,
         );
-        for (i, criterium) in criteria.iter().enumerate() {
-            qb = criterium.bookmarks_join_table(qb, i == 0);
-        }
-        qb.push(
-            r#"
-          ) USING (bookmark_id)
-          WHERE bookmark_id <=
-        "#,
-        );
-        qb.push_bind(last_seen);
+        qb.push(" JOIN (");
+        let mut sep = qb.separated(" INTERSECT ");
         for criterium in criteria.iter() {
-            qb = criterium.where_clause(qb, false);
+            sep = criterium.bookmarks_join_table(sep);
         }
-        qb.push(" LIMIT ");
+        // A query for "all" bookmarks to ensure the JOIN works
+        // even if no criteria were given:
+        sep.push("SELECT bookmark_id FROM bookmarks");
+        qb.push(") USING (bookmark_id)");
+        qb.push(" WHERE ");
+        let mut sep = qb.separated(" AND ");
+        sep.push("bookmark_id <=");
+        sep.push_bind_unseparated(last_seen);
+        for criterium in criteria.iter() {
+            sep = criterium.where_clause(sep);
+        }
+        qb.push(" ORDER BY created_at DESC, bookmark_id DESC LIMIT ");
         qb.push_bind(page_size);
+
+        debug!(sql = qb.sql());
         qb.build_query_as().fetch_all(&mut *self.txn).await
     }
 

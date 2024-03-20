@@ -123,8 +123,13 @@ async fn list_bookmarks(
 ) -> Result<Json<ListBookmarkResult>, (StatusCode, Json<ApiError>)> {
     let pagination = pagination.unwrap_or_default();
     let per_page = pagination.per_page.unwrap_or(20);
+    let user_id = txn.user().id;
     let bms = txn
-        .list_bookmarks(per_page, pagination.cursor)
+        .list_bookmarks_matching(
+            vec![BookmarkSearch::User { id: user_id }],
+            per_page,
+            pagination.cursor,
+        )
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiError::from(e))))?;
     let mut taggings = txn.tags_on_bookmarks(&bms).await.map_err(|e| {

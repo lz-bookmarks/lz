@@ -1,8 +1,9 @@
 use std::path::PathBuf;
 
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
+use chrono::{NaiveDateTime};
 use clap::{Parser, Subcommand};
-use lz_db::{Bookmark, BookmarkId, Connection, Transaction};
+use lz_db::{Bookmark, BookmarkId, BookmarkSearch, Connection, Transaction};
 use scraper::{Html, Selector};
 use url::Url;
 
@@ -44,7 +45,14 @@ enum Commands {
     },
     /// List bookmarks
     #[clap(alias = "ls")]
-    List {},
+    List {
+        /// Created on or after a date; accepts a YYYY-MM-DD string
+        #[arg(long)]
+        created_after: Option<String>,
+        /// Created before a date; accepts a YYYY-MM-DD string
+        #[arg(long)]
+        created_before: Option<String>,
+    },
 }
 
 #[tokio::main]
@@ -72,19 +80,57 @@ async fn _main() -> Result<()> {
         } => {
             add_cmd(txn, link, description, notes, tag, title).await?;
         }
-        Commands::List {} => {
-            list_cmd(txn).await?;
+        Commands::List {
+            created_after,
+            created_before,
+        } => {
+            list_cmd(txn, created_after, created_before).await?;
         }
     }
     Ok(())
 }
 
-async fn list_cmd(mut txn: Transaction) -> Result<()> {
+fn datestring_to_datetime(
+    datestring: String,
+    end_of_day: bool,
+) -> Result<chrono::DateTime<chrono::Utc>> {
+    let naive = if end_of_day {
+        NaiveDateTime::parse_from_str(&format!("{} 23:59:59", &datestring), "%Y-%m-%d %H:%M:%S")
+    } else {
+        NaiveDateTime::parse_from_str(&format!("{} 00:00:00", &datestring), "%Y-%m-%d %H:%M:%S")
+    };
+    if let Ok(naive) = naive {
+        Ok(naive.and_utc())
+    } else {
+        Err(anyhow!(
+            "{} is not a valid YYYY-MM-DD date string",
+            datestring
+        ))
+    }
+}
+
+async fn list_cmd(
+    mut txn: Transaction,
+    created_after: &Option<String>,
+    created_before: &Option<String>,
+) -> Result<()> {
     let mut last_seen = None;
     let page_size = 1000;
+
+    // All datetimes are UTC; for purposes of dates, we'll eventually want to allow a config
+    // option setting a default timezone.
+    let mut filters: Vec<BookmarkSearch> = vec![];
+    if let Some(created_before_str) = created_before {
+        let dt = datestring_to_datetime(created_before_str.to_string(), false)?;
+        filters.push(lz_db::created_before_from_datetime(dt))
+    };
+    if let Some(created_after_str) = created_after {
+        let dt = datestring_to_datetime(created_after_str.to_string(), false)?;
+        filters.push(lz_db::created_after_from_datetime(dt))
+    };
     loop {
         let bookmarks = txn
-            .list_bookmarks_matching(vec![], page_size, last_seen)
+            .list_bookmarks_matching(filters.clone(), page_size, last_seen)
             .await?;
         for (elt, bm) in bookmarks.iter().enumerate() {
             if elt == usize::from(page_size) {
@@ -123,7 +169,7 @@ async fn add_link(
     notes: &Option<String>,
     title: &Option<String>,
 ) -> Result<BookmarkId> {
-    let mut bookmark = lookup_link(link).await?;
+    let mut bookmark = lookup_link_from_web(link).await?;
     if let Some(user_title) = title {
         bookmark.title = user_title.to_string();
     }
@@ -134,7 +180,6 @@ async fn add_link(
     match txn.add_bookmark(bookmark.clone()).await {
         Ok(v) => Ok(v),
         Err(sqlx::Error::Database(db_err)) if db_err.is_unique_violation() => {
-            println!("Duplicate link");
             // TODO:
             // This is recoverable -- what's the right thing to do when the
             // user adds an existing tag?
@@ -148,9 +193,10 @@ async fn add_link(
     }
 }
 
-async fn lookup_link(link: String) -> Result<Bookmark<(), ()>> {
+async fn lookup_link_from_web(link: String) -> Result<Bookmark<(), ()>> {
     // This currently assumes all lookups are against HTML pages, which is a
     // reasonable starting point but would prevent e.g. bookmarking images.
+    let now = chrono::Utc::now();
     let url = Url::parse(&link).context("Invalid link")?;
     let response = reqwest::get(link).await?;
     response.error_for_status_ref()?;
@@ -173,8 +219,8 @@ async fn lookup_link(link: String) -> Result<Bookmark<(), ()>> {
         None => None,
     };
     let to_add = Bookmark {
-        accessed_at: Default::default(),
-        created_at: Default::default(),
+        accessed_at: Some(now),
+        created_at: now,
         description: description.clone(),
         id: (),
         import_properties: None,

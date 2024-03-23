@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use anyhow::{anyhow, Context, Result};
-use chrono::{NaiveDateTime};
+use chrono::NaiveDateTime;
 use clap::{Parser, Subcommand};
 use lz_db::{Bookmark, BookmarkId, BookmarkSearch, Connection, Transaction};
 use scraper::{Html, Selector};
@@ -52,6 +52,10 @@ enum Commands {
         /// Created before a date; accepts a YYYY-MM-DD string
         #[arg(long)]
         created_before: Option<String>,
+        /// Tag (or tags as a comma-delineated list) for the link; note
+        /// that listed bookmarks must be tagged with all tags given.
+        #[arg(long, value_delimiter = ',', num_args = 1..)]
+        tagged: Option<Vec<String>>,
     },
 }
 
@@ -83,8 +87,9 @@ async fn _main() -> Result<()> {
         Commands::List {
             created_after,
             created_before,
+            tagged,
         } => {
-            list_cmd(txn, created_after, created_before).await?;
+            list_cmd(txn, created_after, created_before, tagged).await?;
         }
     }
     Ok(())
@@ -113,6 +118,7 @@ async fn list_cmd(
     mut txn: Transaction,
     created_after: &Option<String>,
     created_before: &Option<String>,
+    tagged: &Option<Vec<String>>,
 ) -> Result<()> {
     let mut last_seen = None;
     let page_size = 1000;
@@ -128,6 +134,12 @@ async fn list_cmd(
         let dt = datestring_to_datetime(created_after_str.to_string(), false)?;
         filters.push(lz_db::created_after_from_datetime(dt))
     };
+    if let Some(tag_strings) = tagged {
+        for namestring in tag_strings.iter() {
+            let name = lz_db::TagName(namestring.clone());
+            filters.push(BookmarkSearch::TagByName { name });
+        }
+    }
     loop {
         let bookmarks = txn
             .list_bookmarks_matching(filters.clone(), page_size, last_seen)

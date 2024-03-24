@@ -85,5 +85,5 @@ pub mod web;
 pub(crate) mod criteria;
 pub use criteria::{
     created_after_from_datetime, created_before_from_datetime, BookmarkSearch,
-    BookmarkSearchCriteria,
+    BookmarkSearchCriteria, DateInput,
 };

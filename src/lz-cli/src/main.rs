@@ -1,9 +1,9 @@
 use std::path::PathBuf;
 
 use anyhow::{anyhow, Context, Result};
-use chrono::NaiveDateTime;
+use chrono::Utc;
 use clap::{Parser, Subcommand};
-use lz_db::{Bookmark, BookmarkId, BookmarkSearch, Connection, Transaction};
+use lz_db::{Bookmark, BookmarkId, BookmarkSearch, Connection, DateInput, Transaction};
 use scraper::{Html, Selector};
 use url::Url;
 
@@ -99,25 +99,6 @@ async fn _main() -> Result<()> {
     Ok(())
 }
 
-fn datestring_to_datetime(
-    datestring: String,
-    end_of_day: bool,
-) -> Result<chrono::DateTime<chrono::Utc>> {
-    let naive = if end_of_day {
-        NaiveDateTime::parse_from_str(&format!("{} 23:59:59", &datestring), "%Y-%m-%d %H:%M:%S")
-    } else {
-        NaiveDateTime::parse_from_str(&format!("{} 00:00:00", &datestring), "%Y-%m-%d %H:%M:%S")
-    };
-    if let Ok(naive) = naive {
-        Ok(naive.and_utc())
-    } else {
-        Err(anyhow!(
-            "{} is not a valid YYYY-MM-DD date string",
-            datestring
-        ))
-    }
-}
-
 async fn list_cmd(
     mut txn: Transaction,
     created_after: &Option<String>,
@@ -127,15 +108,15 @@ async fn list_cmd(
     let mut last_seen = None;
     let page_size = 1000;
 
-    // All datetimes are UTC; for purposes of dates, we'll eventually want to allow a config
-    // option setting a default timezone.
+    // All datetimes currently use the sqlite3 `localtime` options; for purposes of
+    // dates, we'll eventually want to allow a config option setting a default timezone.
     let mut filters: Vec<BookmarkSearch> = vec![];
     if let Some(created_before_str) = created_before {
-        let dt = datestring_to_datetime(created_before_str.to_string(), false)?;
-        filters.push(lz_db::created_before_from_datetime(dt))
+        let dt = created_before_str.parse::<DateInput>()?;
+        filters.push(lz_db::created_before_from_datetime(dt));
     };
     if let Some(created_after_str) = created_after {
-        let dt = datestring_to_datetime(created_after_str.to_string(), false)?;
+        let dt = created_after_str.parse::<DateInput>()?;
         filters.push(lz_db::created_after_from_datetime(dt))
     };
     if let Some(tag_strings) = tagged {
@@ -170,7 +151,8 @@ async fn add_cmd(
     tag: &Option<Vec<String>>,
     title: &Option<String>,
 ) -> Result<()> {
-    let bookmark_id = add_link(&mut txn, link.to_string(), description, force, notes, title).await?;
+    let bookmark_id =
+        add_link(&mut txn, link.to_string(), description, force, notes, title).await?;
     if let Some(tag_strings) = tag {
         let tags = txn.ensure_tags(tag_strings).await?;
         txn.set_bookmark_tags(bookmark_id, tags).await?;
@@ -226,7 +208,7 @@ async fn add_link(
 async fn lookup_link_from_web(link: &String) -> Result<Bookmark<(), ()>> {
     // This currently assumes all lookups are against HTML pages, which is a
     // reasonable starting point but would prevent e.g. bookmarking images.
-    let now = chrono::Utc::now();
+    let now = Utc::now();
     let url = Url::parse(link).context("Invalid link")?;
     let response = reqwest::get(link).await?;
     response.error_for_status_ref()?;

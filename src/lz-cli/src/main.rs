@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
-use anyhow::{anyhow, Context, Result};
-use chrono::Utc;
+use anyhow::{anyhow, bail, Context, Result};
+use chrono::{DateTime, Local, NaiveDateTime, TimeZone, Utc};
 use clap::{Parser, Subcommand};
 use lz_db::{Bookmark, BookmarkId, BookmarkSearch, Connection, DateInput, Transaction};
 use scraper::{Html, Selector};
@@ -30,6 +30,10 @@ enum Commands {
     Add {
         /// The URL to add
         link: String,
+        /// Assign a date other than today for the link's creation (in
+        /// YYYY-MM-DD format)
+        #[arg(long)]
+        backdate: Option<String>,
         /// User-provided description for the link
         #[arg(long)]
         description: Option<String>,
@@ -80,13 +84,14 @@ async fn _main() -> Result<()> {
     match &cli.command {
         Commands::Add {
             link,
+            backdate,
             description,
             force,
             notes,
             tag,
             title,
         } => {
-            add_cmd(txn, link, description, force, notes, tag, title).await?;
+            add_cmd(txn, link, backdate, description, force, notes, tag, title).await?;
         }
         Commands::List {
             created_after,
@@ -145,14 +150,23 @@ async fn list_cmd(
 async fn add_cmd(
     mut txn: Transaction,
     link: &String,
+    backdate: &Option<String>,
     description: &Option<String>,
     force: &bool,
     notes: &Option<String>,
     tag: &Option<Vec<String>>,
     title: &Option<String>,
 ) -> Result<()> {
-    let bookmark_id =
-        add_link(&mut txn, link.to_string(), description, force, notes, title).await?;
+    let bookmark_id = add_link(
+        &mut txn,
+        link.to_string(),
+        backdate,
+        description,
+        force,
+        notes,
+        title,
+    )
+    .await?;
     if let Some(tag_strings) = tag {
         let tags = txn.ensure_tags(tag_strings).await?;
         txn.set_bookmark_tags(bookmark_id, tags).await?;
@@ -165,6 +179,7 @@ async fn add_cmd(
 async fn add_link(
     txn: &mut Transaction,
     link: String,
+    backdate: &Option<String>,
     description: &Option<String>,
     force: &bool,
     notes: &Option<String>,
@@ -176,6 +191,24 @@ async fn add_link(
     }
     if let Some(user_description) = description {
         bookmark.description = Some(user_description.to_string());
+    }
+    if let Some(user_created_at) = backdate {
+        // user_created_at is a string and should be in 'YYYY-MM-DD` format.
+        let dt = NaiveDateTime::parse_from_str(
+            &format!("{} 00:00:00", &user_created_at),
+            "%Y-%m-%d %H:%M:%S",
+        );
+        if let Ok(naive_dt) = dt {
+            // Possible to panic here if we get a strictly illegal time, but we'll just
+            // accept that risk for now.
+            let local_time: DateTime<Local> = Local.from_local_datetime(&naive_dt).unwrap();
+            bookmark.created_at = local_time.to_utc();
+        } else {
+            bail!(format!(
+                "{} is not a valid YYYY-MM-DD date string",
+                user_created_at
+            ));
+        };
     }
     bookmark.notes = notes.as_ref().map(|n| n.to_string());
     match txn.add_bookmark(bookmark.clone()).await {

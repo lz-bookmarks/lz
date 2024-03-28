@@ -3,11 +3,9 @@
 use std::{collections::HashMap, fmt};
 
 use sqlx::{prelude::*, QueryBuilder};
-use tracing::debug;
 
 use crate::{
-    Bookmark, BookmarkId, BookmarkSearch, BookmarkSearchCriteria, IdType, Tag, TagId, Transaction,
-    UserId,
+    Bookmark, BookmarkId, BookmarkSearch, BookmarkSearchCriteria, Tag, TagId, Transaction, UserId,
 };
 
 /// # Queries relevant to the `lz` web app
@@ -32,7 +30,6 @@ impl Transaction {
         page_size: u16,
         last_seen: Option<BookmarkId>,
     ) -> Result<Vec<Bookmark<BookmarkId, UserId>>, sqlx::Error> {
-        let last_seen = last_seen.map(|id| id.id()).unwrap_or(i64::MAX);
         let mut qb = QueryBuilder::new("SELECT bookmarks.* FROM bookmarks");
 
         // Limit the bookmarks by the relationships they have: For
@@ -52,17 +49,27 @@ impl Transaction {
 
         // Limit the bookmarks by any "additional" criteria that might
         // apply (creation, user ID, and of course, pagination):
-        qb.push(" WHERE (");
-        let mut sep = qb.separated(") AND (");
-        sep.push("bookmark_id <=");
-        sep.push_bind_unseparated(last_seen);
-        for criterium in criteria.iter() {
-            sep = criterium.where_clause(sep);
+        qb.push(" WHERE ");
+        if let Some(last_seen) = last_seen {
+            qb.push("created_at <= (SELECT created_at FROM bookmarks WHERE bookmark_id = ");
+            qb.push_bind(last_seen);
+            qb.push(") ");
+            qb.push(" AND ");
         }
-        qb.push(") ORDER BY created_at DESC, bookmark_id DESC LIMIT ");
-        qb.push_bind(page_size);
+        if !criteria.is_empty() {
+            qb.push("(");
+            let mut sep = qb.separated(") AND (");
+            for criterium in criteria.iter() {
+                sep = criterium.where_clause(sep);
+            }
+            qb.push(")");
+        } else {
+            qb.push("1=1");
+        }
+        qb.push(" ORDER BY created_at DESC, bookmark_id DESC LIMIT ");
+        qb.push_bind(page_size + 1);
 
-        debug!(sql = qb.sql());
+        tracing::info!(sql = qb.sql());
         qb.build_query_as().fetch_all(&mut *self.txn).await
     }
 
@@ -129,7 +136,7 @@ mod tests {
         let mut reference_time = chrono::DateTime::default()
             .checked_sub_days(chrono::Days::new(bookmark_count))
             .unwrap();
-        for i in 0..bookmark_count {
+        for i in 0..bookmark_count - 1 {
             let bookmark = Bookmark {
                 id: (),
                 user_id: (),
@@ -155,13 +162,41 @@ mod tests {
                 .await
                 .with_context(|| format!("adding bookmark {i}"))?;
         }
-        let bookmarks_batch_1 = txn.list_bookmarks(page_size, None).await?;
+        // insert a backdated bookmark (simulating an import):
+        reference_time = reference_time
+            .checked_sub_days(chrono::Days::new(bookmark_count * 2))
+            .unwrap();
+        let backdated = Bookmark {
+            id: (),
+            user_id: (),
+            created_at: reference_time,
+            modified_at: Some(Default::default()),
+            accessed_at: Some(Default::default()),
+            url: Url::parse("https://github.com/antifuchs/lz?key=backdated")?,
+            title: "The lz repo".to_string(),
+            description: Some("This is a great repo with excellent code.".to_string()),
+            website_title: Some("lz, the bookmarks manager".to_string()),
+            website_description: Some(
+                "Please do not believe in the quality of this code.".to_string(),
+            ),
+            notes: Some("No need to run tests.".to_string()),
+            import_properties: None,
+            shared: true,
+            unread: true,
+        };
+        let backdated_id = txn
+            .add_bookmark(backdated.clone())
+            .await
+            .with_context(|| "adding backdated bookmark".to_string())?;
+
+        let bookmarks_batch_1 = txn.list_bookmarks_matching(vec![], page_size, None).await?;
         assert_eq!(bookmarks_batch_1.len(), (page_size + 1) as usize);
 
         let bookmarks_batch_2 = txn
-            .list_bookmarks(page_size, bookmarks_batch_1.last().map(|bm| bm.id))
+            .list_bookmarks_matching(vec![], page_size, bookmarks_batch_1.last().map(|bm| bm.id))
             .await?;
         assert_eq!(bookmarks_batch_2.len(), 10);
+        assert_eq!(bookmarks_batch_2.last().map(|bm| bm.id), Some(backdated_id));
         Ok(())
     }
 }

@@ -3,11 +3,9 @@
 use std::{collections::HashMap, fmt};
 
 use sqlx::{prelude::*, QueryBuilder};
-use tracing::debug;
 
 use crate::{
-    Bookmark, BookmarkId, BookmarkSearch, BookmarkSearchCriteria, IdType, Tag, TagId, Transaction,
-    UserId,
+    Bookmark, BookmarkId, BookmarkSearch, BookmarkSearchCriteria, Tag, TagId, Transaction, UserId,
 };
 
 /// # Queries relevant to the `lz` web app
@@ -174,7 +172,7 @@ mod tests {
             created_at: reference_time,
             modified_at: Some(Default::default()),
             accessed_at: Some(Default::default()),
-            url: Url::parse(&format!("https://github.com/antifuchs/lz?key=backdated"))?,
+            url: Url::parse("https://github.com/antifuchs/lz?key=backdated")?,
             title: "The lz repo".to_string(),
             description: Some("This is a great repo with excellent code.".to_string()),
             website_title: Some("lz, the bookmarks manager".to_string()),
@@ -189,7 +187,7 @@ mod tests {
         let backdated_id = txn
             .add_bookmark(backdated.clone())
             .await
-            .with_context(|| format!("adding backdated bookmark"))?;
+            .with_context(|| "adding backdated bookmark".to_string())?;
 
         let bookmarks_batch_1 = txn.list_bookmarks_matching(vec![], page_size, None).await?;
         assert_eq!(bookmarks_batch_1.len(), (page_size + 1) as usize);

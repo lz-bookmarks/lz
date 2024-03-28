@@ -38,7 +38,7 @@ impl IntoResponse for TagQueryRejection {
 }
 
 #[async_trait::async_trait]
-impl<'a> FromRequestParts<Arc<GlobalWebAppState>> for TagQuery {
+impl FromRequestParts<Arc<GlobalWebAppState>> for TagQuery {
     type Rejection = TagQueryRejection;
     async fn from_request_parts(
         parts: &mut Parts,
@@ -48,7 +48,7 @@ impl<'a> FromRequestParts<Arc<GlobalWebAppState>> for TagQuery {
         let tags = query
             .split(' ')
             .filter(|q| !q.is_empty())
-            .map(|name| TagName::from(name))
+            .map(TagName::from)
             .collect();
         Ok(TagQuery { tags })
     }

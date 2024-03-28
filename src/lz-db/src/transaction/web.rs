@@ -60,7 +60,7 @@ impl Transaction {
             sep = criterium.where_clause(sep);
         }
         qb.push(") ORDER BY created_at DESC, bookmark_id DESC LIMIT ");
-        qb.push_bind(page_size);
+        qb.push_bind(page_size + 1);
 
         debug!(sql = qb.sql());
         qb.build_query_as().fetch_all(&mut *self.txn).await
@@ -155,11 +155,11 @@ mod tests {
                 .await
                 .with_context(|| format!("adding bookmark {i}"))?;
         }
-        let bookmarks_batch_1 = txn.list_bookmarks(page_size, None).await?;
+        let bookmarks_batch_1 = txn.list_bookmarks_matching(vec![], page_size, None).await?;
         assert_eq!(bookmarks_batch_1.len(), (page_size + 1) as usize);
 
         let bookmarks_batch_2 = txn
-            .list_bookmarks(page_size, bookmarks_batch_1.last().map(|bm| bm.id))
+            .list_bookmarks_matching(vec![], page_size, bookmarks_batch_1.last().map(|bm| bm.id))
             .await?;
         assert_eq!(bookmarks_batch_2.len(), 10);
         Ok(())

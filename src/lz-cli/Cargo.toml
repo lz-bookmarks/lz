@@ -6,14 +6,14 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anyhow = "1.0.80"
-chrono = "0.4.35"
-clap = { version = "4.5.1", features = ["derive"] }
-reqwest = "0.11.25"
-scraper = "0.19.0"
-sqlx = "0.7.3"
-tokio = "1.36.0"
-url = "2.5.0"
+anyhow = { workspace = true }
+chrono = { workspace = true }
+clap = { workspace = true, features = ["derive"] }
+reqwest = { workspace = true }
+scraper = { workspace = true }
+sqlx = { workspace = true }
+tokio = { workspace = true }
+url = { workspace = true }
 
 [dependencies.lz-db]
 path = "../lz-db"

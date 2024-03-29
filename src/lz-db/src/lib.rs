@@ -10,14 +10,20 @@ pub use connection::*;
 pub use transaction::*;
 
 #[cfg(test)]
-mod tests {
-    use crate::MIGRATOR;
-    use anyhow::Result;
-    use sqlx::sqlite::SqlitePool;
+pub mod testing;
+#[cfg(test)]
+pub use testing::{Context, NonMigratingContext};
 
-    #[test_log::test(sqlx::test(migrations = false))]
-    async fn apply_migrations(pool: SqlitePool) -> Result<()> {
-        MIGRATOR.run(&pool).await?;
+#[cfg(test)]
+mod tests {
+    use crate::{NonMigratingContext, MIGRATOR};
+    use test_context::test_context;
+    use testresult::TestResult;
+
+    #[test_context(NonMigratingContext)]
+    #[tokio::test]
+    async fn apply_migrations(ctx: &mut NonMigratingContext) -> TestResult {
+        MIGRATOR.run(&*ctx.db_pool()).await?;
         Ok(())
     }
 }

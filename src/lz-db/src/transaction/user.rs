@@ -104,12 +104,13 @@ impl Transaction {
 #[cfg(test)]
 mod tests {
     use crate::*;
-    use sqlx::SqlitePool;
+    use test_context::test_context;
+    use testresult::TestResult;
 
-    #[test_log::test(sqlx::test(migrator = "MIGRATOR"))]
-    fn roundtrip_user(pool: SqlitePool) -> anyhow::Result<()> {
-        let conn = Connection::from_pool(pool);
-        let mut txn = conn.begin_for_user("tester").await?;
+    #[test_context(Context)]
+    #[tokio::test]
+    async fn roundtrip_user(ctx: &mut Context) -> TestResult {
+        let mut txn = ctx.begin().await?;
         assert_eq!(txn.user().name, "tester");
 
         let user = txn.get_user_by_name("tester").await?;

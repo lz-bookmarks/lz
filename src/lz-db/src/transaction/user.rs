@@ -105,10 +105,11 @@ impl Transaction {
 mod tests {
     use crate::*;
     use test_context::test_context;
+    use testresult::TestResult;
 
     #[test_context(Context)]
     #[tokio::test]
-    async fn roundtrip_user(ctx: &mut Context) -> anyhow::Result<()> {
+    async fn roundtrip_user(ctx: &mut Context) -> TestResult {
         let mut txn = ctx.begin().await?;
         assert_eq!(txn.user().name, "tester");
 

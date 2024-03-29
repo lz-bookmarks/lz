@@ -17,12 +17,12 @@ pub use testing::{Context, NonMigratingContext};
 #[cfg(test)]
 mod tests {
     use crate::{NonMigratingContext, MIGRATOR};
-    use anyhow::Result;
     use test_context::test_context;
+    use testresult::TestResult;
 
     #[test_context(NonMigratingContext)]
     #[tokio::test]
-    async fn apply_migrations(ctx: &mut NonMigratingContext) -> Result<()> {
+    async fn apply_migrations(ctx: &mut NonMigratingContext) -> TestResult {
         MIGRATOR.run(&*ctx.db_pool()).await?;
         Ok(())
     }

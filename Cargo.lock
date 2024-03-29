@@ -1475,6 +1475,7 @@ dependencies = [
  "serde_json",
  "sqlx",
  "test-context",
+ "testresult",
  "tokio",
  "tracing",
  "tracing-subscriber",
@@ -2975,6 +2976,12 @@ dependencies = [
  "quote",
  "syn 2.0.50",
 ]
+
+[[package]]
+name = "testresult"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d72e255c0541f86589b0287139b70bd941a197ea4cea8fd8f87afe9c965a99e4"
 
 [[package]]
 name = "thiserror"

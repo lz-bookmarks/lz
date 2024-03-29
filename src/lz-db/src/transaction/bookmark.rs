@@ -247,13 +247,13 @@ impl Transaction {
 #[cfg(test)]
 mod tests {
     use crate::*;
-    use anyhow::Context as _;
     use test_context::test_context;
+    use testresult::TestResult;
     use url::Url;
 
     #[test_context(Context)]
     #[tokio::test]
-    async fn roundtrip_bookmark(ctx: &mut Context) -> anyhow::Result<()> {
+    async fn roundtrip_bookmark(ctx: &mut Context) -> TestResult {
         let mut txn = ctx.begin().await?;
         let to_add = Bookmark {
             id: (),
@@ -273,14 +273,8 @@ mod tests {
             shared: true,
             unread: true,
         };
-        let added = txn
-            .add_bookmark(to_add.clone())
-            .await
-            .context("adding it")?;
-        let retrieved = txn
-            .get_bookmark_by_id(added.id())
-            .await
-            .context("retrieving it")?;
+        let added = txn.add_bookmark(to_add.clone()).await?;
+        let retrieved = txn.get_bookmark_by_id(added.id()).await?;
 
         assert_eq!(added, retrieved.id);
         assert_eq!(

@@ -19,4 +19,5 @@ utoipa = { version = "4.2.0", features = ["chrono", "url"] }
 
 [dev-dependencies]
 test-context = "0.3.0"
+testresult = "0.4.0"
 tracing-subscriber = { version = "0.3.18", features = ["tracing", "env-filter"] }

@@ -269,30 +269,21 @@ mod tests {
     use std::collections::BTreeSet;
 
     use crate::*;
-    use anyhow::Context as _;
     use test_context::test_context;
+    use testresult::TestResult;
     use url::Url;
 
     #[test_context(Context)]
     #[tokio::test]
-    async fn roundtrip_tag(ctx: &mut Context) -> anyhow::Result<()> {
+    async fn roundtrip_tag(ctx: &mut Context) -> TestResult {
         let mut txn = ctx.begin().await?;
-        let inserted = txn
-            .ensure_tags(["hi", "test", "welp"])
-            .await
-            .context("ensuring first set of tags")?;
+        let inserted = txn.ensure_tags(["hi", "test", "welp"]).await?;
         assert_eq!(inserted.len(), 3);
 
-        let inserted = txn
-            .ensure_tags(["hi", "test", "new"])
-            .await
-            .context("ensuring second set of tags")?;
+        let inserted = txn.ensure_tags(["hi", "test", "new"]).await?;
         assert_eq!(inserted.len(), 3);
 
-        let existing = txn
-            .get_tags_with_names(["welp", "new"])
-            .await
-            .context("retrieving tags")?;
+        let existing = txn.get_tags_with_names(["welp", "new"]).await?;
         assert_eq!(
             existing
                 .into_iter()
@@ -307,7 +298,7 @@ mod tests {
 
     #[test_context(Context)]
     #[tokio::test]
-    async fn bookmark_tags(ctx: &mut Context) -> anyhow::Result<()> {
+    async fn bookmark_tags(ctx: &mut Context) -> TestResult {
         let mut txn = ctx.begin().await?;
         let tags = txn.ensure_tags(["hi", "test"]).await?;
         let bookmark_id = txn
@@ -348,21 +339,11 @@ mod tests {
             .await?;
         let other_tags = txn.ensure_tags(["welp", "not-this"]).await?;
 
-        txn.set_bookmark_tags(bookmark_id, tags)
-            .await
-            .context("Setting tags on the bookmark")?;
-        txn.set_bookmark_tags(other_bookmark_id, other_tags)
-            .await
-            .context("Setting other tags on the other bookmark")?;
+        txn.set_bookmark_tags(bookmark_id, tags).await?;
+        txn.set_bookmark_tags(other_bookmark_id, other_tags).await?;
 
-        let existing_tags = txn
-            .get_bookmark_tags(bookmark_id)
-            .await
-            .context("Retrieving tags")?;
-        let existing_other_tags = txn
-            .get_bookmark_tags(other_bookmark_id)
-            .await
-            .context("Retrieving tags")?;
+        let existing_tags = txn.get_bookmark_tags(bookmark_id).await?;
+        let existing_other_tags = txn.get_bookmark_tags(other_bookmark_id).await?;
         assert_eq!(
             existing_tags
                 .iter()

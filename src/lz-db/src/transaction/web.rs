@@ -121,6 +121,7 @@ impl Transaction {
 mod tests {
     use anyhow::Context as _;
     use test_context::test_context;
+    use testresult::TestResult;
     use url::Url;
 
     use crate::testing::Context;
@@ -128,7 +129,7 @@ mod tests {
 
     #[test_context(Context)]
     #[tokio::test]
-    async fn paginate_bookmarks(ctx: &mut Context) -> anyhow::Result<()> {
+    async fn paginate_bookmarks(ctx: &mut Context) -> TestResult {
         let mut txn = ctx.begin().await?;
 
         let bookmark_count = 60; // how many to generate

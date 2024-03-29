@@ -69,7 +69,7 @@ impl Transaction {
         qb.push(" ORDER BY created_at DESC, bookmark_id DESC LIMIT ");
         qb.push_bind(page_size + 1);
 
-        tracing::info!(sql = qb.sql());
+        tracing::debug!(sql = qb.sql());
         qb.build_query_as().fetch_all(&mut *self.txn).await
     }
 
@@ -120,15 +120,16 @@ impl Transaction {
 #[cfg(test)]
 mod tests {
     use anyhow::Context as _;
-    use sqlx::SqlitePool;
+    use test_context::test_context;
     use url::Url;
 
+    use crate::testing::Context;
     use crate::*;
 
-    #[test_log::test(sqlx::test(migrator = "MIGRATOR"))]
-    fn paginate_bookmarks(pool: SqlitePool) -> anyhow::Result<()> {
-        let conn = Connection::from_pool(pool);
-        let mut txn = conn.begin_for_user("tester").await?;
+    #[test_context(Context)]
+    #[tokio::test]
+    async fn paginate_bookmarks(ctx: &mut Context) -> anyhow::Result<()> {
+        let mut txn = ctx.begin().await?;
 
         let bookmark_count = 60; // how many to generate
         let page_size = 50; // how many to retrieve in a batch

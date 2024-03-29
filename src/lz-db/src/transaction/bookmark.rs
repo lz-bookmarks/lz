@@ -248,13 +248,13 @@ impl Transaction {
 mod tests {
     use crate::*;
     use anyhow::Context as _;
-    use sqlx::SqlitePool;
+    use test_context::test_context;
     use url::Url;
 
-    #[test_log::test(sqlx::test(migrator = "MIGRATOR"))]
-    fn roundtrip_bookmark(pool: SqlitePool) -> anyhow::Result<()> {
-        let conn = Connection::from_pool(pool);
-        let mut txn = conn.begin_for_user("tester").await?;
+    #[test_context(Context)]
+    #[tokio::test]
+    async fn roundtrip_bookmark(ctx: &mut Context) -> anyhow::Result<()> {
+        let mut txn = ctx.begin().await?;
         let to_add = Bookmark {
             id: (),
             user_id: (),

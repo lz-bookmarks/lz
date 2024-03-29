@@ -18,4 +18,5 @@ chrono = { version = "0.4.34", features = ["serde"] }
 utoipa = { version = "4.2.0", features = ["chrono", "url"] }
 
 [dev-dependencies]
-test-log = { version = "0.2.14", features = ["trace"], default-features = false }
+test-context = "0.3.0"
+tracing-subscriber = { version = "0.3.18", features = ["tracing", "env-filter"] }

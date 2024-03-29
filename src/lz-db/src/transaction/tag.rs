@@ -269,14 +269,14 @@ mod tests {
     use std::collections::BTreeSet;
 
     use crate::*;
-    use anyhow::*;
-    use sqlx::SqlitePool;
+    use anyhow::Context as _;
+    use test_context::test_context;
     use url::Url;
 
-    #[test_log::test(sqlx::test(migrator = "MIGRATOR"))]
-    fn roundtrip_tag(pool: SqlitePool) -> anyhow::Result<()> {
-        let conn = Connection::from_pool(pool);
-        let mut txn = conn.begin_for_user("tester").await?;
+    #[test_context(Context)]
+    #[tokio::test]
+    async fn roundtrip_tag(ctx: &mut Context) -> anyhow::Result<()> {
+        let mut txn = ctx.begin().await?;
         let inserted = txn
             .ensure_tags(["hi", "test", "welp"])
             .await
@@ -305,10 +305,10 @@ mod tests {
         Ok(())
     }
 
-    #[test_log::test(sqlx::test(migrator = "MIGRATOR"))]
-    fn bookmark_tags(pool: SqlitePool) -> anyhow::Result<()> {
-        let conn = Connection::from_pool(pool);
-        let mut txn = conn.begin_for_user("tester").await?;
+    #[test_context(Context)]
+    #[tokio::test]
+    async fn bookmark_tags(ctx: &mut Context) -> anyhow::Result<()> {
+        let mut txn = ctx.begin().await?;
         let tags = txn.ensure_tags(["hi", "test"]).await?;
         let bookmark_id = txn
             .add_bookmark(Bookmark {

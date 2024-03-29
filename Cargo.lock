@@ -1474,9 +1474,10 @@ dependencies = [
  "serde",
  "serde_json",
  "sqlx",
- "test-log",
+ "test-context",
  "tokio",
  "tracing",
+ "tracing-subscriber",
  "url",
  "utoipa",
 ]
@@ -2955,20 +2956,20 @@ dependencies = [
 ]
 
 [[package]]
-name = "test-log"
-version = "0.2.14"
+name = "test-context"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6159ab4116165c99fc88cce31f99fa2c9dbe08d3691cb38da02fc3b45f357d2b"
+checksum = "6676ab8513edfd2601a108621103fdb45cac9098305ca25ec93f7023b06b05d9"
 dependencies = [
- "test-log-macros",
- "tracing-subscriber",
+ "futures",
+ "test-context-macros",
 ]
 
 [[package]]
-name = "test-log-macros"
-version = "0.2.14"
+name = "test-context-macros"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7ba277e77219e9eea169e8508942db1bf5d8a41ff2db9b20aab5a5aadc9fa25d"
+checksum = "78ea17a2dc368aeca6f554343ced1b1e31f76d63683fa8016e5844bd7a5144a1"
 dependencies = [
  "proc-macro2",
  "quote",

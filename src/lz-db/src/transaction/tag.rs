@@ -324,6 +324,7 @@ mod tests {
                 notes: Some("".to_string()),
                 import_properties: None,
                 shared: false,
+                primary_link: true,
                 unread: false,
             })
             .await?;
@@ -342,6 +343,7 @@ mod tests {
                 notes: Some("".to_string()),
                 import_properties: None,
                 shared: false,
+                primary_link: true,
                 unread: false,
             })
             .await?;

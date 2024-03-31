@@ -83,6 +83,10 @@ pub struct Bookmark<ID: IdType<BookmarkId>, UID: IdType<UserId>> {
     /// Whether the bookmark is "to read"
     pub unread: bool,
 
+    /// Whether the bookmark was added independently, instead of as a
+    /// supplement to other bookmarks.
+    pub primary_link: bool,
+
     /// Whether other users can see the bookmark.
     pub shared: bool,
 
@@ -123,10 +127,11 @@ impl Transaction<ReadWrite> {
                 website_title,
                 website_description,
                 unread,
+                primary_link,
                 shared,
                 notes,
                 import_properties
-              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
               RETURNING bookmark_id;
             "#,
             user_id,
@@ -139,6 +144,7 @@ impl Transaction<ReadWrite> {
             bm.website_title,
             bm.website_description,
             bm.unread,
+            bm.primary_link,
             bm.shared,
             bm.notes,
             bm.import_properties,
@@ -173,6 +179,7 @@ impl Transaction<ReadWrite> {
                 website_title = ?,
                 website_description = ?,
                 unread = ?,
+                primary_link = ?,
                 shared = ?,
                 notes = ?,
                 import_properties = ?
@@ -184,11 +191,38 @@ impl Transaction<ReadWrite> {
             bm.website_title,
             bm.website_description,
             bm.unread,
+            bm.primary_link,
             bm.shared,
             bm.notes,
             bm.import_properties,
             bm.id,
             bm.user_id,
+        )
+        .execute(&mut *self.txn)
+        .await
+        .map(|_| ())
+    }
+
+    /// Associate a bookmark with another bookmark.
+    #[tracing::instrument(skip(self))]
+    pub async fn associate_bookmarks(
+        &mut self,
+        primary: &BookmarkId,
+        associate: &BookmarkId,
+        context: &Option<String>,
+    ) -> Result<(), sqlx::Error> {
+        let context_string = context.clone().unwrap_or("".to_string());
+        sqlx::query!(
+            r#"
+              INSERT INTO bookmark_associations(
+                primary_bookmark_id,
+                secondary_bookmark_id,
+                context
+              ) VALUES (?, ?, ?)
+            "#,
+            primary,
+            associate,
+            context_string,
         )
         .execute(&mut *self.txn)
         .await
@@ -277,6 +311,7 @@ mod tests {
             notes: Some("No need to run tests.".to_string()),
             import_properties: None,
             shared: true,
+            primary_link: true,
             unread: true,
         };
         let added = txn.add_bookmark(to_add.clone()).await?;
@@ -299,6 +334,7 @@ mod tests {
                 notes: to_add.notes,
                 import_properties: to_add.import_properties,
                 shared: to_add.shared,
+                primary_link: to_add.primary_link,
                 unread: to_add.unread,
             }
         );

@@ -97,6 +97,7 @@ impl Bookmark {
             website_description: Default::default(),
             notes: Default::default(),
             unread: Default::default(),
+            primary_link: true,
             shared: Default::default(),
             import_properties: Default::default(),
         };
@@ -165,6 +166,7 @@ impl Bookmark {
             Some(n) => Some(n.to_string()),
         };
         other.unread = self.unread;
+        other.primary_link = true;
         other.shared = self.shared;
         other.import_properties = import_properties;
     }

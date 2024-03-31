@@ -53,6 +53,10 @@ impl<M: TransactionMode> Transaction<M> {
         // Limit the bookmarks by any "additional" criteria that might
         // apply (creation, user ID, and of course, pagination):
         qb.push(" WHERE ");
+        // For now, you can't list non-primary links; they'll be visible only as details
+        // on individual links.
+        qb.push(" primary_link IS TRUE ");
+        qb.push(" AND ");
         if let Some(last_seen) = last_seen {
             qb.push("created_at <= (SELECT created_at FROM bookmarks WHERE bookmark_id = ");
             qb.push_bind(last_seen);
@@ -157,6 +161,7 @@ mod tests {
                 ),
                 notes: Some("No need to run tests.".to_string()),
                 import_properties: None,
+                primary_link: true,
                 shared: true,
                 unread: true,
             };
@@ -186,6 +191,7 @@ mod tests {
             ),
             notes: Some("No need to run tests.".to_string()),
             import_properties: None,
+            primary_link: true,
             shared: true,
             unread: true,
         };

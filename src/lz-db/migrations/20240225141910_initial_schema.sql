@@ -20,8 +20,9 @@ CREATE TABLE "bookmarks" (
   "website_title" TEXT,
   "website_description" TEXT,
   "notes" TEXT,
-  "unread" INTEGER,
-  "shared" INTEGER,
+  "unread" BOOLEAN,
+  "shared" BOOLEAN,
+  "primary_link" INTEGER,
   "import_properties" TEXT,
 
   FOREIGN KEY ("user_id") REFERENCES "users"("user_id")
@@ -46,4 +47,14 @@ CREATE TABLE "bookmark_tags" (
   PRIMARY KEY ("bookmark_id","tag_id"),
   FOREIGN KEY("bookmark_id") REFERENCES "bookmarks"("bookmark_id"),
   FOREIGN KEY("tag_id") REFERENCES "tags"("tag_id")
+) STRICT;
+
+CREATE TABLE "bookmark_associations" (
+  "primary_bookmark_id" INTEGER NOT NULL,
+  "secondary_bookmark_id" INTEGER NOT NULL,
+  "context" TEXT,
+
+  PRIMARY KEY ("primary_bookmark_id","secondary_bookmark_id"),
+  FOREIGN KEY ("primary_bookmark_id") REFERENCES "bookmarks"("bookmark_id"),
+  FOREIGN KEY ("secondary_bookmark_id") REFERENCES "bookmarks"("bookmark_id")
 ) STRICT;

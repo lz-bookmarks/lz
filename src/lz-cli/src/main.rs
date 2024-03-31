@@ -74,6 +74,15 @@ async fn main() {
     }
 }
 
+struct AddOptions<'a> {
+    backdate: &'a Option<String>,
+    description: &'a Option<String>,
+    force: &'a bool,
+    notes: &'a Option<String>,
+    tag: &'a Option<Vec<String>>,
+    title: &'a Option<String>,
+}
+
 async fn _main() -> Result<()> {
     let cli = Cli::parse();
     let conn = Connection::from_path(&cli.db).await?;
@@ -89,7 +98,15 @@ async fn _main() -> Result<()> {
             tag,
             title,
         } => {
-            add_cmd(txn, link, backdate, description, force, notes, tag, title).await?;
+            let options = AddOptions {
+                backdate,
+                description,
+                force,
+                notes,
+                tag,
+                title,
+            };
+            add_cmd(txn, link, &options).await?;
         }
         Commands::List {
             created_after,
@@ -145,27 +162,18 @@ async fn list_cmd(
     }
 }
 
-async fn add_cmd(
-    mut txn: Transaction,
-    link: &String,
-    backdate: &Option<String>,
-    description: &Option<String>,
-    force: &bool,
-    notes: &Option<String>,
-    tag: &Option<Vec<String>>,
-    title: &Option<String>,
-) -> Result<()> {
+async fn add_cmd(mut txn: Transaction, link: &String, options: &AddOptions<'_>) -> Result<()> {
     let bookmark_id = add_link(
         &mut txn,
         link.to_string(),
-        backdate,
-        description,
-        force,
-        notes,
-        title,
+        options.backdate,
+        options.description,
+        options.force,
+        options.notes,
+        options.title,
     )
     .await?;
-    if let Some(tag_strings) = tag {
+    if let Some(tag_strings) = options.tag {
         let tags = txn.ensure_tags(tag_strings).await?;
         txn.set_bookmark_tags(bookmark_id, tags).await?;
     }
@@ -191,14 +199,13 @@ async fn add_link(
         bookmark.description = Some(user_description.to_string());
     }
     if let Some(user_created_at) = backdate {
-        // user_created_at is a string and should be in 'YYYY-MM-DD` format.
         let dt = NaiveDateTime::parse_from_str(
             &format!("{} 00:00:00", &user_created_at),
             "%Y-%m-%d %H:%M:%S",
         );
         if let Ok(naive_dt) = dt {
-            // Possible to panic here if we get a strictly illegal time, but we'll just
-            // accept that risk for now.
+            // It's possible to panic here if we get a strictly illegal time, but we'll just
+            // accept that risk for now as a weird edge case.
             let local_time: DateTime<Local> = Local.from_local_datetime(&naive_dt).unwrap();
             bookmark.created_at = local_time.to_utc();
         } else {

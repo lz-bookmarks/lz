@@ -46,6 +46,9 @@ axum-extra = { workspace = true, features = ["query"] }
 askama_axum = { workspace = true }
 askama = { workspace = true, features = ["with-axum", "serde"] }
 lazy_static = { workspace = true }
+sentry = { workspace = true }
+sentry-tracing = { workspace = true, features = ["backtrace"] }
+sentry-tower = { workspace = true, features = ["axum", "url", "http", "axum-matched-path"] }
 
 [dev-dependencies]
 axum-test = { workspace = true }

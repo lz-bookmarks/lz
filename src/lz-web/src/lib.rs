@@ -5,8 +5,6 @@ use std::sync::Arc;
 use axum::{routing, Router};
 use clap::Parser;
 use db::GlobalWebAppState;
-use opentelemetry::KeyValue;
-use opentelemetry_sdk::Resource;
 use tracing_subscriber::layer::SubscriberExt as _;
 use tracing_subscriber::{EnvFilter, Layer as _, Registry};
 use utoipa::OpenApi as _;

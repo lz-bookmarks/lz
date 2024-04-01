@@ -5,7 +5,7 @@
 //! that authentication data and identify the person accessing bookmarks
 //! that way. But it will not attempt to do access control.
 
-use crate::{IdType, Transaction};
+use crate::{IdType, Transaction, TransactionMode};
 use serde::{Deserialize, Serialize};
 use sqlx::{prelude::*, query_as};
 use utoipa::{ToResponse, ToSchema};
@@ -56,15 +56,22 @@ pub struct User<ID: IdType<UserId>> {
 
 impl crate::Connection {
     #[tracing::instrument(err(Debug, level = tracing::Level::WARN), ret(level = tracing::Level::DEBUG), skip(txn))]
+    pub(crate) async fn get_user(
+        txn: &mut sqlx::Transaction<'static, sqlx::Sqlite>,
+        name: &str,
+    ) -> Result<Option<User<UserId>>, sqlx::Error> {
+        query_as(r#"SELECT * FROM users WHERE name = ?"#)
+            .bind(name)
+            .fetch_optional(&mut **txn)
+            .await
+    }
+
+    #[tracing::instrument(err(Debug, level = tracing::Level::WARN), ret(level = tracing::Level::DEBUG), skip(txn))]
     pub(crate) async fn ensure_user(
         txn: &mut sqlx::Transaction<'static, sqlx::Sqlite>,
         name: &str,
     ) -> Result<User<UserId>, sqlx::Error> {
-        if let Some(user) = query_as(r#"SELECT * FROM users WHERE name = ?"#)
-            .bind(name)
-            .fetch_optional(&mut **txn)
-            .await?
-        {
+        if let Some(user) = Self::get_user(txn, name).await? {
             return Ok(user);
         }
 
@@ -87,7 +94,7 @@ impl crate::Connection {
 }
 
 /// # Working with [`User`]s
-impl Transaction {
+impl<M: TransactionMode> Transaction<M> {
     /// Retrieve a user with a given name.
     #[tracing::instrument(err(Debug, level = tracing::Level::WARN), ret, skip(self))]
     pub async fn get_user_by_name(

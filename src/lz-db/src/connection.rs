@@ -1,12 +1,12 @@
-use sqlx::{sqlite::SqliteSynchronous, ConnectOptions as _, SqlitePool};
-use std::str::FromStr as _;
+use sqlx::{sqlite::SqliteSynchronous, SqlitePool};
 use std::{path::Path, time::Duration};
 
-use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode};
+use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions};
 
 /// A connection to an sqlite DB holding our bookmark data.
 pub struct Connection {
-    pub(crate) db: sqlx::sqlite::SqlitePool,
+    pub(crate) rw: sqlx::sqlite::SqlitePool,
+    pub(crate) ro: Option<sqlx::sqlite::SqlitePool>,
 }
 
 impl Connection {
@@ -24,12 +24,19 @@ impl Connection {
             // Some settings that just seem like a good idea:
             .shared_cache(true)
             .optimize_on_close(true, None);
-        let pool = SqlitePool::connect_with(options).await?;
-        Ok(Self::from_pool(pool))
+
+        let rw = SqlitePool::connect_with(options.clone()).await?;
+        let ro = Some(
+            SqlitePoolOptions::new()
+                .max_connections(1)
+                .connect_with(options.read_only(true))
+                .await?,
+        );
+        Ok(Connection { rw, ro })
     }
 
     /// Create a database connection from an open SqlitePool.
-    pub fn from_pool(db: sqlx::sqlite::SqlitePool) -> Self {
-        Self { db }
+    pub fn from_pool(rw: sqlx::sqlite::SqlitePool) -> Self {
+        Self { rw, ro: None }
     }
 }

@@ -9,7 +9,7 @@ use std::{
 use async_trait::async_trait;
 use axum::{
     extract::FromRequestParts,
-    http::{request::Parts, StatusCode},
+    http::{header::ToStrError, request::Parts, StatusCode},
     response::IntoResponse,
 };
 
@@ -37,29 +37,29 @@ impl GlobalWebAppState {
     }
 }
 
-/// A DB transaction that is started with each request.
+/// A read/write DB transaction that is started with each request.
 ///
 /// The transaction does not get auto-committed at all: If your
 /// request causes any changes to the DB, it _must_ call `commit`.
-pub struct DbTransaction {
-    txn: lz_db::Transaction,
+pub struct DbTransaction<M: lz_db::TransactionMode = lz_db::ReadOnly> {
+    txn: lz_db::Transaction<M>,
 }
 
-impl Deref for DbTransaction {
-    type Target = lz_db::Transaction;
+impl<M: lz_db::TransactionMode> Deref for DbTransaction<M> {
+    type Target = lz_db::Transaction<M>;
 
     fn deref(&self) -> &Self::Target {
         &self.txn
     }
 }
 
-impl DerefMut for DbTransaction {
+impl<M: lz_db::TransactionMode> DerefMut for DbTransaction<M> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.txn
     }
 }
 
-impl fmt::Debug for DbTransaction {
+impl<M: lz_db::TransactionMode> fmt::Debug for DbTransaction<M> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "txn({:?})", self.txn.user())
     }
@@ -76,28 +76,72 @@ impl IntoResponse for DbTransactionRejection {
     }
 }
 
+fn user_name_from_headers<'a>(
+    parts: &'a Parts,
+    authentication_header_name: &str,
+    default_user_name: Option<&'a str>,
+) -> Option<Result<&'a str, ToStrError>> {
+    parts
+        .headers
+        .get(authentication_header_name)
+        .map(|hv| hv.to_str())
+        .or_else(move || {
+            if let Some(default_username) = default_user_name {
+                tracing::debug!(
+                    ?default_username,
+                    "request did not set user name, using default"
+                );
+            }
+            default_user_name.map(|u| Ok(u))
+        })
+}
+
 #[async_trait]
-impl FromRequestParts<Arc<GlobalWebAppState>> for DbTransaction {
+impl FromRequestParts<Arc<GlobalWebAppState>> for DbTransaction<lz_db::ReadOnly> {
     type Rejection = DbTransactionRejection;
 
     async fn from_request_parts(
         parts: &mut Parts,
         state: &Arc<GlobalWebAppState>,
     ) -> Result<Self, Self::Rejection> {
-        let user = parts
-            .headers
-            .get(&state.authentication_header_name)
-            .map(|hv| hv.to_str())
-            .or_else(|| {
-                let username = state.default_user_name.as_ref().map(|s| Ok(s.as_str()));
-                if let Some(default_username) = &username {
-                    tracing::debug!(
-                        ?default_username,
-                        "request did not set user name, using default"
-                    );
-                }
-                username
-            });
+        let user = user_name_from_headers(
+            parts,
+            &state.authentication_header_name,
+            state.default_user_name.as_ref().map(|u| u.as_str()),
+        );
+        let txn = state
+            .pool
+            .begin_ro_for_user(
+                user.ok_or_else(|| {
+                    tracing::error!("No user name could be determined from HTTP headers.");
+                    DbTransactionRejection})?
+                    .map_err(|e| {
+                        tracing::warn!(error=%e, error_debug=?e, "HTTP headers contained a user name with invalid characters");
+                        DbTransactionRejection
+                    } )?,
+            )
+            .await
+            .map_err(|e| {
+                tracing::error!(error=%e, "failed to begin txn for user");
+                DbTransactionRejection
+            })?;
+        Ok(DbTransaction { txn })
+    }
+}
+
+#[async_trait]
+impl FromRequestParts<Arc<GlobalWebAppState>> for DbTransaction<lz_db::ReadWrite> {
+    type Rejection = DbTransactionRejection;
+
+    async fn from_request_parts(
+        parts: &mut Parts,
+        state: &Arc<GlobalWebAppState>,
+    ) -> Result<Self, Self::Rejection> {
+        let user = user_name_from_headers(
+            parts,
+            &state.authentication_header_name,
+            state.default_user_name.as_ref().map(|u| u.as_str()),
+        );
         let txn = state
             .pool
             .begin_for_user(

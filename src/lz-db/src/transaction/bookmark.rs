@@ -3,7 +3,7 @@ use sqlx::{prelude::*, query_scalar, types::Text};
 use url::Url;
 use utoipa::{ToResponse, ToSchema};
 
-use crate::{IdType, Transaction, UserId};
+use crate::{IdType, ReadWrite, Transaction, TransactionMode, UserId};
 
 /// The database ID of a bookmark.
 #[derive(
@@ -102,7 +102,7 @@ impl<U: IdType<UserId>> From<Bookmark<BookmarkId, U>> for BookmarkId {
 }
 
 /// # Working with Bookmarks
-impl Transaction {
+impl Transaction<ReadWrite> {
     /// Store a new bookmark in the database.
     #[tracing::instrument(skip(self))]
     pub async fn add_bookmark(&mut self, bm: Bookmark<(), ()>) -> Result<BookmarkId, sqlx::Error> {
@@ -146,6 +146,56 @@ impl Transaction {
         Ok(BookmarkId(id))
     }
 
+    /// Update the values on a bookmark for a user.
+    ///
+    ///
+    /// ## Fields not modified
+    /// - `id` and `user_id` - A user may only update the bookmarks belonging to them.
+    ///
+    /// - `accessed_at` and `created_at` - these timestamps can't be
+    ///   manually reset.
+    #[tracing::instrument(skip(self))]
+    pub async fn update_bookmark(
+        &mut self,
+        bm: &Bookmark<BookmarkId, UserId>,
+    ) -> Result<(), sqlx::Error> {
+        let url = bm.url.as_str();
+        sqlx::query!(
+            r#"
+              UPDATE bookmarks
+              SET
+                modified_at = datetime(),
+                url = ?,
+                title = ?,
+                description = ?,
+                website_title = ?,
+                website_description = ?,
+                unread = ?,
+                shared = ?,
+                notes = ?,
+                import_properties = ?
+              WHERE bookmark_id = ? AND user_id = ?
+            "#,
+            url,
+            bm.title,
+            bm.description,
+            bm.website_title,
+            bm.website_description,
+            bm.unread,
+            bm.shared,
+            bm.notes,
+            bm.import_properties,
+            bm.id,
+            bm.user_id,
+        )
+        .execute(&mut *self.txn)
+        .await
+        .map(|_| ())
+    }
+}
+
+/// Reading and finding [`Bookmark`]s
+impl<M: TransactionMode> Transaction<M> {
     /// Retrieve the bookmark with the given ID.
     #[tracing::instrument(skip(self))]
     pub async fn get_bookmark_by_id(
@@ -194,53 +244,6 @@ impl Transaction {
         .bind(self.user().id)
         .fetch_optional(&mut *self.txn)
         .await
-    }
-
-    /// Update the values on a bookmark for a user.
-    ///
-    ///
-    /// ## Fields not modified
-    /// - `id` and `user_id` - A user may only update the bookmarks belonging to them.
-    ///
-    /// - `accessed_at` and `created_at` - these timestamps can't be
-    ///   manually reset.
-    #[tracing::instrument(skip(self))]
-    pub async fn update_bookmark(
-        &mut self,
-        bm: &Bookmark<BookmarkId, UserId>,
-    ) -> Result<(), sqlx::Error> {
-        let url = bm.url.as_str();
-        sqlx::query!(
-            r#"
-              UPDATE bookmarks
-              SET
-                modified_at = datetime(),
-                url = ?,
-                title = ?,
-                description = ?,
-                website_title = ?,
-                website_description = ?,
-                unread = ?,
-                shared = ?,
-                notes = ?,
-                import_properties = ?
-              WHERE bookmark_id = ? AND user_id = ?
-            "#,
-            url,
-            bm.title,
-            bm.description,
-            bm.website_title,
-            bm.website_description,
-            bm.unread,
-            bm.shared,
-            bm.notes,
-            bm.import_properties,
-            bm.id,
-            bm.user_id,
-        )
-        .execute(&mut *self.txn)
-        .await
-        .map(|_| ())
     }
 }
 

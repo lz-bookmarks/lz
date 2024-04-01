@@ -40,8 +40,7 @@ async fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     init_observability(&args)?;
 
-    let pool =
-        lz_db::Connection::from_pool(sqlx::SqlitePool::connect(&args.db.to_string_lossy()).await?);
+    let pool = lz_db::Connection::from_path(&args.db).await?;
     let db_conns = Arc::new(GlobalWebAppState::new(
         pool,
         args.authentication_header_name,

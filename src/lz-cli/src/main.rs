@@ -76,14 +76,6 @@ enum Commands {
     Web(lz_web::Args),
 }
 
-#[tokio::main]
-async fn main() {
-    if let Err(e) = _main().await {
-        eprintln!("Error: {:#?}", e);
-        std::process::exit(1)
-    }
-}
-
 struct AddCmdOptions<'a> {
     backdate: &'a Option<String>,
     description: &'a Option<String>,
@@ -101,7 +93,8 @@ struct AddLinkUserFields<'a> {
     title: &'a Option<String>,
 }
 
-async fn _main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
     let cli = Cli::parse();
     let conn = Connection::from_path(&cli.db).await?;
 
@@ -128,7 +121,7 @@ async fn _main() -> Result<()> {
                 associated_context,
             };
             let mut txn = conn.begin_for_user(&cli.user).await?;
-            add_cmd(txn, link, &options).await?;
+            add_cmd(&mut txn, link, &options).await?;
             txn.commit().await?;
         }
         Commands::List {
@@ -187,7 +180,11 @@ async fn list_cmd(
     }
 }
 
-async fn add_cmd(mut txn: Transaction, link: &String, options: &AddCmdOptions<'_>) -> Result<()> {
+async fn add_cmd(
+    mut txn: &mut Transaction,
+    link: &String,
+    options: &AddCmdOptions<'_>,
+) -> Result<()> {
     let user_fields = AddLinkUserFields {
         description: options.description,
         notes: options.notes,

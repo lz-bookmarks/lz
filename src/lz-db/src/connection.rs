@@ -1,8 +1,8 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, SqliteSynchronous};
-use sqlx::SqlitePool;
+use thiserror::Error;
 
 /// A connection to an sqlite DB holding our bookmark data.
 pub struct Connection {
@@ -10,9 +10,17 @@ pub struct Connection {
     pub(crate) ro: Option<sqlx::sqlite::SqlitePool>,
 }
 
+/// Error establishing sqlite connection pools to a database at a given path.
+#[derive(Error, Debug)]
+#[error("could not open database file {path}")]
+pub struct ConnectionFromPathFailed {
+    path: PathBuf,
+    source: sqlx::Error,
+}
+
 impl Connection {
     /// Create a database connection to a file on disk.
-    pub async fn from_path(path: &Path) -> Result<Self, sqlx::Error> {
+    pub async fn from_path(path: &Path) -> Result<Self, ConnectionFromPathFailed> {
         let options = SqliteConnectOptions::new()
             .filename(&path)
             // Options from https://kerkour.com/sqlite-for-servers:
@@ -26,12 +34,22 @@ impl Connection {
             .shared_cache(true)
             .optimize_on_close(true, None);
 
-        let rw = SqlitePool::connect_with(options.clone()).await?;
+        let rw = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect_with(options.clone())
+            .await
+            .map_err(|source| ConnectionFromPathFailed {
+                path: path.to_owned(),
+                source,
+            })?;
         let ro = Some(
             SqlitePoolOptions::new()
-                .max_connections(1)
                 .connect_with(options.read_only(true))
-                .await?,
+                .await
+                .map_err(|source| ConnectionFromPathFailed {
+                    path: path.to_owned(),
+                    source,
+                })?,
         );
         Ok(Connection { rw, ro })
     }

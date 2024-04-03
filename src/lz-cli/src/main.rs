@@ -1,7 +1,8 @@
 use std::path::PathBuf;
+use std::str::FromStr;
 
-use anyhow::{anyhow, bail, Context, Result};
-use chrono::{DateTime, Local, NaiveDateTime, TimeZone, Utc};
+use anyhow::{anyhow, Context, Result};
+use chrono::{DateTime, Local, LocalResult, NaiveDateTime, TimeZone, Utc};
 use clap::{Parser, Subcommand};
 use lz_db::{Bookmark, BookmarkId, BookmarkSearch, Connection, DateInput, ReadOnly, Transaction};
 use scraper::{Html, Selector};
@@ -28,6 +29,23 @@ struct TuiArgs {
     user: String,
 }
 
+/// A date timestamp specified as 0:00:00 local time.
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
+struct LocalDatestamp(DateTime<Utc>);
+
+impl FromStr for LocalDatestamp {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        // user_created_at is a string and should be in 'YYYY-MM-DD` format.
+        let dt = NaiveDateTime::parse_from_str(&format!("{} 00:00:00", s), "%Y-%m-%d %H:%M:%S")?;
+        let LocalResult::Single(local_time) = Local.from_local_datetime(&dt) else {
+            anyhow::bail!("Could not convert naive datestamp {dt:?} to local DateTime")
+        };
+        Ok(LocalDatestamp(local_time.to_utc()))
+    }
+}
+
 #[derive(Parser, Debug)]
 struct CliAddArgs {
     /// The URL to add
@@ -35,7 +53,7 @@ struct CliAddArgs {
     /// Assign a date other than today for the link's creation (in
     /// YYYY-MM-DD format)
     #[arg(long)]
-    backdate: Option<String>,
+    backdate: Option<LocalDatestamp>,
     /// User-provided description for the link
     #[arg(long)]
     description: Option<String>,
@@ -166,7 +184,7 @@ async fn add_cmd(txn: &mut Transaction, args: &CliAddArgs) -> Result<()> {
     let bookmark_id = add_link(
         txn,
         args.link.to_string(),
-        args.backdate.as_deref(),
+        args.backdate.as_ref(),
         args.description.as_deref(),
         args.force,
         args.notes.as_deref(),
@@ -193,7 +211,7 @@ async fn add_cmd(txn: &mut Transaction, args: &CliAddArgs) -> Result<()> {
 async fn add_link(
     txn: &mut Transaction,
     link: String,
-    backdate: Option<&str>,
+    backdate: Option<&LocalDatestamp>,
     description: Option<&str>,
     force: bool,
     notes: Option<&str>,
@@ -207,21 +225,7 @@ async fn add_link(
         bookmark.description = Some(user_description.to_string());
     }
     if let Some(user_created_at) = backdate {
-        let dt = NaiveDateTime::parse_from_str(
-            &format!("{} 00:00:00", &user_created_at),
-            "%Y-%m-%d %H:%M:%S",
-        );
-        if let Ok(naive_dt) = dt {
-            // It's possible to panic here if we get a strictly illegal time, but we'll just
-            // accept that risk for now as a weird edge case.
-            let local_time: DateTime<Local> = Local.from_local_datetime(&naive_dt).unwrap();
-            bookmark.created_at = local_time.to_utc();
-        } else {
-            bail!(format!(
-                "{} is not a valid YYYY-MM-DD date string",
-                user_created_at
-            ));
-        };
+        bookmark.created_at = user_created_at.0;
     }
     bookmark.notes = notes.map(|n| n.to_string());
     match txn.add_bookmark(bookmark.clone()).await {

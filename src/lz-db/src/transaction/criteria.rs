@@ -5,7 +5,8 @@ use std::str::FromStr;
 
 use anyhow::{anyhow, Result};
 use chrono::NaiveDateTime;
-use sqlx::{query_builder::Separated, Sqlite};
+use sqlx::query_builder::Separated;
+use sqlx::Sqlite;
 
 use crate::{IdType, TagId, TagName, UserId};
 

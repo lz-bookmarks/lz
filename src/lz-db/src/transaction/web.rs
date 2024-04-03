@@ -1,11 +1,14 @@
 //! Web-app specific transactional queries
 
-use std::{collections::HashMap, fmt};
+use std::collections::HashMap;
+use std::fmt;
 
-use sqlx::{prelude::*, QueryBuilder};
+use sqlx::prelude::*;
+use sqlx::QueryBuilder;
 
 use crate::{
-    Bookmark, BookmarkId, BookmarkSearch, BookmarkSearchCriteria, Tag, TagId, Transaction, UserId,
+    Bookmark, BookmarkId, BookmarkSearch, BookmarkSearchCriteria, Tag, TagId, Transaction,
+    TransactionMode, UserId,
 };
 
 /// # Queries relevant to the `lz` web app
@@ -21,7 +24,7 @@ use crate::{
 /// this function returns one more element than was requested. If
 /// page_size+1 elements are returned, that last element's ID
 /// should be the next cursor ID.
-impl Transaction {
+impl<M: TransactionMode> Transaction<M> {
     /// Retrieve bookmarks tagged matching the given criteria, paginated
     #[tracing::instrument(err(Debug, level = tracing::Level::WARN), skip(self))]
     pub async fn list_bookmarks_matching(

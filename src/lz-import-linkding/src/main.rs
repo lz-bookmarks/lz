@@ -34,10 +34,9 @@ async fn main() -> anyhow::Result<()> {
     .with_context(|| format!("origin DB file {}", args.linkding_backup.to_string_lossy()))?;
     let linkding_tx =
         lz_import_linkding::schema::LinkdingTransaction::from_pool(&mut linkding_db).await?;
-    let lz_db_pool = sqlx::Pool::connect(&format!("sqlite:{}", args.to.to_string_lossy()))
+    let lz = lz_db::Connection::from_path(&args.to)
         .await
-        .with_context(|| format!("destination DB file {}", args.to.to_string_lossy()))?;
-    let lz = lz_db::Connection::from_pool(lz_db_pool);
+        .with_context(|| format!("destination DB file {:?}", args.to))?;
     let tx = lz.begin_for_user(&args.user).await?;
     let migration = lz_import_linkding::Migration::new(tx, linkding_tx, args.on_duplicate);
     migration.migrate().await?;

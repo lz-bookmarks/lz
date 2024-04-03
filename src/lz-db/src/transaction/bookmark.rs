@@ -1,9 +1,11 @@
 use serde::{Deserialize, Serialize};
-use sqlx::{prelude::*, query_scalar, types::Text};
+use sqlx::prelude::*;
+use sqlx::query_scalar;
+use sqlx::types::Text;
 use url::Url;
 use utoipa::{ToResponse, ToSchema};
 
-use crate::{IdType, Transaction, UserId};
+use crate::{IdType, ReadWrite, Transaction, TransactionMode, UserId};
 
 /// The database ID of a bookmark.
 #[derive(
@@ -102,7 +104,7 @@ impl<U: IdType<UserId>> From<Bookmark<BookmarkId, U>> for BookmarkId {
 }
 
 /// # Working with Bookmarks
-impl Transaction {
+impl Transaction<ReadWrite> {
     /// Store a new bookmark in the database.
     #[tracing::instrument(skip(self))]
     pub async fn add_bookmark(&mut self, bm: Bookmark<(), ()>) -> Result<BookmarkId, sqlx::Error> {
@@ -144,56 +146,6 @@ impl Transaction {
         .fetch_one(&mut *self.txn)
         .await?;
         Ok(BookmarkId(id))
-    }
-
-    /// Retrieve the bookmark with the given ID.
-    #[tracing::instrument(skip(self))]
-    pub async fn get_bookmark_by_id(
-        &mut self,
-        id: i64,
-    ) -> Result<Bookmark<BookmarkId, UserId>, sqlx::Error> {
-        sqlx::query_as(
-            r#"
-               SELECT * FROM bookmarks WHERE bookmark_id = ? AND user_id = ?;
-            "#,
-        )
-        .bind(id)
-        .bind(self.user().id)
-        .fetch_one(&mut *self.txn)
-        .await
-    }
-
-    /// Find all users' bookmarks with the given URL.
-    #[tracing::instrument(skip(self))]
-    pub async fn find_bookmarks_by_url_for_everyone(
-        &mut self,
-        url: Url,
-    ) -> Result<Vec<Bookmark<BookmarkId, UserId>>, sqlx::Error> {
-        sqlx::query_as(
-            r#"
-               SELECT * FROM bookmarks WHERE url = ?;
-            "#,
-        )
-        .bind(url.to_string())
-        .fetch_all(&mut *self.txn)
-        .await
-    }
-
-    /// Find the current user's bookmark with the given URL, if it exists.
-    #[tracing::instrument(skip(self))]
-    pub async fn find_bookmark_with_url(
-        &mut self,
-        url: &Url,
-    ) -> Result<Option<Bookmark<BookmarkId, UserId>>, sqlx::Error> {
-        sqlx::query_as(
-            r#"
-               SELECT * FROM bookmarks WHERE url = ? AND user_id = ?;
-            "#,
-        )
-        .bind(url.to_string())
-        .bind(self.user().id)
-        .fetch_optional(&mut *self.txn)
-        .await
     }
 
     /// Update the values on a bookmark for a user.
@@ -244,12 +196,66 @@ impl Transaction {
     }
 }
 
+/// Reading and finding [`Bookmark`]s
+impl<M: TransactionMode> Transaction<M> {
+    /// Retrieve the bookmark with the given ID.
+    #[tracing::instrument(skip(self))]
+    pub async fn get_bookmark_by_id(
+        &mut self,
+        id: i64,
+    ) -> Result<Bookmark<BookmarkId, UserId>, sqlx::Error> {
+        sqlx::query_as(
+            r#"
+               SELECT * FROM bookmarks WHERE bookmark_id = ? AND user_id = ?;
+            "#,
+        )
+        .bind(id)
+        .bind(self.user().id)
+        .fetch_one(&mut *self.txn)
+        .await
+    }
+
+    /// Find all users' bookmarks with the given URL.
+    #[tracing::instrument(skip(self))]
+    pub async fn find_bookmarks_by_url_for_everyone(
+        &mut self,
+        url: Url,
+    ) -> Result<Vec<Bookmark<BookmarkId, UserId>>, sqlx::Error> {
+        sqlx::query_as(
+            r#"
+               SELECT * FROM bookmarks WHERE url = ?;
+            "#,
+        )
+        .bind(url.to_string())
+        .fetch_all(&mut *self.txn)
+        .await
+    }
+
+    /// Find the current user's bookmark with the given URL, if it exists.
+    #[tracing::instrument(skip(self))]
+    pub async fn find_bookmark_with_url(
+        &mut self,
+        url: &Url,
+    ) -> Result<Option<Bookmark<BookmarkId, UserId>>, sqlx::Error> {
+        sqlx::query_as(
+            r#"
+               SELECT * FROM bookmarks WHERE url = ? AND user_id = ?;
+            "#,
+        )
+        .bind(url.to_string())
+        .bind(self.user().id)
+        .fetch_optional(&mut *self.txn)
+        .await
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::*;
     use test_context::test_context;
     use testresult::TestResult;
     use url::Url;
+
+    use crate::*;
 
     #[test_context(Context)]
     #[tokio::test]

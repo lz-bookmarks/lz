@@ -76,9 +76,7 @@ async fn main() {
 
 async fn _main() -> Result<()> {
     let cli = Cli::parse();
-    let pool =
-        sqlx::sqlite::SqlitePool::connect(&format!("sqlite:{}", cli.db.to_string_lossy())).await?;
-    let conn = Connection::from_pool(pool);
+    let conn = Connection::from_path(&cli.db).await?;
     let txn = conn.begin_for_user(&cli.user).await?;
 
     match &cli.command {

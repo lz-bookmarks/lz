@@ -1476,6 +1476,7 @@ dependencies = [
  "sqlx",
  "test-context",
  "testresult",
+ "thiserror",
  "tokio",
  "tracing",
  "tracing-subscriber",

@@ -35,7 +35,12 @@ impl<M: MigrationBehavior> Context<M> {
 
     /// Returns the SQLite DB pool used in this context
     pub fn db_pool(&mut self) -> &sqlx::SqlitePool {
-        &self.connection.db
+        // TODO: Maybe find a way to test the rw/ro duality.
+        //
+        // The type system thankfully helps us keep the two straight,
+        // but it'd be nice if we could make a test that ensures the
+        // ro pool can see writes made by the rw pool.
+        &self.connection.rw
     }
 }
 

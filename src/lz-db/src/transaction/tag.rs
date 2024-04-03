@@ -1,10 +1,11 @@
 use std::collections::BTreeSet;
 
 use serde::{Deserialize, Serialize};
-use sqlx::{prelude::*, query};
+use sqlx::prelude::*;
+use sqlx::query;
 use utoipa::{ToResponse, ToSchema};
 
-use crate::{BookmarkId, IdType, Transaction};
+use crate::{BookmarkId, IdType, ReadWrite, Transaction, TransactionMode};
 
 /// The database ID of a tag.
 #[derive(
@@ -87,8 +88,8 @@ impl From<&str> for TagName {
     }
 }
 
-/// # Working with [`Tag`]s
-impl Transaction {
+/// # Reading/finding/listing [`Tag`]s
+impl<M: TransactionMode> Transaction<M> {
     /// Return all existing tags matching the given names.
     ///
     /// If a tag with a given name doesn't exist, it will be missing
@@ -128,7 +129,10 @@ impl Transaction {
 
         Ok(existing_tags)
     }
+}
 
+/// Creating sets of [`Tag`]s.
+impl Transaction<ReadWrite> {
     /// Ensure all the tags with the given name exist and return them.
     ///
     /// This method is the ad-hoc-creating mirror to
@@ -180,8 +184,33 @@ pub struct BookmarkTag<TID: IdType<TagId>, BID: IdType<BookmarkId>> {
     pub bookmark_id: BID,
 }
 
-/// # Working with a `Bookmark`'s `Tag`s
-impl Transaction {
+/// # Reading a `Bookmark`'s `Tag`s
+impl<M: TransactionMode> Transaction<M> {
+    /// Retrieve a bookmark's tags.
+    #[tracing::instrument(err(Debug, level = tracing::Level::WARN), skip(self))]
+    pub async fn get_bookmark_tags(
+        &mut self,
+        bookmark_id: BookmarkId,
+    ) -> Result<Vec<Tag<TagId>>, sqlx::Error> {
+        sqlx::query_as(
+            r#"
+              SELECT tags.*
+              FROM
+                tags
+                JOIN bookmark_tags USING (tag_id)
+              WHERE
+                bookmark_id = ?
+              ORDER BY tags.name;
+            "#,
+        )
+        .bind(bookmark_id)
+        .fetch_all(&mut *self.txn)
+        .await
+    }
+}
+
+/// # Reading a `Bookmark`'s `Tag`s
+impl Transaction<ReadWrite> {
     /// Set the tags on a bookmark.
     ///
     /// Any existing tagging will be removed and replaced with the
@@ -211,28 +240,6 @@ impl Transaction {
         .await?;
 
         self.add_bookmark_tags(bookmark_id, tags).await
-    }
-
-    /// Retrieve a bookmark's tags.
-    #[tracing::instrument(err(Debug, level = tracing::Level::WARN), skip(self))]
-    pub async fn get_bookmark_tags(
-        &mut self,
-        bookmark_id: BookmarkId,
-    ) -> Result<Vec<Tag<TagId>>, sqlx::Error> {
-        sqlx::query_as(
-            r#"
-              SELECT tags.*
-              FROM
-                tags
-                JOIN bookmark_tags USING (tag_id)
-              WHERE
-                bookmark_id = ?
-              ORDER BY tags.name;
-            "#,
-        )
-        .bind(bookmark_id)
-        .fetch_all(&mut *self.txn)
-        .await
     }
 
     #[tracing::instrument(err(Debug, level = tracing::Level::WARN), skip(self))]
@@ -268,10 +275,11 @@ impl Transaction {
 mod tests {
     use std::collections::BTreeSet;
 
-    use crate::*;
     use test_context::test_context;
     use testresult::TestResult;
     use url::Url;
+
+    use crate::*;
 
     #[test_context(Context)]
     #[tokio::test]

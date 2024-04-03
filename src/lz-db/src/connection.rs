@@ -1,7 +1,8 @@
-use sqlx::{sqlite::SqliteSynchronous, SqlitePool};
-use std::{path::Path, time::Duration};
+use std::path::Path;
+use std::time::Duration;
 
-use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions};
+use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, SqliteSynchronous};
+use sqlx::SqlitePool;
 
 /// A connection to an sqlite DB holding our bookmark data.
 pub struct Connection {

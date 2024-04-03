@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
-use sqlx::{prelude::*, query_scalar, types::Text};
+use sqlx::prelude::*;
+use sqlx::query_scalar;
+use sqlx::types::Text;
 use url::Url;
 use utoipa::{ToResponse, ToSchema};
 
@@ -249,10 +251,11 @@ impl<M: TransactionMode> Transaction<M> {
 
 #[cfg(test)]
 mod tests {
-    use crate::*;
     use test_context::test_context;
     use testresult::TestResult;
     use url::Url;
+
+    use crate::*;
 
     #[test_context(Context)]
     #[tokio::test]

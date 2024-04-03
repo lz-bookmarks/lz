@@ -1,14 +1,14 @@
 //! Routines that translate Linkding's models into ours.
 
-use std::{collections::HashMap, pin};
+use std::collections::HashMap;
+use std::pin;
 
 use anyhow::Context as _;
-use futures::{stream::StreamExt as _, TryStreamExt as _};
+use futures::stream::StreamExt as _;
+use futures::TryStreamExt as _;
 
-use crate::{
-    schema::{self, LinkdingTransaction},
-    DuplicateBehavior,
-};
+use crate::schema::{self, LinkdingTransaction};
+use crate::DuplicateBehavior;
 
 pub struct Migration<'c> {
     db: lz_db::Transaction,

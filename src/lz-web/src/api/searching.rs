@@ -2,11 +2,11 @@
 
 use std::sync::Arc;
 
-use axum::{
-    extract::{rejection::PathRejection, FromRequestParts, Path},
-    http::{request::Parts, StatusCode},
-    response::IntoResponse,
-};
+use axum::extract::rejection::PathRejection;
+use axum::extract::{FromRequestParts, Path};
+use axum::http::request::Parts;
+use axum::http::StatusCode;
+use axum::response::IntoResponse;
 use lz_db::TagName;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;

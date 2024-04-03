@@ -1,8 +1,10 @@
 //! Web-app specific transactional queries
 
-use std::{collections::HashMap, fmt};
+use std::collections::HashMap;
+use std::fmt;
 
-use sqlx::{prelude::*, QueryBuilder};
+use sqlx::prelude::*;
+use sqlx::QueryBuilder;
 
 use crate::{
     Bookmark, BookmarkId, BookmarkSearch, BookmarkSearchCriteria, Tag, TagId, Transaction,

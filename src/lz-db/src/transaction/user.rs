@@ -5,10 +5,12 @@
 //! that authentication data and identify the person accessing bookmarks
 //! that way. But it will not attempt to do access control.
 
-use crate::{IdType, Transaction, TransactionMode};
 use serde::{Deserialize, Serialize};
-use sqlx::{prelude::*, query_as};
+use sqlx::prelude::*;
+use sqlx::query_as;
 use utoipa::{ToResponse, ToSchema};
+
+use crate::{IdType, Transaction, TransactionMode};
 
 /// The database ID of a user.
 #[derive(
@@ -110,9 +112,10 @@ impl<M: TransactionMode> Transaction<M> {
 
 #[cfg(test)]
 mod tests {
-    use crate::*;
     use test_context::test_context;
     use testresult::TestResult;
+
+    use crate::*;
 
     #[test_context(Context)]
     #[tokio::test]

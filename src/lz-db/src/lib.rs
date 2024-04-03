@@ -16,9 +16,10 @@ pub use testing::{Context, NonMigratingContext};
 
 #[cfg(test)]
 mod tests {
-    use crate::{NonMigratingContext, MIGRATOR};
     use test_context::test_context;
     use testresult::TestResult;
+
+    use crate::{NonMigratingContext, MIGRATOR};
 
     #[test_context(NonMigratingContext)]
     #[tokio::test]

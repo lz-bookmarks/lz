@@ -2,11 +2,9 @@
 
 use std::time::Duration;
 
-use axum::{
-    body::Body,
-    http::{Request, Response},
-    Router,
-};
+use axum::body::Body;
+use axum::http::{Request, Response};
+use axum::Router;
 use tower::ServiceBuilder;
 use tower_http::trace::TraceLayer;
 use tracing::{debug, field, info_span, Span};

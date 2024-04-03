@@ -1,17 +1,15 @@
 //! Stuff for hooking up the DB to the lz web app.
 
-use std::{
-    fmt,
-    ops::{Deref, DerefMut},
-    sync::Arc,
-};
+use std::fmt;
+use std::ops::{Deref, DerefMut};
+use std::sync::Arc;
 
 use async_trait::async_trait;
-use axum::{
-    extract::FromRequestParts,
-    http::{header::ToStrError, request::Parts, StatusCode},
-    response::IntoResponse,
-};
+use axum::extract::FromRequestParts;
+use axum::http::header::ToStrError;
+use axum::http::request::Parts;
+use axum::http::StatusCode;
+use axum::response::IntoResponse;
 
 /// An axum state object containing a connection pool to the SQLite DB.
 ///

@@ -7,9 +7,13 @@ mod searching;
 
 use std::sync::Arc;
 
-use axum::{debug_handler, extract::Query, http::StatusCode, routing::get, Json, Router};
+use axum::extract::Query;
+use axum::http::StatusCode;
+use axum::routing::get;
+use axum::{debug_handler, Json, Router};
 use axum_valid::Valid;
 use lz_db::{BookmarkId, BookmarkSearch, ExistingBookmark, ExistingTag, TagName, UserId};
+use searching::TagQuery;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tower_http::cors::CorsLayer;
@@ -17,7 +21,6 @@ use utoipa::{OpenApi, ToResponse, ToSchema};
 use validator::Validate;
 
 use crate::db::{DbTransaction, GlobalWebAppState};
-use searching::TagQuery;
 
 #[derive(OpenApi)]
 #[openapi(

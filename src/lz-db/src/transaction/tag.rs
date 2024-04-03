@@ -1,7 +1,8 @@
 use std::collections::BTreeSet;
 
 use serde::{Deserialize, Serialize};
-use sqlx::{prelude::*, query};
+use sqlx::prelude::*;
+use sqlx::query;
 use utoipa::{ToResponse, ToSchema};
 
 use crate::{BookmarkId, IdType, ReadWrite, Transaction, TransactionMode};
@@ -274,10 +275,11 @@ impl Transaction<ReadWrite> {
 mod tests {
     use std::collections::BTreeSet;
 
-    use crate::*;
     use test_context::test_context;
     use testresult::TestResult;
     use url::Url;
+
+    use crate::*;
 
     #[test_context(Context)]
     #[tokio::test]

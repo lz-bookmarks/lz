@@ -1,16 +1,15 @@
-use std::{io, net::SocketAddr, path::PathBuf, sync::Arc};
+use std::io;
+use std::net::SocketAddr;
+use std::path::PathBuf;
+use std::sync::Arc;
 
 use axum::Router;
-
 use clap::Parser;
 use lz_web::db::GlobalWebAppState;
-
 use opentelemetry::KeyValue;
-
 use opentelemetry_sdk::Resource;
-
-use tracing_subscriber::{layer::SubscriberExt as _, EnvFilter, Layer as _, Registry};
-
+use tracing_subscriber::layer::SubscriberExt as _;
+use tracing_subscriber::{EnvFilter, Layer as _, Registry};
 use utoipa::OpenApi as _;
 use utoipa_redoc::{Redoc, Servable as _};
 use utoipa_swagger_ui::SwaggerUi;

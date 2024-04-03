@@ -90,7 +90,7 @@ fn user_name_from_headers<'a>(
                     "request did not set user name, using default"
                 );
             }
-            default_user_name.map(|u| Ok(u))
+            default_user_name.map(Ok)
         })
 }
 
@@ -105,7 +105,7 @@ impl FromRequestParts<Arc<GlobalWebAppState>> for DbTransaction<lz_db::ReadOnly>
         let user = user_name_from_headers(
             parts,
             &state.authentication_header_name,
-            state.default_user_name.as_ref().map(|u| u.as_str()),
+            state.default_user_name.as_deref(),
         );
         let txn = state
             .pool
@@ -138,7 +138,7 @@ impl FromRequestParts<Arc<GlobalWebAppState>> for DbTransaction<lz_db::ReadWrite
         let user = user_name_from_headers(
             parts,
             &state.authentication_header_name,
-            state.default_user_name.as_ref().map(|u| u.as_str()),
+            state.default_user_name.as_deref(),
         );
         let txn = state
             .pool

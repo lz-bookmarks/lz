@@ -24,7 +24,7 @@ mod tests {
     #[test_context(NonMigratingContext)]
     #[tokio::test]
     async fn apply_migrations(ctx: &mut NonMigratingContext) -> TestResult {
-        MIGRATOR.run(&*ctx.db_pool()).await?;
+        MIGRATOR.run(ctx.db_pool()).await?;
         Ok(())
     }
 }

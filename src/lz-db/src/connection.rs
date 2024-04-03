@@ -22,7 +22,7 @@ impl Connection {
     /// Create a database connection to a file on disk.
     pub async fn from_path(path: &Path) -> Result<Self, ConnectionFromPathFailed> {
         let options = SqliteConnectOptions::new()
-            .filename(&path)
+            .filename(path)
             // Options from https://kerkour.com/sqlite-for-servers:
             .journal_mode(SqliteJournalMode::Wal)
             .busy_timeout(Duration::from_secs(5))

@@ -159,7 +159,7 @@ async fn list_bookmarks(
             bookmarks.push(AnnotatedBookmark {
                 bookmark: bm.clone(),
                 tags,
-                associations: associations.remove(&id).unwrap_or_else(|| vec![]),
+                associations: associations.remove(&id).unwrap_or_else(std::vec::Vec::new),
             });
         } else {
             tracing::warn!(
@@ -232,7 +232,7 @@ async fn list_bookmarks_with_tag(
             bookmarks.push(AnnotatedBookmark {
                 bookmark: bm.clone(),
                 tags,
-                associations: associations.remove(&id).unwrap_or_else(|| vec![]),
+                associations: associations.remove(&id).unwrap_or_else(std::vec::Vec::new),
             });
         } else {
             tracing::warn!(

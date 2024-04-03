@@ -33,7 +33,7 @@ pub struct Args {
 }
 
 pub async fn run(pool: lz_db::Connection, args: &Args) -> anyhow::Result<()> {
-    init_observability(&args)?;
+    init_observability(args)?;
 
     let db_conns = Arc::new(GlobalWebAppState::new(
         pool,

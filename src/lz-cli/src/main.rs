@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use anyhow::{anyhow, bail, Context, Result};
 use chrono::{DateTime, Local, NaiveDateTime, TimeZone, Utc};
 use clap::{Parser, Subcommand};
-use lz_db::{Bookmark, BookmarkId, BookmarkSearch, Connection, DateInput, Transaction};
+use lz_db::{Bookmark, BookmarkId, BookmarkSearch, Connection, DateInput, ReadOnly, Transaction};
 use scraper::{Html, Selector};
 use url::Url;
 
@@ -17,7 +17,7 @@ struct Cli {
     command: Commands,
 
     /// Path to the database to use
-    #[clap(long, default_value = "db.sqlite")]
+    #[clap(long, global = true, default_value = "db.sqlite")]
     db: PathBuf,
 
     #[clap(long, default_value = "local")]
@@ -70,6 +70,10 @@ enum Commands {
         #[arg(long, value_delimiter = ',', num_args = 1..)]
         tagged: Option<Vec<String>>,
     },
+
+    /// Run the lz web server
+    #[clap(alias = "serve")]
+    Web(lz_web::Args),
 }
 
 #[tokio::main]
@@ -100,7 +104,6 @@ struct AddLinkUserFields<'a> {
 async fn _main() -> Result<()> {
     let cli = Cli::parse();
     let conn = Connection::from_path(&cli.db).await?;
-    let txn = conn.begin_for_user(&cli.user).await?;
 
     match &cli.command {
         Commands::Add {
@@ -124,21 +127,25 @@ async fn _main() -> Result<()> {
                 associated_link,
                 associated_context,
             };
+            let mut txn = conn.begin_for_user(&cli.user).await?;
             add_cmd(txn, link, &options).await?;
+            txn.commit().await?;
         }
         Commands::List {
             created_after,
             created_before,
             tagged,
         } => {
+            let txn = conn.begin_ro_for_user(&cli.user).await?;
             list_cmd(txn, created_after, created_before, tagged).await?;
         }
+        Commands::Web(args) => lz_web::run(conn, args).await?,
     }
     Ok(())
 }
 
 async fn list_cmd(
-    mut txn: Transaction,
+    mut txn: Transaction<ReadOnly>,
     created_after: &Option<String>,
     created_before: &Option<String>,
     tagged: &Option<Vec<String>>,
@@ -207,7 +214,6 @@ async fn add_cmd(mut txn: Transaction, link: &String, options: &AddCmdOptions<'_
         txn.associate_bookmark_link(&bookmark_id, &url_id, options.associated_context.as_deref())
             .await?;
     }
-    txn.commit().await?;
     println!("Added bookmark for {}", link);
     Ok(())
 }

@@ -17,3 +17,6 @@ url = { workspace = true }
 
 [dependencies.lz-db]
 path = "../lz-db"
+
+[dependencies.lz-web]
+path = "../lz-web"

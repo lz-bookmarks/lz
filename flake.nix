@@ -162,7 +162,7 @@
 
         proc.groups.dev-server.processes = {
           backend.command = ''
-            ${pkgs.cargo-watch}/bin/cargo-watch -L info --why -i *.nix -i lz-frontend -- cargo run  --color always --bin lz-web -- --db dev-db.sqlite --authentication-header-name X-Tailscale-User-LoginName --default-user-name=developer --listen-on=127.0.0.1:3000
+            ${pkgs.cargo-watch}/bin/cargo-watch -L info --why -i *.nix -i lz-frontend -- cargo run  --color always --bin lz-cli -- --db dev-db.sqlite web --authentication-header-name X-Tailscale-User-LoginName --default-user-name=developer --listen-on=127.0.0.1:3000
           '';
           sqlite-web = {
             command = "${pkgs.sqlite-web}/bin/sqlite_web -x -r dev-db.sqlite";

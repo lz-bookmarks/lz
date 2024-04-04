@@ -33,7 +33,9 @@ impl<M: TransactionMode> Transaction<M> {
         page_size: u16,
         last_seen: Option<BookmarkId>,
     ) -> Result<Vec<Bookmark<BookmarkId, UserId>>, sqlx::Error> {
-        let mut qb = QueryBuilder::new("SELECT bookmarks.* FROM bookmarks");
+        let mut qb = QueryBuilder::new(
+            "SELECT bookmarks.*, urls.link AS url FROM bookmarks JOIN urls USING (url_id)",
+        );
 
         // Limit the bookmarks by the relationships they have: For
         // tags, we handle that by finding each tag's bookmark IDs and
@@ -53,10 +55,6 @@ impl<M: TransactionMode> Transaction<M> {
         // Limit the bookmarks by any "additional" criteria that might
         // apply (creation, user ID, and of course, pagination):
         qb.push(" WHERE ");
-        // For now, you can't list non-primary links; they'll be visible only as details
-        // on individual links.
-        qb.push(" primary_link IS TRUE ");
-        qb.push(" AND ");
         if let Some(last_seen) = last_seen {
             qb.push("created_at <= (SELECT created_at FROM bookmarks WHERE bookmark_id = ");
             qb.push_bind(last_seen);
@@ -161,7 +159,6 @@ mod tests {
                 ),
                 notes: Some("No need to run tests.".to_string()),
                 import_properties: None,
-                primary_link: true,
                 shared: true,
                 unread: true,
             };
@@ -191,7 +188,6 @@ mod tests {
             ),
             notes: Some("No need to run tests.".to_string()),
             import_properties: None,
-            primary_link: true,
             shared: true,
             unread: true,
         };

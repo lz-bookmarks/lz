@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n              UPDATE bookmarks\n              SET\n                modified_at = datetime(),\n                url_id = (SELECT url_id FROM urls WHERE link = ?),\n                title = ?,\n                description = ?,\n                website_title = ?,\n                website_description = ?,\n                unread = ?,\n                shared = ?,\n                notes = ?,\n                import_properties = ?\n              WHERE bookmark_id = ? AND user_id = ?\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 11
+    },
+    "nullable": []
+  },
+  "hash": "7e0f0099fa3c9e5ff12773775f812a1165773daffbf783d0c7f81c1a8e254c6f"
+}

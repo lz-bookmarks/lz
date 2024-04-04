@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::*;
 use sqlx::query_scalar;
-use sqlx::types::Text;
 use url::Url;
 use utoipa::{ToResponse, ToSchema};
 
@@ -83,10 +82,6 @@ pub struct Bookmark<ID: IdType<BookmarkId>, UID: IdType<UserId>> {
     /// Whether the bookmark is "to read"
     pub unread: bool,
 
-    /// Whether the bookmark was added independently, instead of as a
-    /// supplement to other bookmarks.
-    pub primary_link: bool,
-
     /// Whether other users can see the bookmark.
     pub shared: bool,
 
@@ -112,8 +107,8 @@ impl Transaction<ReadWrite> {
     /// Store a new bookmark in the database.
     #[tracing::instrument(skip(self))]
     pub async fn add_bookmark(&mut self, bm: Bookmark<(), ()>) -> Result<BookmarkId, sqlx::Error> {
-        let bm_url = Text(bm.url);
         let user_id = self.user().id;
+        let url_id = self.ensure_url(&bm.url).await?;
         let id = query_scalar!(
             r#"
               INSERT INTO bookmarks (
@@ -121,30 +116,28 @@ impl Transaction<ReadWrite> {
                 created_at,
                 modified_at,
                 accessed_at,
-                url,
+                url_id,
                 title,
                 description,
                 website_title,
                 website_description,
                 unread,
-                primary_link,
                 shared,
                 notes,
                 import_properties
-              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
               RETURNING bookmark_id;
             "#,
             user_id,
             bm.created_at,
             bm.modified_at,
             bm.accessed_at,
-            bm_url,
+            url_id,
             bm.title,
             bm.description,
             bm.website_title,
             bm.website_description,
             bm.unread,
-            bm.primary_link,
             bm.shared,
             bm.notes,
             bm.import_properties,
@@ -167,62 +160,34 @@ impl Transaction<ReadWrite> {
         &mut self,
         bm: &Bookmark<BookmarkId, UserId>,
     ) -> Result<(), sqlx::Error> {
-        let url = bm.url.as_str();
+        let url_id = self.ensure_url(&bm.url).await?;
         sqlx::query!(
             r#"
               UPDATE bookmarks
               SET
                 modified_at = datetime(),
-                url = ?,
+                url_id = ?,
                 title = ?,
                 description = ?,
                 website_title = ?,
                 website_description = ?,
                 unread = ?,
-                primary_link = ?,
                 shared = ?,
                 notes = ?,
                 import_properties = ?
               WHERE bookmark_id = ? AND user_id = ?
             "#,
-            url,
+            url_id,
             bm.title,
             bm.description,
             bm.website_title,
             bm.website_description,
             bm.unread,
-            bm.primary_link,
             bm.shared,
             bm.notes,
             bm.import_properties,
             bm.id,
             bm.user_id,
-        )
-        .execute(&mut *self.txn)
-        .await
-        .map(|_| ())
-    }
-
-    /// Associate a bookmark with another bookmark.
-    #[tracing::instrument(skip(self))]
-    pub async fn associate_bookmarks(
-        &mut self,
-        primary: &BookmarkId,
-        associate: &BookmarkId,
-        context: &Option<String>,
-    ) -> Result<(), sqlx::Error> {
-        let context_string = context.clone().unwrap_or("".to_string());
-        sqlx::query!(
-            r#"
-              INSERT INTO bookmark_associations(
-                primary_bookmark_id,
-                secondary_bookmark_id,
-                context
-              ) VALUES (?, ?, ?)
-            "#,
-            primary,
-            associate,
-            context_string,
         )
         .execute(&mut *self.txn)
         .await
@@ -240,13 +205,13 @@ impl<M: TransactionMode> Transaction<M> {
     ) -> Result<Bookmark<BookmarkId, UserId>, sqlx::Error> {
         sqlx::query_as(
             r#"
-               SELECT * FROM bookmarks WHERE bookmark_id = ? AND user_id = ?;
+               SELECT *, urls.link AS url FROM bookmarks JOIN urls USING (url_id) WHERE bookmark_id = ? AND user_id = ?;
             "#,
         )
-        .bind(id)
-        .bind(self.user().id)
-        .fetch_one(&mut *self.txn)
-        .await
+            .bind(id)
+            .bind(self.user().id)
+            .fetch_one(&mut *self.txn)
+            .await
     }
 
     /// Find all users' bookmarks with the given URL.
@@ -257,12 +222,12 @@ impl<M: TransactionMode> Transaction<M> {
     ) -> Result<Vec<Bookmark<BookmarkId, UserId>>, sqlx::Error> {
         sqlx::query_as(
             r#"
-               SELECT * FROM bookmarks WHERE url = ?;
+               SELECT *, urls.link AS url FROM bookmarks JOIN urls USING (url_id) WHERE url.link = ?;
             "#,
         )
-        .bind(url.to_string())
-        .fetch_all(&mut *self.txn)
-        .await
+            .bind(url.to_string())
+            .fetch_all(&mut *self.txn)
+            .await
     }
 
     /// Find the current user's bookmark with the given URL, if it exists.
@@ -273,13 +238,13 @@ impl<M: TransactionMode> Transaction<M> {
     ) -> Result<Option<Bookmark<BookmarkId, UserId>>, sqlx::Error> {
         sqlx::query_as(
             r#"
-               SELECT * FROM bookmarks WHERE url = ? AND user_id = ?;
+               SELECT *, urls.link AS url FROM bookmarks JOIN urls USING (url_id) WHERE urls.link = ? AND user_id = ?;
             "#,
         )
-        .bind(url.to_string())
-        .bind(self.user().id)
-        .fetch_optional(&mut *self.txn)
-        .await
+            .bind(url.to_string())
+            .bind(self.user().id)
+            .fetch_optional(&mut *self.txn)
+            .await
     }
 }
 
@@ -311,7 +276,6 @@ mod tests {
             notes: Some("No need to run tests.".to_string()),
             import_properties: None,
             shared: true,
-            primary_link: true,
             unread: true,
         };
         let added = txn.add_bookmark(to_add.clone()).await?;
@@ -334,7 +298,6 @@ mod tests {
                 notes: to_add.notes,
                 import_properties: to_add.import_properties,
                 shared: to_add.shared,
-                primary_link: to_add.primary_link,
                 unread: to_add.unread,
             }
         );

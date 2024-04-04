@@ -66,9 +66,6 @@ export interface components {
       modified_at?: string | null;
       /** @description Private notes that the user attached to the bookmark. */
       notes?: string | null;
-      /** @description Whether the bookmark was added on its own, instead of as
-      * a supplement to other items */
-      primary_link: boolean;
       /** @description Whether other users can see the bookmark. */
       shared: boolean;
       /** @description Title that the user gave the bookmark. */
@@ -191,9 +188,6 @@ export interface components {
           modified_at?: string | null;
           /** @description Private notes that the user attached to the bookmark. */
           notes?: string | null;
-          /** @description Whether the bookmark was added on its own, instead of as
-          * a supplement to other items */
-          primary_link: boolean;
           /** @description Whether other users can see the bookmark. */
           shared: boolean;
           /** @description Title that the user gave the bookmark. */

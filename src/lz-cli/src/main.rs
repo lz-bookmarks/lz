@@ -192,7 +192,6 @@ async fn add_cmd(mut txn: Transaction, link: &String, options: &AddCmdOptions<'_
         &user_fields,
         options.backdate,
         options.force,
-        &false,
     )
     .await?;
     if let Some(tag_strings) = options.tag {
@@ -203,38 +202,10 @@ async fn add_cmd(mut txn: Transaction, link: &String, options: &AddCmdOptions<'_
         // Associations don't get user-configurable notes, description, etc.
         // If the user wants this, they should go add the associate as a primary
         // link and then associate separately.
-        let associated_url = Url::parse(associate);
-        if associated_url.is_err() {
-            bail!(format!("`{}` is not a valid link", associate));
-        }
-        let associate_bookmark_id = {
-            if let Some(previous_bookmark) =
-                txn.find_bookmark_with_url(&associated_url.unwrap()).await?
-            {
-                previous_bookmark.id
-            } else {
-                let empty_user_fields = AddLinkUserFields {
-                    description: &None,
-                    notes: &None,
-                    title: &None,
-                };
-                add_link(
-                    &mut txn,
-                    associate.to_string(),
-                    &empty_user_fields,
-                    options.backdate,
-                    &true, // force
-                    &true, // associate link
-                )
-                .await?
-            }
-        };
-        txn.associate_bookmarks(
-            &bookmark_id,
-            &associate_bookmark_id,
-            options.associated_context,
-        )
-        .await?;
+        let associated_url = Url::parse(associate)?;
+        let url_id = txn.ensure_url(&associated_url).await?;
+        txn.associate_bookmark_link(&bookmark_id, &url_id, options.associated_context.as_deref())
+            .await?;
     }
     txn.commit().await?;
     println!("Added bookmark for {}", link);
@@ -247,7 +218,6 @@ async fn add_link(
     user_fields: &AddLinkUserFields<'_>,
     backdate: &Option<String>,
     force: &bool,
-    associate_link: &bool,
 ) -> Result<BookmarkId> {
     let mut bookmark = lookup_link_from_web(&link).await?;
     if let Some(user_title) = user_fields.title {
@@ -274,7 +244,6 @@ async fn add_link(
         };
     }
     bookmark.notes = user_fields.notes.as_ref().map(|n| n.to_string());
-    bookmark.primary_link = !associate_link;
     match txn.add_bookmark(bookmark.clone()).await {
         Ok(v) => Ok(v),
         Err(sqlx::Error::Database(db_err)) if db_err.is_unique_violation() => {
@@ -335,7 +304,6 @@ async fn lookup_link_from_web(link: &String) -> Result<Bookmark<(), ()>> {
         import_properties: None,
         modified_at: None,
         notes: None,
-        primary_link: true,
         shared: true,
         title: title.clone(),
         unread: true,

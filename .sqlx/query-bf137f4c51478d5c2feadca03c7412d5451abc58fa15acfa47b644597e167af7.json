@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                  INSERT INTO urls (link) VALUES (?)\n                  RETURNING url_id\n                ",
+  "describe": {
+    "columns": [
+      {
+        "name": "url_id",
+        "ordinal": 0,
+        "type_info": "Int64"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "bf137f4c51478d5c2feadca03c7412d5451abc58fa15acfa47b644597e167af7"
+}

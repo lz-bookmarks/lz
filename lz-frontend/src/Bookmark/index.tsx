@@ -5,12 +5,22 @@ import { BookmarkTag } from "../BookmarkTag.tsx";
 export function Bookmark({
   bookmark,
   tags,
+  associations,
 }: components["schemas"]["AnnotatedBookmark"]) {
   return (
     <Card key={bookmark.id}>
       <CardBody>
         <Heading size="sm">
-          <a href={bookmark.url}>{bookmark.title}</a>
+          <HStack spacing={10} align={"left"}>
+            <a href={bookmark.url}>{bookmark.title}</a>
+            {associations !== [] && (
+              <HStack>
+                {associations.map(({ context, link }) => (
+                  <a href={link}>{context || "=>"}</a>
+                ))}
+              </HStack>
+            )}
+          </HStack>
         </Heading>
         <HStack>
           {tags.map(({ name }) => (

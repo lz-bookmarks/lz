@@ -3,8 +3,11 @@
 use std::collections::HashMap;
 use std::fmt;
 
+use serde::{Deserialize, Serialize};
 use sqlx::prelude::*;
 use sqlx::QueryBuilder;
+use url::Url;
+use utoipa::{ToResponse, ToSchema};
 
 use crate::{
     Bookmark, BookmarkId, BookmarkSearch, BookmarkSearchCriteria, Tag, TagId, Transaction,
@@ -33,7 +36,9 @@ impl<M: TransactionMode> Transaction<M> {
         page_size: u16,
         last_seen: Option<BookmarkId>,
     ) -> Result<Vec<Bookmark<BookmarkId, UserId>>, sqlx::Error> {
-        let mut qb = QueryBuilder::new("SELECT bookmarks.* FROM bookmarks");
+        let mut qb = QueryBuilder::new(
+            "SELECT bookmarks.*, urls.link AS url FROM bookmarks JOIN urls USING (url_id)",
+        );
 
         // Limit the bookmarks by the relationships they have: For
         // tags, we handle that by finding each tag's bookmark IDs and
@@ -117,6 +122,60 @@ impl<M: TransactionMode> Transaction<M> {
                 .push(bmt.tag);
         }
         Ok(value)
+    }
+}
+
+/// A link associated with a bookmark.
+///
+/// Links can have a "context" in which that association happens
+/// (free-form text, given by the user), and they point to a URL,
+/// which in turn can be another bookmark.
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone, FromRow, ToSchema, ToResponse)]
+pub struct AssociatedLink {
+    pub context: Option<String>,
+    #[sqlx(try_from = "&'a str")]
+    pub link: Url,
+    // TODO: query for the bookmark on the right side, if one exists.
+}
+
+impl<M: TransactionMode> Transaction<M> {
+    #[tracing::instrument(err(Debug, level = tracing::Level::WARN), skip(self))]
+    pub async fn associated_links_on_bookmarks<
+        I: IntoIterator<Item = B, IntoIter = C> + Clone + fmt::Debug,
+        C: Clone + std::iter::Iterator<Item = B>,
+        B: Into<BookmarkId>,
+    >(
+        &mut self,
+        bms: I,
+    ) -> Result<HashMap<BookmarkId, Vec<AssociatedLink>>, sqlx::Error> {
+        let mut qb = QueryBuilder::new(
+            r#"
+              SELECT bookmark_associations.bookmark_id AS bookmark_id, urls.link AS link, bookmark_associations.context AS context
+              FROM bookmark_associations JOIN urls USING (url_id)
+              WHERE bookmark_associations.bookmark_id IN
+            "#,
+        );
+        qb.push_tuples(bms.into_iter(), |mut b, bm| {
+            b.push_bind(bm.into());
+        });
+        qb.push(" ORDER BY bookmark_id");
+
+        #[derive(FromRow)]
+        struct AssociationFromBookmark {
+            bookmark_id: BookmarkId,
+            #[sqlx(flatten)]
+            association: AssociatedLink,
+        }
+        let result: Vec<AssociationFromBookmark> =
+            qb.build_query_as().fetch_all(&mut *self.txn).await?;
+        let mut associations = HashMap::new();
+        for a in result {
+            associations
+                .entry(a.bookmark_id)
+                .or_insert(vec![])
+                .push(a.association);
+        }
+        Ok(associations)
     }
 }
 

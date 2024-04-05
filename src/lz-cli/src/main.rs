@@ -49,6 +49,12 @@ enum Commands {
         /// User-provided title for the link
         #[arg(long)]
         title: Option<String>,
+        /// Add a subordinated link for this bookmark
+        #[arg(long)]
+        associated_link: Option<String>,
+        /// Optional context for the association
+        #[arg(long)]
+        associated_context: Option<String>,
     },
     /// List bookmarks
     #[clap(alias = "ls")]
@@ -74,6 +80,23 @@ async fn main() {
     }
 }
 
+struct AddCmdOptions<'a> {
+    backdate: &'a Option<String>,
+    description: &'a Option<String>,
+    force: &'a bool,
+    notes: &'a Option<String>,
+    tag: &'a Option<Vec<String>>,
+    title: &'a Option<String>,
+    associated_link: &'a Option<String>,
+    associated_context: &'a Option<String>,
+}
+
+struct AddLinkUserFields<'a> {
+    description: &'a Option<String>,
+    notes: &'a Option<String>,
+    title: &'a Option<String>,
+}
+
 async fn _main() -> Result<()> {
     let cli = Cli::parse();
     let conn = Connection::from_path(&cli.db).await?;
@@ -88,8 +111,20 @@ async fn _main() -> Result<()> {
             notes,
             tag,
             title,
+            associated_link,
+            associated_context,
         } => {
-            add_cmd(txn, link, backdate, description, force, notes, tag, title).await?;
+            let options = AddCmdOptions {
+                backdate,
+                description,
+                force,
+                notes,
+                tag,
+                title,
+                associated_link,
+                associated_context,
+            };
+            add_cmd(txn, link, &options).await?;
         }
         Commands::List {
             created_after,
@@ -145,29 +180,32 @@ async fn list_cmd(
     }
 }
 
-async fn add_cmd(
-    mut txn: Transaction,
-    link: &String,
-    backdate: &Option<String>,
-    description: &Option<String>,
-    force: &bool,
-    notes: &Option<String>,
-    tag: &Option<Vec<String>>,
-    title: &Option<String>,
-) -> Result<()> {
+async fn add_cmd(mut txn: Transaction, link: &String, options: &AddCmdOptions<'_>) -> Result<()> {
+    let user_fields = AddLinkUserFields {
+        description: options.description,
+        notes: options.notes,
+        title: options.title,
+    };
     let bookmark_id = add_link(
         &mut txn,
         link.to_string(),
-        backdate,
-        description,
-        force,
-        notes,
-        title,
+        &user_fields,
+        options.backdate,
+        options.force,
     )
     .await?;
-    if let Some(tag_strings) = tag {
+    if let Some(tag_strings) = options.tag {
         let tags = txn.ensure_tags(tag_strings).await?;
         txn.set_bookmark_tags(bookmark_id, tags).await?;
+    }
+    if let Some(associate) = options.associated_link {
+        // Associations don't get user-configurable notes, description, etc.
+        // If the user wants this, they should go add the associate as a primary
+        // link and then associate separately.
+        let associated_url = Url::parse(associate)?;
+        let url_id = txn.ensure_url(&associated_url).await?;
+        txn.associate_bookmark_link(&bookmark_id, &url_id, options.associated_context.as_deref())
+            .await?;
     }
     txn.commit().await?;
     println!("Added bookmark for {}", link);
@@ -177,28 +215,25 @@ async fn add_cmd(
 async fn add_link(
     txn: &mut Transaction,
     link: String,
+    user_fields: &AddLinkUserFields<'_>,
     backdate: &Option<String>,
-    description: &Option<String>,
     force: &bool,
-    notes: &Option<String>,
-    title: &Option<String>,
 ) -> Result<BookmarkId> {
     let mut bookmark = lookup_link_from_web(&link).await?;
-    if let Some(user_title) = title {
+    if let Some(user_title) = user_fields.title {
         bookmark.title = user_title.to_string();
     }
-    if let Some(user_description) = description {
+    if let Some(user_description) = user_fields.description {
         bookmark.description = Some(user_description.to_string());
     }
     if let Some(user_created_at) = backdate {
-        // user_created_at is a string and should be in 'YYYY-MM-DD` format.
         let dt = NaiveDateTime::parse_from_str(
             &format!("{} 00:00:00", &user_created_at),
             "%Y-%m-%d %H:%M:%S",
         );
         if let Ok(naive_dt) = dt {
-            // Possible to panic here if we get a strictly illegal time, but we'll just
-            // accept that risk for now.
+            // It's possible to panic here if we get a strictly illegal time, but we'll just
+            // accept that risk for now as a weird edge case.
             let local_time: DateTime<Local> = Local.from_local_datetime(&naive_dt).unwrap();
             bookmark.created_at = local_time.to_utc();
         } else {
@@ -208,7 +243,7 @@ async fn add_link(
             ));
         };
     }
-    bookmark.notes = notes.as_ref().map(|n| n.to_string());
+    bookmark.notes = user_fields.notes.as_ref().map(|n| n.to_string());
     match txn.add_bookmark(bookmark.clone()).await {
         Ok(v) => Ok(v),
         Err(sqlx::Error::Database(db_err)) if db_err.is_unique_violation() => {

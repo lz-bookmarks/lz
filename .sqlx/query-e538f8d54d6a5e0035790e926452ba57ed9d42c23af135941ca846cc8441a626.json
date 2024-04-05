@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                  SELECT url_id FROM urls WHERE link = ?\n                ",
+  "describe": {
+    "columns": [
+      {
+        "name": "url_id",
+        "ordinal": 0,
+        "type_info": "Int64"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "e538f8d54d6a5e0035790e926452ba57ed9d42c23af135941ca846cc8441a626"
+}

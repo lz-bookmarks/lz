@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n              INSERT INTO bookmark_associations(\n                bookmark_id,\n                url_id,\n                context\n              ) VALUES (?, ?, ?)\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "6cb147634bd06ff5e83bc0b6662e39c530b421dcf12851cf637c953b02057be5"
+}

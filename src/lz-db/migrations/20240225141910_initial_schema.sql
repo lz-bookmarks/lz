@@ -14,7 +14,7 @@ CREATE TABLE "bookmarks" (
   "created_at" TEXT NOT NULL,
   "modified_at" TEXT,
   "accessed_at" TEXT,
-  "url" TEXT NOT NULL,
+  "url_id" INTEGER NOT NULL,
   "title" TEXT NOT NULL,
   "description" TEXT,
   "website_title" TEXT,
@@ -24,10 +24,19 @@ CREATE TABLE "bookmarks" (
   "shared" INTEGER,
   "import_properties" TEXT,
 
-  FOREIGN KEY ("user_id") REFERENCES "users"("user_id")
+  FOREIGN KEY ("user_id") REFERENCES "users"("user_id"),
+  FOREIGN KEY ("url_id") REFERENCES "urls"("url_id")
 ) STRICT;
 
-CREATE UNIQUE INDEX "bookmarks_by_user_and_url" ON "bookmarks" ("user_id", "url");
+CREATE UNIQUE INDEX "bookmarks_by_user_and_url" ON "bookmarks" ("user_id", "url_id");
+
+CREATE TABLE "urls" (
+  "url_id" INTEGER NOT NULL PRIMARY KEY,
+  "link" TEXT
+) STRICT;
+
+CREATE UNIQUE INDEX "url_by_link" ON "urls" ("link");
+
 
 CREATE TABLE "tags" (
   "tag_id" INTEGER NOT NULL PRIMARY KEY,
@@ -46,4 +55,14 @@ CREATE TABLE "bookmark_tags" (
   PRIMARY KEY ("bookmark_id","tag_id"),
   FOREIGN KEY("bookmark_id") REFERENCES "bookmarks"("bookmark_id"),
   FOREIGN KEY("tag_id") REFERENCES "tags"("tag_id")
+) STRICT;
+
+CREATE TABLE "bookmark_associations" (
+  "bookmark_id" INTEGER NOT NULL,
+  "url_id" INTEGER NOT NULL,
+  "context" TEXT,
+
+  PRIMARY KEY ("bookmark_id","url_id"),
+  FOREIGN KEY ("bookmark_id") REFERENCES "bookmarks"("bookmark_id")
+  FOREIGN KEY ("url_id") REFERENCES "urls"("url_id")
 ) STRICT;

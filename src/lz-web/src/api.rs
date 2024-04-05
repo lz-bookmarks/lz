@@ -12,7 +12,9 @@ use axum::http::StatusCode;
 use axum::routing::get;
 use axum::{debug_handler, Json, Router};
 use axum_valid::Valid;
-use lz_db::{BookmarkId, BookmarkSearch, ExistingBookmark, ExistingTag, TagName, UserId};
+use lz_db::{
+    AssociatedLink, BookmarkId, BookmarkSearch, ExistingBookmark, ExistingTag, TagName, UserId,
+};
 use searching::TagQuery;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -29,8 +31,8 @@ use crate::db::{DbTransaction, GlobalWebAppState};
     security(),
     servers((url = "/api/v1/")),
     components(
-        schemas(ListBookmarkResult, AnnotatedBookmark, UserId, BookmarkId, ExistingBookmark, ExistingTag, Pagination, TagName, TagQuery),
-        responses(ListBookmarkResult, AnnotatedBookmark, UserId, ExistingBookmark, ExistingTag)
+        schemas(ListBookmarkResult, AnnotatedBookmark, AssociatedLink, UserId, BookmarkId, ExistingBookmark, ExistingTag, Pagination, TagName, TagQuery),
+        responses(ListBookmarkResult, AnnotatedBookmark, AssociatedLink, UserId, ExistingBookmark, ExistingTag)
     )
 )]
 pub struct ApiDoc;
@@ -96,11 +98,12 @@ pub struct ListBookmarkResult {
     next_cursor: Option<BookmarkId>,
 }
 
-/// A bookmark, including tags set on it.
+/// A bookmark, including tags and associations on it.
 #[derive(Serialize, Debug, ToSchema, ToResponse)]
 pub struct AnnotatedBookmark {
     bookmark: ExistingBookmark,
     tags: Vec<ExistingTag>,
+    associations: Vec<AssociatedLink>,
 }
 
 /// List the user's bookmarks, newest to oldest.
@@ -139,6 +142,10 @@ async fn list_bookmarks(
         tracing::error!(error=%e, error_debug=?e, "could not query tags for bookmarks");
         (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiError::from(e)))
     })?;
+    let mut associations = txn.associated_links_on_bookmarks(&bms).await.map_err(|e| {
+        tracing::error!(error=%e, error_debug=?e, "could not query for bookmark associations");
+        (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiError::from(e)))
+    })?;
     let mut next_cursor = None;
     let mut bookmarks = vec![];
     for (elt, bm) in bms.into_iter().enumerate() {
@@ -152,6 +159,7 @@ async fn list_bookmarks(
             bookmarks.push(AnnotatedBookmark {
                 bookmark: bm.clone(),
                 tags,
+                associations: associations.remove(&id).unwrap_or_else(|| vec![]),
             });
         } else {
             tracing::warn!(
@@ -207,6 +215,10 @@ async fn list_bookmarks_with_tag(
         tracing::error!(error=%e, error_debug=?e, "could not query tags for bookmarks");
         (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiError::from(e)))
     })?;
+    let mut associations = txn.associated_links_on_bookmarks(&bms).await.map_err(|e| {
+        tracing::error!(error=%e, error_debug=?e, "could not query for bookmark associations");
+        (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiError::from(e)))
+    })?;
     let mut next_cursor = None;
     let mut bookmarks = vec![];
     for (elt, bm) in bms.into_iter().enumerate() {
@@ -220,6 +232,7 @@ async fn list_bookmarks_with_tag(
             bookmarks.push(AnnotatedBookmark {
                 bookmark: bm.clone(),
                 tags,
+                associations: associations.remove(&id).unwrap_or_else(|| vec![]),
             });
         } else {
             tracing::warn!(

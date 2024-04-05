@@ -25,10 +25,23 @@ export type webhooks = Record<string, never>;
 
 export interface components {
   schemas: {
-    /** @description A bookmark, including tags set on it. */
+    /** @description A bookmark, including tags and associations on it. */
     AnnotatedBookmark: {
+      associations: components["schemas"]["AssociatedLink"][];
       bookmark: components["schemas"]["ExistingBookmark"];
       tags: components["schemas"]["ExistingTag"][];
+    };
+    /**
+     * @description A link associated with a bookmark.
+     *
+     * Links can have a "context" in which that association happens
+     * (free-form text, given by the user), and they point to a URL,
+     * which in turn can be another bookmark.
+     */
+    AssociatedLink: {
+      context?: string | null;
+      /** Format: uri */
+      link: string;
     };
     /**
      * Format: int64
@@ -146,12 +159,29 @@ export interface components {
     UserId: number;
   };
   responses: {
-    /** @description A bookmark, including tags set on it. */
+    /** @description A bookmark, including tags and associations on it. */
     AnnotatedBookmark: {
       content: {
         "application/json": {
+          associations: components["schemas"]["AssociatedLink"][];
           bookmark: components["schemas"]["ExistingBookmark"];
           tags: components["schemas"]["ExistingTag"][];
+        };
+      };
+    };
+    /**
+     * @description A link associated with a bookmark.
+     *
+     * Links can have a "context" in which that association happens
+     * (free-form text, given by the user), and they point to a URL,
+     * which in turn can be another bookmark.
+     */
+    AssociatedLink: {
+      content: {
+        "application/json": {
+          context?: string | null;
+          /** Format: uri */
+          link: string;
         };
       };
     };

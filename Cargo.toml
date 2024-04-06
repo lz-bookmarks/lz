@@ -6,7 +6,8 @@ members = [
   "src/lz-db",
   "src/lz-import-linkding",
   "src/lz-web",
-  "src/lz-cli"
+  "src/lz-cli",
+  "src/lz-ui",
 ]
 
 [workspace.package]

@@ -1,0 +1,17 @@
+[package]
+name = "lz-ui"
+version = "0.1.0"
+authors = ["Andreas Fuchs <asf@boinkor.net>"]
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+dioxus = { version = "0.5", features = ["web", "router"] }
+tracing = {workspace = true}
+tracing-wasm = {version = "0.2.1"}
+
+# Debug
+log = "0.4.19"
+dioxus-logger = "0.4.1"
+console_error_panic_hook = "0.1.7"

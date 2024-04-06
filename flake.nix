@@ -39,16 +39,17 @@
               CoreFoundation
               SystemConfiguration
               Security
+              CoreServices
             ]
           else [];
+        rustPlatform = pkgs.makeRustPlatform {
+          inherit (fenix.packages.${system}.stable) rustc cargo;
+        };
       in {
         formatter = pkgs.alejandra;
 
         packages.default = config.packages.disk-spinner;
         packages.lz-web = let
-          rustPlatform = pkgs.makeRustPlatform {
-            inherit (fenix.packages.${system}.stable) rustc cargo;
-          };
           nativeBuildInputs =
             (builtins.map (l: pkgs.lib.getDev l) cIncludes)
             ++ cIncludes
@@ -74,6 +75,50 @@
             cargoLock.lockFile = ./Cargo.lock;
             meta.mainProgram = "lz-web";
           };
+        packages.dioxus-cli =
+          pkgs.dioxus-cli.override
+          {
+            rustPlatform.buildRustPackage = args: (rustPlatform.buildRustPackage (args
+              // {
+                version = (builtins.fromTOML (builtins.readFile "${inputs.dioxus}/Cargo.toml")).workspace.package.version;
+                src = inputs.dioxus;
+                cargoLock.lockFile = "${inputs.dioxus}/Cargo.lock";
+                cargoHash = null;
+                buildAndTestSubdir = "packages/cli";
+                doCheck = false;
+                nativeBuildInputs = args.nativeBuildInputs ++ [pkgs.makeBinaryWrapper];
+
+                # Unset RUSTFLAGS to prevent cargo from attempting to
+                # link the wasm binary with macOS frameworks, which
+                # panics rustc:
+                postFixup = ''
+                  mv $out/bin/dx $out/bin/.dx-wrapped
+                  makeBinaryWrapper $out/bin/.dx-wrapped $out/bin/dx \
+                    --unset RUSTFLAGS
+                '';
+              }));
+          };
+        packages.cargo-progenitor = rustPlatform.buildRustPackage {
+          pname = "cargo-progenitor";
+          version = "0.6.0";
+          src = inputs.progenitor;
+          cargoLock = {
+            lockFile = "${inputs.progenitor}/Cargo.lock";
+            outputHashes = {
+              "dropshot-0.9.1-dev" = "sha256-xjOwr9/NJgfAv/5GlqZY1/TsyBc3cNmhF8vlBdYt8Tw=";
+            };
+          };
+          buildAndTestSubdir = "cargo-progenitor";
+          doCheck = false;
+          buildInputs =
+            if pkgs.stdenv.isDarwin
+            then
+              with pkgs.darwin.apple_sdk.frameworks; [
+                Security
+                SystemConfiguration
+              ]
+            else [];
+        };
 
         apps = {
           default = config.apps.lz-web;
@@ -91,7 +136,19 @@
                 category = "development";
                 help = "run all servers for development";
                 name = "dev-server";
-                package = config.proc.groups.dev-server.package;
+                package = pkgs.writeShellApplication {
+                  name = "dev-server";
+                  text = ''
+                    cd "$PRJ_ROOT"/src/lz-ui
+                    dx serve
+                  '';
+                };
+              }
+              {
+                category = "development";
+                help = "Run the sqlite-web DB browser on dev-db.sqlite";
+                name = "sqlite-web";
+                command = "${pkgs.sqlite-web}/bin/sqlite_web -r $PRJ_ROOT/dev-db.sqlite";
               }
               {
                 category = "development";
@@ -133,11 +190,13 @@
               }
             ];
             packages = [
+              config.packages.dioxus-cli
               pkgs.sqlx-cli
               pkgs.sqlite
               pkgs.cargo-watch
               pkgs.nodejs_21
               pkgs.nodePackages.typescript-language-server
+              fenix.packages.${system}.targets.wasm32-unknown-unknown.stable.rust-std
             ];
             language.rust = {
               enableDefaultToolchain = false;
@@ -157,21 +216,6 @@
 
             language.c.includes = cIncludes;
             language.c.libraries = cLibs;
-          };
-        };
-
-        proc.groups.dev-server.processes = {
-          backend.command = ''
-            ${pkgs.cargo-watch}/bin/cargo-watch -L info --why -i *.nix -i lz-frontend -- cargo run  --color always --bin lz-cli -- --db dev-db.sqlite web --authentication-header-name X-Tailscale-User-LoginName --default-user-name=developer --listen-on=127.0.0.1:3000
-          '';
-          sqlite-web = {
-            command = "${pkgs.sqlite-web}/bin/sqlite_web -x -r dev-db.sqlite";
-          };
-          frontend = {
-            command = "cd lz-frontend && npm i && npm run dev -- --strictPort --open";
-          };
-          regenerate-openapi = {
-            command = "sleep 5; ${pkgs.cargo-watch}/bin/cargo-watch -d 20 --why -w src/lz-web -- regenerate-openapi-spec";
           };
         };
 
@@ -198,6 +242,14 @@
     fenix = {
       url = "github:nix-community/fenix";
       inputs.nixpkgs.follows = "nixpkgs";
+    };
+    dioxus = {
+      url = "github:DioxusLabs/dioxus/v0.5.2";
+      flake = false;
+    };
+    progenitor = {
+      url = "github:oxidecomputer/progenitor/v0.6.0";
+      flake = false;
     };
   };
 }

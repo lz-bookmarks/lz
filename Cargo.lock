@@ -1456,6 +1456,7 @@ dependencies = [
  "chrono",
  "clap",
  "lz-db",
+ "lz-web",
  "reqwest",
  "scraper",
  "sqlx",

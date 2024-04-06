@@ -1,9 +1,10 @@
 use std::path::PathBuf;
+use std::str::FromStr;
 
-use anyhow::{anyhow, bail, Context, Result};
-use chrono::{DateTime, Local, NaiveDateTime, TimeZone, Utc};
+use anyhow::{anyhow, Context, Result};
+use chrono::{DateTime, Local, LocalResult, NaiveDateTime, TimeZone, Utc};
 use clap::{Parser, Subcommand};
-use lz_db::{Bookmark, BookmarkId, BookmarkSearch, Connection, DateInput, Transaction};
+use lz_db::{Bookmark, BookmarkId, BookmarkSearch, Connection, DateInput, ReadOnly, Transaction};
 use scraper::{Html, Selector};
 use url::Url;
 
@@ -17,48 +18,80 @@ struct Cli {
     command: Commands,
 
     /// Path to the database to use
-    #[clap(long, default_value = "db.sqlite")]
+    #[clap(long, global = true, default_value = "db.sqlite")]
     db: PathBuf,
+}
 
+#[derive(Parser, Debug)]
+struct TuiArgs {
+    /// User name to operate on.
     #[clap(long, default_value = "local")]
     user: String,
+}
+
+/// A date timestamp specified as 0:00:00 local time.
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
+struct LocalDatestamp(DateTime<Utc>);
+
+impl FromStr for LocalDatestamp {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        // user_created_at is a string and should be in 'YYYY-MM-DD` format.
+        let dt = NaiveDateTime::parse_from_str(&format!("{} 00:00:00", s), "%Y-%m-%d %H:%M:%S")?;
+        let LocalResult::Single(local_time) = Local.from_local_datetime(&dt) else {
+            anyhow::bail!("Could not convert naive datestamp {dt:?} to local DateTime")
+        };
+        Ok(LocalDatestamp(local_time.to_utc()))
+    }
+}
+
+#[derive(Parser, Debug)]
+struct CliAddArgs {
+    /// The URL to add
+    link: String,
+    /// Assign a date other than today for the link's creation (in
+    /// YYYY-MM-DD format)
+    #[arg(long)]
+    backdate: Option<LocalDatestamp>,
+    /// User-provided description for the link
+    #[arg(long)]
+    description: Option<String>,
+    /// Overwrite values for any existing bookmarks
+    #[arg(long, action)]
+    force: bool,
+    /// Freeform notes for this link
+    #[arg(long)]
+    notes: Option<String>,
+    /// Tag (or tags as a comma-delineated list) for the link
+    #[arg(short, long, value_delimiter = ',', num_args = 1..)]
+    tag: Vec<String>,
+    /// User-provided title for the link
+    #[arg(long)]
+    title: Option<String>,
+    /// Add a subordinated link for this bookmark
+    #[arg(long)]
+    associated_link: Option<String>,
+    /// Optional context for the association
+    #[arg(long)]
+    associated_context: Option<String>,
 }
 
 #[derive(Subcommand, Debug)]
 enum Commands {
     /// Add a link to lz
     Add {
-        /// The URL to add
-        link: String,
-        /// Assign a date other than today for the link's creation (in
-        /// YYYY-MM-DD format)
-        #[arg(long)]
-        backdate: Option<String>,
-        /// User-provided description for the link
-        #[arg(long)]
-        description: Option<String>,
-        /// Overwrite values for any existing bookmarks
-        #[arg(long, action)]
-        force: bool,
-        /// Freeform notes for this link
-        #[arg(long)]
-        notes: Option<String>,
-        /// Tag (or tags as a comma-delineated list) for the link
-        #[arg(short, long, value_delimiter = ',', num_args = 1..)]
-        tag: Option<Vec<String>>,
-        /// User-provided title for the link
-        #[arg(long)]
-        title: Option<String>,
-        /// Add a subordinated link for this bookmark
-        #[arg(long)]
-        associated_link: Option<String>,
-        /// Optional context for the association
-        #[arg(long)]
-        associated_context: Option<String>,
+        #[clap(flatten)]
+        common_args: TuiArgs,
+        #[clap(flatten)]
+        add_args: CliAddArgs,
     },
     /// List bookmarks
     #[clap(alias = "ls")]
     List {
+        #[clap(flatten)]
+        common_args: TuiArgs,
+
         /// Created on or after a date; accepts a YYYY-MM-DD string
         #[arg(long)]
         created_after: Option<String>,
@@ -70,75 +103,42 @@ enum Commands {
         #[arg(long, value_delimiter = ',', num_args = 1..)]
         tagged: Option<Vec<String>>,
     },
+
+    /// Run the lz web server
+    #[clap(alias = "serve")]
+    Web(lz_web::Args),
 }
 
 #[tokio::main]
-async fn main() {
-    if let Err(e) = _main().await {
-        eprintln!("Error: {:#?}", e);
-        std::process::exit(1)
-    }
-}
-
-struct AddCmdOptions<'a> {
-    backdate: &'a Option<String>,
-    description: &'a Option<String>,
-    force: &'a bool,
-    notes: &'a Option<String>,
-    tag: &'a Option<Vec<String>>,
-    title: &'a Option<String>,
-    associated_link: &'a Option<String>,
-    associated_context: &'a Option<String>,
-}
-
-struct AddLinkUserFields<'a> {
-    description: &'a Option<String>,
-    notes: &'a Option<String>,
-    title: &'a Option<String>,
-}
-
-async fn _main() -> Result<()> {
+async fn main() -> Result<()> {
     let cli = Cli::parse();
     let conn = Connection::from_path(&cli.db).await?;
-    let txn = conn.begin_for_user(&cli.user).await?;
 
     match &cli.command {
         Commands::Add {
-            link,
-            backdate,
-            description,
-            force,
-            notes,
-            tag,
-            title,
-            associated_link,
-            associated_context,
+            common_args,
+            add_args,
         } => {
-            let options = AddCmdOptions {
-                backdate,
-                description,
-                force,
-                notes,
-                tag,
-                title,
-                associated_link,
-                associated_context,
-            };
-            add_cmd(txn, link, &options).await?;
+            let mut txn = conn.begin_for_user(&common_args.user).await?;
+            add_cmd(&mut txn, add_args).await?;
+            txn.commit().await?;
         }
         Commands::List {
+            common_args,
             created_after,
             created_before,
             tagged,
         } => {
+            let txn = conn.begin_ro_for_user(&common_args.user).await?;
             list_cmd(txn, created_after, created_before, tagged).await?;
         }
+        Commands::Web(args) => lz_web::run(conn, args).await?,
     }
     Ok(())
 }
 
 async fn list_cmd(
-    mut txn: Transaction,
+    mut txn: Transaction<ReadOnly>,
     created_after: &Option<String>,
     created_before: &Option<String>,
     tagged: &Option<Vec<String>>,
@@ -180,74 +180,58 @@ async fn list_cmd(
     }
 }
 
-async fn add_cmd(mut txn: Transaction, link: &String, options: &AddCmdOptions<'_>) -> Result<()> {
-    let user_fields = AddLinkUserFields {
-        description: options.description,
-        notes: options.notes,
-        title: options.title,
-    };
+async fn add_cmd(txn: &mut Transaction, args: &CliAddArgs) -> Result<()> {
     let bookmark_id = add_link(
-        &mut txn,
-        link.to_string(),
-        &user_fields,
-        options.backdate,
-        options.force,
+        txn,
+        args.link.to_string(),
+        args.backdate.as_ref(),
+        args.description.as_deref(),
+        args.force,
+        args.notes.as_deref(),
+        args.title.as_deref(),
     )
     .await?;
-    if let Some(tag_strings) = options.tag {
-        let tags = txn.ensure_tags(tag_strings).await?;
+    if !args.tag.is_empty() {
+        let tags = txn.ensure_tags(&args.tag).await?;
         txn.set_bookmark_tags(bookmark_id, tags).await?;
     }
-    if let Some(associate) = options.associated_link {
+    if let Some(associate) = &args.associated_link {
         // Associations don't get user-configurable notes, description, etc.
         // If the user wants this, they should go add the associate as a primary
         // link and then associate separately.
         let associated_url = Url::parse(associate)?;
         let url_id = txn.ensure_url(&associated_url).await?;
-        txn.associate_bookmark_link(&bookmark_id, &url_id, options.associated_context.as_deref())
+        txn.associate_bookmark_link(&bookmark_id, &url_id, args.associated_context.as_deref())
             .await?;
     }
-    txn.commit().await?;
-    println!("Added bookmark for {}", link);
+    println!("Added bookmark for {}", args.link);
     Ok(())
 }
 
 async fn add_link(
     txn: &mut Transaction,
     link: String,
-    user_fields: &AddLinkUserFields<'_>,
-    backdate: &Option<String>,
-    force: &bool,
+    backdate: Option<&LocalDatestamp>,
+    description: Option<&str>,
+    force: bool,
+    notes: Option<&str>,
+    title: Option<&str>,
 ) -> Result<BookmarkId> {
     let mut bookmark = lookup_link_from_web(&link).await?;
-    if let Some(user_title) = user_fields.title {
+    if let Some(user_title) = title {
         bookmark.title = user_title.to_string();
     }
-    if let Some(user_description) = user_fields.description {
+    if let Some(user_description) = description {
         bookmark.description = Some(user_description.to_string());
     }
     if let Some(user_created_at) = backdate {
-        let dt = NaiveDateTime::parse_from_str(
-            &format!("{} 00:00:00", &user_created_at),
-            "%Y-%m-%d %H:%M:%S",
-        );
-        if let Ok(naive_dt) = dt {
-            // It's possible to panic here if we get a strictly illegal time, but we'll just
-            // accept that risk for now as a weird edge case.
-            let local_time: DateTime<Local> = Local.from_local_datetime(&naive_dt).unwrap();
-            bookmark.created_at = local_time.to_utc();
-        } else {
-            bail!(format!(
-                "{} is not a valid YYYY-MM-DD date string",
-                user_created_at
-            ));
-        };
+        bookmark.created_at = user_created_at.0;
     }
-    bookmark.notes = user_fields.notes.as_ref().map(|n| n.to_string());
+    bookmark.notes = notes.map(|n| n.to_string());
     match txn.add_bookmark(bookmark.clone()).await {
         Ok(v) => Ok(v),
         Err(sqlx::Error::Database(db_err)) if db_err.is_unique_violation() => {
-            if *force {
+            if force {
                 // Known to be valid or we would have errored out on the URL parse
                 let url = Url::parse(&link).unwrap();
                 let mut existing_bookmark = txn.find_bookmark_with_url(&url).await?.unwrap();

@@ -76,7 +76,7 @@ impl Transaction<ReadWrite> {
     /// Ensure a stored link exists in the database.
     #[tracing::instrument(skip(self))]
     pub async fn ensure_url(&mut self, link: &Url) -> Result<StoredUrlId, sqlx::Error> {
-        if let Some(id) = self.url_id_for_link(&link).await? {
+        if let Some(id) = self.url_id_for_link(link).await? {
             return Ok(id);
         }
         let bm_url = Text(link);

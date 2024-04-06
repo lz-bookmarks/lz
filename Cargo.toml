@@ -1,6 +1,8 @@
 [workspace]
 resolver = "2"
 
+default-members = ["src/lz-cli"]
+
 # We place member crates in the src/ directory:
 members = [
   "src/lz-db",

@@ -191,6 +191,7 @@
             ];
             packages = [
               config.packages.dioxus-cli
+              config.packages.cargo-progenitor
               pkgs.sqlx-cli
               pkgs.sqlite
               pkgs.cargo-watch

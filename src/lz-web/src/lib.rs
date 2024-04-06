@@ -16,6 +16,8 @@ use utoipa_swagger_ui::SwaggerUi;
 pub mod api;
 pub mod db;
 
+pub mod export_openapi;
+
 /// The lz tagged bookmark manager web server
 #[derive(Clone, Eq, PartialEq, Debug, Parser)]
 pub struct Args {

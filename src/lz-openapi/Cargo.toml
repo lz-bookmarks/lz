@@ -5,11 +5,11 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
-bytes = "1.4.0"
-chrono = { version = "0.4.26", default-features=false, features = ["serde"] }
-futures-core = "0.3.28"
-percent-encoding = "2.3.0"
-reqwest = { version = "0.11.20", default-features=false, features = ["json", "stream"] }
-serde = { version = "1.0.188", features = ["derive"] }
-serde_urlencoded = "0.7.1"
+bytes = { workspace = true }
+chrono = { workspace = true, features = ["serde"] }
+futures-core = { workspace = true }
+percent-encoding = { workspace = true }
+reqwest = { workspace = true, features = ["json", "stream"] }
+serde = { workspace = true, features = ["derive"] }
+serde_urlencoded = { workspace = true }
 progenitor-client = {workspace = true}

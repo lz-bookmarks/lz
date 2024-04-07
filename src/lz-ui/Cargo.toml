@@ -8,11 +8,11 @@ license.workspace = true
 
 [dependencies]
 lz-openapi = { path = "../lz-openapi" }
-dioxus = { version = "0.5", features = ["web", "router"] }
+dioxus = { workspace = true, features = ["web", "router"] }
 tracing = {workspace = true}
-tracing-wasm = {version = "0.2.1"}
+tracing-wasm = { workspace = true }
 
 # Debug
-log = "0.4.19"
-dioxus-logger = "0.4.1"
-console_error_panic_hook = "0.1.7"
+log = { workspace = true }
+dioxus-logger = { workspace = true }
+console_error_panic_hook = { workspace = true }

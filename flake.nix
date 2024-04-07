@@ -48,8 +48,8 @@
       in {
         formatter = pkgs.alejandra;
 
-        packages.default = config.packages.disk-spinner;
-        packages.lz-web = let
+        packages.default = config.packages.lz;
+        packages.lz = let
           nativeBuildInputs =
             (builtins.map (l: pkgs.lib.getDev l) cIncludes)
             ++ cIncludes
@@ -57,7 +57,7 @@
             ++ [pkgs.pkg-config];
         in
           rustPlatform.buildRustPackage {
-            pname = "lz-web";
+            pname = "lz";
             version = (builtins.fromTOML (builtins.readFile ./src/lz-web/Cargo.toml)).package.version;
             inherit nativeBuildInputs;
             buildInputs = nativeBuildInputs;
@@ -73,7 +73,8 @@
                 ];
               };
             cargoLock.lockFile = ./Cargo.lock;
-            meta.mainProgram = "lz-web";
+            postFixup = "mv $out/bin/lz-cli $out/bin/lz";
+            meta.mainProgram = "lz";
           };
         packages.dioxus-cli =
           pkgs.dioxus-cli.override
@@ -159,20 +160,15 @@
 
               {
                 category = "maintenance";
-                help = "regenerate the frontend TS types from our OpenAPI spec";
-                name = "regenerate-openapi-spec";
+                help = "regenerate the frontend OpenAPI client";
+                name = "regenerate-openapi-client";
                 package = pkgs.writeShellApplication {
-                  name = "regenerate-openapi-spec";
+                  name = "regenerate-openapi-client";
+                  runtimeInputs = [config.packages.cargo-progenitor];
                   text = ''
-                    spec="$(mktemp)"
-                    trap 'rm "$spec"' EXIT
-                    while ! curl -s http://localhost:3000/openapi.json > "$spec" ; do
-                      echo "OpenAPI spec is not online yet, waiting..." >&2
-                      sleep 1
-                    done
-                    cd lz-frontend
-                    npm install --no-fund
-                    ./node_modules/.bin/openapi-typescript "$spec" -o src/api/v1.d.ts
+                    cargo run -- generate-openapi-spec | \
+                       cargo progenitor --input /dev/stdin --output src/lz-openapi --name lz-openapi --version 0.1.0 --interface builder
+                    cargo fmt -p lz-openapi
                   '';
                 };
               }

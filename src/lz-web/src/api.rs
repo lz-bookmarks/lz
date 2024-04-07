@@ -112,10 +112,13 @@ pub struct AnnotatedBookmark {
     path = "/bookmarks",
     tag = "Bookmarks",
     params(
-        ("pagination" = inline(Option<Pagination>),
+        ("cursor" = inline(Option<BookmarkId>),
             Query,
             style = Form,
-            explode,
+        ),
+        ("per_page" = inline(Option<u16>),
+            Query,
+            style = Form,
         ),
     ),
     responses(
@@ -181,10 +184,13 @@ async fn list_bookmarks(
     tag = "Bookmarks",
     params(
         ("query" = inline(String), Path,),
-        ("pagination" = inline(Option<Pagination>),
+        ("cursor" = inline(Option<BookmarkId>),
             Query,
             style = Form,
-            explode,
+        ),
+        ("per_page" = inline(Option<u16>),
+            Query,
+            style = Form,
         ),
     ),
     responses(

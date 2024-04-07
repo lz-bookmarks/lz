@@ -23,6 +23,12 @@ pub mod types {
         }
     }
 
+    impl AnnotatedBookmark {
+        pub fn builder() -> builder::AnnotatedBookmark {
+            builder::AnnotatedBookmark::default()
+        }
+    }
+
     ///A link associated with a bookmark.
     ///
     ///Links can have a "context" in which that association happens
@@ -38,6 +44,12 @@ pub mod types {
     impl From<&AssociatedLink> for AssociatedLink {
         fn from(value: &AssociatedLink) -> Self {
             value.clone()
+        }
+    }
+
+    impl AssociatedLink {
+        pub fn builder() -> builder::AssociatedLink {
+            builder::AssociatedLink::default()
         }
     }
 
@@ -151,6 +163,12 @@ pub mod types {
         }
     }
 
+    impl ExistingBookmark {
+        pub fn builder() -> builder::ExistingBookmark {
+            builder::ExistingBookmark::default()
+        }
+    }
+
     ///A named tag, possibly assigned to multiple bookmarks.
     ///
     ///See the section in [Transaction][Transaction#working-with-tags]
@@ -165,6 +183,12 @@ pub mod types {
     impl From<&ExistingTag> for ExistingTag {
         fn from(value: &ExistingTag) -> Self {
             value.clone()
+        }
+    }
+
+    impl ExistingTag {
+        pub fn builder() -> builder::ExistingTag {
+            builder::ExistingTag::default()
         }
     }
 
@@ -190,24 +214,9 @@ pub mod types {
         }
     }
 
-    ///Parameters that govern non-offset based pagination.
-    ///
-    ///Pagination in `lz` works by getting the next page based on what
-    ///the previous page's last element was, aka "cursor-based
-    ///pagination". To that end, use the previous call's `nextCursor`
-    ///parameter into this call's `cursor` parameter.
-    #[derive(Clone, Debug, Deserialize, Serialize)]
-    pub struct ListBookmarksPagination {
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        pub cursor: Option<BookmarkId>,
-        ///How many items to return
-        #[serde(rename = "perPage", default, skip_serializing_if = "Option::is_none")]
-        pub per_page: Option<i64>,
-    }
-
-    impl From<&ListBookmarksPagination> for ListBookmarksPagination {
-        fn from(value: &ListBookmarksPagination) -> Self {
-            value.clone()
+    impl ListBookmarkResult {
+        pub fn builder() -> builder::ListBookmarkResult {
+            builder::ListBookmarkResult::default()
         }
     }
 
@@ -233,24 +242,9 @@ pub mod types {
         }
     }
 
-    ///Parameters that govern non-offset based pagination.
-    ///
-    ///Pagination in `lz` works by getting the next page based on what
-    ///the previous page's last element was, aka "cursor-based
-    ///pagination". To that end, use the previous call's `nextCursor`
-    ///parameter into this call's `cursor` parameter.
-    #[derive(Clone, Debug, Deserialize, Serialize)]
-    pub struct ListBookmarksWithTagPagination {
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        pub cursor: Option<BookmarkId>,
-        ///How many items to return
-        #[serde(rename = "perPage", default, skip_serializing_if = "Option::is_none")]
-        pub per_page: Option<i64>,
-    }
-
-    impl From<&ListBookmarksWithTagPagination> for ListBookmarksWithTagPagination {
-        fn from(value: &ListBookmarksWithTagPagination) -> Self {
-            value.clone()
+    impl ListBookmarksResponse {
+        pub fn builder() -> builder::ListBookmarksResponse {
+            builder::ListBookmarksResponse::default()
         }
     }
 
@@ -276,6 +270,12 @@ pub mod types {
         }
     }
 
+    impl ListBookmarksWithTagResponse {
+        pub fn builder() -> builder::ListBookmarksWithTagResponse {
+            builder::ListBookmarksWithTagResponse::default()
+        }
+    }
+
     ///Parameters that govern non-offset based pagination.
     ///
     ///Pagination in `lz` works by getting the next page based on what
@@ -294,6 +294,12 @@ pub mod types {
     impl From<&Pagination> for Pagination {
         fn from(value: &Pagination) -> Self {
             value.clone()
+        }
+    }
+
+    impl Pagination {
+        pub fn builder() -> builder::Pagination {
+            builder::Pagination::default()
         }
     }
 
@@ -351,6 +357,12 @@ pub mod types {
     impl From<&TagQuery> for TagQuery {
         fn from(value: &TagQuery) -> Self {
             value.clone()
+        }
+    }
+
+    impl TagQuery {
+        pub fn builder() -> builder::TagQuery {
+            builder::TagQuery::default()
         }
     }
 
@@ -413,6 +425,676 @@ pub mod types {
     impl ToString for UserId {
         fn to_string(&self) -> String {
             self.0.to_string()
+        }
+    }
+
+    pub mod builder {
+        #[derive(Clone, Debug)]
+        pub struct AnnotatedBookmark {
+            associations: Result<Vec<super::AssociatedLink>, String>,
+            bookmark: Result<super::ExistingBookmark, String>,
+            tags: Result<Vec<super::ExistingTag>, String>,
+        }
+
+        impl Default for AnnotatedBookmark {
+            fn default() -> Self {
+                Self {
+                    associations: Err("no value supplied for associations".to_string()),
+                    bookmark: Err("no value supplied for bookmark".to_string()),
+                    tags: Err("no value supplied for tags".to_string()),
+                }
+            }
+        }
+
+        impl AnnotatedBookmark {
+            pub fn associations<T>(mut self, value: T) -> Self
+            where
+                T: std::convert::TryInto<Vec<super::AssociatedLink>>,
+                T::Error: std::fmt::Display,
+            {
+                self.associations = value.try_into().map_err(|e| {
+                    format!("error converting supplied value for associations: {}", e)
+                });
+                self
+            }
+            pub fn bookmark<T>(mut self, value: T) -> Self
+            where
+                T: std::convert::TryInto<super::ExistingBookmark>,
+                T::Error: std::fmt::Display,
+            {
+                self.bookmark = value
+                    .try_into()
+                    .map_err(|e| format!("error converting supplied value for bookmark: {}", e));
+                self
+            }
+            pub fn tags<T>(mut self, value: T) -> Self
+            where
+                T: std::convert::TryInto<Vec<super::ExistingTag>>,
+                T::Error: std::fmt::Display,
+            {
+                self.tags = value
+                    .try_into()
+                    .map_err(|e| format!("error converting supplied value for tags: {}", e));
+                self
+            }
+        }
+
+        impl std::convert::TryFrom<AnnotatedBookmark> for super::AnnotatedBookmark {
+            type Error = String;
+            fn try_from(value: AnnotatedBookmark) -> Result<Self, String> {
+                Ok(Self {
+                    associations: value.associations?,
+                    bookmark: value.bookmark?,
+                    tags: value.tags?,
+                })
+            }
+        }
+
+        impl From<super::AnnotatedBookmark> for AnnotatedBookmark {
+            fn from(value: super::AnnotatedBookmark) -> Self {
+                Self {
+                    associations: Ok(value.associations),
+                    bookmark: Ok(value.bookmark),
+                    tags: Ok(value.tags),
+                }
+            }
+        }
+
+        #[derive(Clone, Debug)]
+        pub struct AssociatedLink {
+            context: Result<Option<String>, String>,
+            link: Result<String, String>,
+        }
+
+        impl Default for AssociatedLink {
+            fn default() -> Self {
+                Self {
+                    context: Ok(Default::default()),
+                    link: Err("no value supplied for link".to_string()),
+                }
+            }
+        }
+
+        impl AssociatedLink {
+            pub fn context<T>(mut self, value: T) -> Self
+            where
+                T: std::convert::TryInto<Option<String>>,
+                T::Error: std::fmt::Display,
+            {
+                self.context = value
+                    .try_into()
+                    .map_err(|e| format!("error converting supplied value for context: {}", e));
+                self
+            }
+            pub fn link<T>(mut self, value: T) -> Self
+            where
+                T: std::convert::TryInto<String>,
+                T::Error: std::fmt::Display,
+            {
+                self.link = value
+                    .try_into()
+                    .map_err(|e| format!("error converting supplied value for link: {}", e));
+                self
+            }
+        }
+
+        impl std::convert::TryFrom<AssociatedLink> for super::AssociatedLink {
+            type Error = String;
+            fn try_from(value: AssociatedLink) -> Result<Self, String> {
+                Ok(Self {
+                    context: value.context?,
+                    link: value.link?,
+                })
+            }
+        }
+
+        impl From<super::AssociatedLink> for AssociatedLink {
+            fn from(value: super::AssociatedLink) -> Self {
+                Self {
+                    context: Ok(value.context),
+                    link: Ok(value.link),
+                }
+            }
+        }
+
+        #[derive(Clone, Debug)]
+        pub struct ExistingBookmark {
+            accessed_at: Result<Option<chrono::DateTime<chrono::offset::Utc>>, String>,
+            created_at: Result<chrono::DateTime<chrono::offset::Utc>, String>,
+            description: Result<Option<String>, String>,
+            id: Result<super::BookmarkId, String>,
+            modified_at: Result<Option<chrono::DateTime<chrono::offset::Utc>>, String>,
+            notes: Result<Option<String>, String>,
+            shared: Result<bool, String>,
+            title: Result<String, String>,
+            unread: Result<bool, String>,
+            url: Result<String, String>,
+            user_id: Result<super::UserId, String>,
+            website_description: Result<Option<String>, String>,
+            website_title: Result<Option<String>, String>,
+        }
+
+        impl Default for ExistingBookmark {
+            fn default() -> Self {
+                Self {
+                    accessed_at: Ok(Default::default()),
+                    created_at: Err("no value supplied for created_at".to_string()),
+                    description: Ok(Default::default()),
+                    id: Err("no value supplied for id".to_string()),
+                    modified_at: Ok(Default::default()),
+                    notes: Ok(Default::default()),
+                    shared: Err("no value supplied for shared".to_string()),
+                    title: Err("no value supplied for title".to_string()),
+                    unread: Err("no value supplied for unread".to_string()),
+                    url: Err("no value supplied for url".to_string()),
+                    user_id: Err("no value supplied for user_id".to_string()),
+                    website_description: Ok(Default::default()),
+                    website_title: Ok(Default::default()),
+                }
+            }
+        }
+
+        impl ExistingBookmark {
+            pub fn accessed_at<T>(mut self, value: T) -> Self
+            where
+                T: std::convert::TryInto<Option<chrono::DateTime<chrono::offset::Utc>>>,
+                T::Error: std::fmt::Display,
+            {
+                self.accessed_at = value
+                    .try_into()
+                    .map_err(|e| format!("error converting supplied value for accessed_at: {}", e));
+                self
+            }
+            pub fn created_at<T>(mut self, value: T) -> Self
+            where
+                T: std::convert::TryInto<chrono::DateTime<chrono::offset::Utc>>,
+                T::Error: std::fmt::Display,
+            {
+                self.created_at = value
+                    .try_into()
+                    .map_err(|e| format!("error converting supplied value for created_at: {}", e));
+                self
+            }
+            pub fn description<T>(mut self, value: T) -> Self
+            where
+                T: std::convert::TryInto<Option<String>>,
+                T::Error: std::fmt::Display,
+            {
+                self.description = value
+                    .try_into()
+                    .map_err(|e| format!("error converting supplied value for description: {}", e));
+                self
+            }
+            pub fn id<T>(mut self, value: T) -> Self
+            where
+                T: std::convert::TryInto<super::BookmarkId>,
+                T::Error: std::fmt::Display,
+            {
+                self.id = value
+                    .try_into()
+                    .map_err(|e| format!("error converting supplied value for id: {}", e));
+                self
+            }
+            pub fn modified_at<T>(mut self, value: T) -> Self
+            where
+                T: std::convert::TryInto<Option<chrono::DateTime<chrono::offset::Utc>>>,
+                T::Error: std::fmt::Display,
+            {
+                self.modified_at = value
+                    .try_into()
+                    .map_err(|e| format!("error converting supplied value for modified_at: {}", e));
+                self
+            }
+            pub fn notes<T>(mut self, value: T) -> Self
+            where
+                T: std::convert::TryInto<Option<String>>,
+                T::Error: std::fmt::Display,
+            {
+                self.notes = value
+                    .try_into()
+                    .map_err(|e| format!("error converting supplied value for notes: {}", e));
+                self
+            }
+            pub fn shared<T>(mut self, value: T) -> Self
+            where
+                T: std::convert::TryInto<bool>,
+                T::Error: std::fmt::Display,
+            {
+                self.shared = value
+                    .try_into()
+                    .map_err(|e| format!("error converting supplied value for shared: {}", e));
+                self
+            }
+            pub fn title<T>(mut self, value: T) -> Self
+            where
+                T: std::convert::TryInto<String>,
+                T::Error: std::fmt::Display,
+            {
+                self.title = value
+                    .try_into()
+                    .map_err(|e| format!("error converting supplied value for title: {}", e));
+                self
+            }
+            pub fn unread<T>(mut self, value: T) -> Self
+            where
+                T: std::convert::TryInto<bool>,
+                T::Error: std::fmt::Display,
+            {
+                self.unread = value
+                    .try_into()
+                    .map_err(|e| format!("error converting supplied value for unread: {}", e));
+                self
+            }
+            pub fn url<T>(mut self, value: T) -> Self
+            where
+                T: std::convert::TryInto<String>,
+                T::Error: std::fmt::Display,
+            {
+                self.url = value
+                    .try_into()
+                    .map_err(|e| format!("error converting supplied value for url: {}", e));
+                self
+            }
+            pub fn user_id<T>(mut self, value: T) -> Self
+            where
+                T: std::convert::TryInto<super::UserId>,
+                T::Error: std::fmt::Display,
+            {
+                self.user_id = value
+                    .try_into()
+                    .map_err(|e| format!("error converting supplied value for user_id: {}", e));
+                self
+            }
+            pub fn website_description<T>(mut self, value: T) -> Self
+            where
+                T: std::convert::TryInto<Option<String>>,
+                T::Error: std::fmt::Display,
+            {
+                self.website_description = value.try_into().map_err(|e| {
+                    format!(
+                        "error converting supplied value for website_description: {}",
+                        e
+                    )
+                });
+                self
+            }
+            pub fn website_title<T>(mut self, value: T) -> Self
+            where
+                T: std::convert::TryInto<Option<String>>,
+                T::Error: std::fmt::Display,
+            {
+                self.website_title = value.try_into().map_err(|e| {
+                    format!("error converting supplied value for website_title: {}", e)
+                });
+                self
+            }
+        }
+
+        impl std::convert::TryFrom<ExistingBookmark> for super::ExistingBookmark {
+            type Error = String;
+            fn try_from(value: ExistingBookmark) -> Result<Self, String> {
+                Ok(Self {
+                    accessed_at: value.accessed_at?,
+                    created_at: value.created_at?,
+                    description: value.description?,
+                    id: value.id?,
+                    modified_at: value.modified_at?,
+                    notes: value.notes?,
+                    shared: value.shared?,
+                    title: value.title?,
+                    unread: value.unread?,
+                    url: value.url?,
+                    user_id: value.user_id?,
+                    website_description: value.website_description?,
+                    website_title: value.website_title?,
+                })
+            }
+        }
+
+        impl From<super::ExistingBookmark> for ExistingBookmark {
+            fn from(value: super::ExistingBookmark) -> Self {
+                Self {
+                    accessed_at: Ok(value.accessed_at),
+                    created_at: Ok(value.created_at),
+                    description: Ok(value.description),
+                    id: Ok(value.id),
+                    modified_at: Ok(value.modified_at),
+                    notes: Ok(value.notes),
+                    shared: Ok(value.shared),
+                    title: Ok(value.title),
+                    unread: Ok(value.unread),
+                    url: Ok(value.url),
+                    user_id: Ok(value.user_id),
+                    website_description: Ok(value.website_description),
+                    website_title: Ok(value.website_title),
+                }
+            }
+        }
+
+        #[derive(Clone, Debug)]
+        pub struct ExistingTag {
+            created_at: Result<chrono::DateTime<chrono::offset::Utc>, String>,
+            name: Result<String, String>,
+        }
+
+        impl Default for ExistingTag {
+            fn default() -> Self {
+                Self {
+                    created_at: Err("no value supplied for created_at".to_string()),
+                    name: Err("no value supplied for name".to_string()),
+                }
+            }
+        }
+
+        impl ExistingTag {
+            pub fn created_at<T>(mut self, value: T) -> Self
+            where
+                T: std::convert::TryInto<chrono::DateTime<chrono::offset::Utc>>,
+                T::Error: std::fmt::Display,
+            {
+                self.created_at = value
+                    .try_into()
+                    .map_err(|e| format!("error converting supplied value for created_at: {}", e));
+                self
+            }
+            pub fn name<T>(mut self, value: T) -> Self
+            where
+                T: std::convert::TryInto<String>,
+                T::Error: std::fmt::Display,
+            {
+                self.name = value
+                    .try_into()
+                    .map_err(|e| format!("error converting supplied value for name: {}", e));
+                self
+            }
+        }
+
+        impl std::convert::TryFrom<ExistingTag> for super::ExistingTag {
+            type Error = String;
+            fn try_from(value: ExistingTag) -> Result<Self, String> {
+                Ok(Self {
+                    created_at: value.created_at?,
+                    name: value.name?,
+                })
+            }
+        }
+
+        impl From<super::ExistingTag> for ExistingTag {
+            fn from(value: super::ExistingTag) -> Self {
+                Self {
+                    created_at: Ok(value.created_at),
+                    name: Ok(value.name),
+                }
+            }
+        }
+
+        #[derive(Clone, Debug)]
+        pub struct ListBookmarkResult {
+            bookmarks: Result<Vec<super::AnnotatedBookmark>, String>,
+            next_cursor: Result<Option<super::BookmarkId>, String>,
+        }
+
+        impl Default for ListBookmarkResult {
+            fn default() -> Self {
+                Self {
+                    bookmarks: Err("no value supplied for bookmarks".to_string()),
+                    next_cursor: Ok(Default::default()),
+                }
+            }
+        }
+
+        impl ListBookmarkResult {
+            pub fn bookmarks<T>(mut self, value: T) -> Self
+            where
+                T: std::convert::TryInto<Vec<super::AnnotatedBookmark>>,
+                T::Error: std::fmt::Display,
+            {
+                self.bookmarks = value
+                    .try_into()
+                    .map_err(|e| format!("error converting supplied value for bookmarks: {}", e));
+                self
+            }
+            pub fn next_cursor<T>(mut self, value: T) -> Self
+            where
+                T: std::convert::TryInto<Option<super::BookmarkId>>,
+                T::Error: std::fmt::Display,
+            {
+                self.next_cursor = value
+                    .try_into()
+                    .map_err(|e| format!("error converting supplied value for next_cursor: {}", e));
+                self
+            }
+        }
+
+        impl std::convert::TryFrom<ListBookmarkResult> for super::ListBookmarkResult {
+            type Error = String;
+            fn try_from(value: ListBookmarkResult) -> Result<Self, String> {
+                Ok(Self {
+                    bookmarks: value.bookmarks?,
+                    next_cursor: value.next_cursor?,
+                })
+            }
+        }
+
+        impl From<super::ListBookmarkResult> for ListBookmarkResult {
+            fn from(value: super::ListBookmarkResult) -> Self {
+                Self {
+                    bookmarks: Ok(value.bookmarks),
+                    next_cursor: Ok(value.next_cursor),
+                }
+            }
+        }
+
+        #[derive(Clone, Debug)]
+        pub struct ListBookmarksResponse {
+            bookmarks: Result<Vec<super::AnnotatedBookmark>, String>,
+            next_cursor: Result<Option<super::BookmarkId>, String>,
+        }
+
+        impl Default for ListBookmarksResponse {
+            fn default() -> Self {
+                Self {
+                    bookmarks: Err("no value supplied for bookmarks".to_string()),
+                    next_cursor: Ok(Default::default()),
+                }
+            }
+        }
+
+        impl ListBookmarksResponse {
+            pub fn bookmarks<T>(mut self, value: T) -> Self
+            where
+                T: std::convert::TryInto<Vec<super::AnnotatedBookmark>>,
+                T::Error: std::fmt::Display,
+            {
+                self.bookmarks = value
+                    .try_into()
+                    .map_err(|e| format!("error converting supplied value for bookmarks: {}", e));
+                self
+            }
+            pub fn next_cursor<T>(mut self, value: T) -> Self
+            where
+                T: std::convert::TryInto<Option<super::BookmarkId>>,
+                T::Error: std::fmt::Display,
+            {
+                self.next_cursor = value
+                    .try_into()
+                    .map_err(|e| format!("error converting supplied value for next_cursor: {}", e));
+                self
+            }
+        }
+
+        impl std::convert::TryFrom<ListBookmarksResponse> for super::ListBookmarksResponse {
+            type Error = String;
+            fn try_from(value: ListBookmarksResponse) -> Result<Self, String> {
+                Ok(Self {
+                    bookmarks: value.bookmarks?,
+                    next_cursor: value.next_cursor?,
+                })
+            }
+        }
+
+        impl From<super::ListBookmarksResponse> for ListBookmarksResponse {
+            fn from(value: super::ListBookmarksResponse) -> Self {
+                Self {
+                    bookmarks: Ok(value.bookmarks),
+                    next_cursor: Ok(value.next_cursor),
+                }
+            }
+        }
+
+        #[derive(Clone, Debug)]
+        pub struct ListBookmarksWithTagResponse {
+            bookmarks: Result<Vec<super::AnnotatedBookmark>, String>,
+            next_cursor: Result<Option<super::BookmarkId>, String>,
+        }
+
+        impl Default for ListBookmarksWithTagResponse {
+            fn default() -> Self {
+                Self {
+                    bookmarks: Err("no value supplied for bookmarks".to_string()),
+                    next_cursor: Ok(Default::default()),
+                }
+            }
+        }
+
+        impl ListBookmarksWithTagResponse {
+            pub fn bookmarks<T>(mut self, value: T) -> Self
+            where
+                T: std::convert::TryInto<Vec<super::AnnotatedBookmark>>,
+                T::Error: std::fmt::Display,
+            {
+                self.bookmarks = value
+                    .try_into()
+                    .map_err(|e| format!("error converting supplied value for bookmarks: {}", e));
+                self
+            }
+            pub fn next_cursor<T>(mut self, value: T) -> Self
+            where
+                T: std::convert::TryInto<Option<super::BookmarkId>>,
+                T::Error: std::fmt::Display,
+            {
+                self.next_cursor = value
+                    .try_into()
+                    .map_err(|e| format!("error converting supplied value for next_cursor: {}", e));
+                self
+            }
+        }
+
+        impl std::convert::TryFrom<ListBookmarksWithTagResponse> for super::ListBookmarksWithTagResponse {
+            type Error = String;
+            fn try_from(value: ListBookmarksWithTagResponse) -> Result<Self, String> {
+                Ok(Self {
+                    bookmarks: value.bookmarks?,
+                    next_cursor: value.next_cursor?,
+                })
+            }
+        }
+
+        impl From<super::ListBookmarksWithTagResponse> for ListBookmarksWithTagResponse {
+            fn from(value: super::ListBookmarksWithTagResponse) -> Self {
+                Self {
+                    bookmarks: Ok(value.bookmarks),
+                    next_cursor: Ok(value.next_cursor),
+                }
+            }
+        }
+
+        #[derive(Clone, Debug)]
+        pub struct Pagination {
+            cursor: Result<Option<super::BookmarkId>, String>,
+            per_page: Result<Option<i64>, String>,
+        }
+
+        impl Default for Pagination {
+            fn default() -> Self {
+                Self {
+                    cursor: Ok(Default::default()),
+                    per_page: Ok(Default::default()),
+                }
+            }
+        }
+
+        impl Pagination {
+            pub fn cursor<T>(mut self, value: T) -> Self
+            where
+                T: std::convert::TryInto<Option<super::BookmarkId>>,
+                T::Error: std::fmt::Display,
+            {
+                self.cursor = value
+                    .try_into()
+                    .map_err(|e| format!("error converting supplied value for cursor: {}", e));
+                self
+            }
+            pub fn per_page<T>(mut self, value: T) -> Self
+            where
+                T: std::convert::TryInto<Option<i64>>,
+                T::Error: std::fmt::Display,
+            {
+                self.per_page = value
+                    .try_into()
+                    .map_err(|e| format!("error converting supplied value for per_page: {}", e));
+                self
+            }
+        }
+
+        impl std::convert::TryFrom<Pagination> for super::Pagination {
+            type Error = String;
+            fn try_from(value: Pagination) -> Result<Self, String> {
+                Ok(Self {
+                    cursor: value.cursor?,
+                    per_page: value.per_page?,
+                })
+            }
+        }
+
+        impl From<super::Pagination> for Pagination {
+            fn from(value: super::Pagination) -> Self {
+                Self {
+                    cursor: Ok(value.cursor),
+                    per_page: Ok(value.per_page),
+                }
+            }
+        }
+
+        #[derive(Clone, Debug)]
+        pub struct TagQuery {
+            tags: Result<Vec<super::TagName>, String>,
+        }
+
+        impl Default for TagQuery {
+            fn default() -> Self {
+                Self {
+                    tags: Err("no value supplied for tags".to_string()),
+                }
+            }
+        }
+
+        impl TagQuery {
+            pub fn tags<T>(mut self, value: T) -> Self
+            where
+                T: std::convert::TryInto<Vec<super::TagName>>,
+                T::Error: std::fmt::Display,
+            {
+                self.tags = value
+                    .try_into()
+                    .map_err(|e| format!("error converting supplied value for tags: {}", e));
+                self
+            }
+        }
+
+        impl std::convert::TryFrom<TagQuery> for super::TagQuery {
+            type Error = String;
+            fn try_from(value: TagQuery) -> Result<Self, String> {
+                Ok(Self { tags: value.tags? })
+            }
+        }
+
+        impl From<super::TagQuery> for TagQuery {
+            fn from(value: super::TagQuery) -> Self {
+                Self {
+                    tags: Ok(value.tags),
+                }
+            }
         }
     }
 }
@@ -485,31 +1167,16 @@ impl Client {
     ///List the user's bookmarks, newest to oldest.
     ///
     ///Sends a `GET` request to `/bookmarks`
-    pub async fn list_bookmarks<'a>(
-        &'a self,
-        pagination: Option<&'a types::ListBookmarksPagination>,
-    ) -> Result<ResponseValue<types::ListBookmarksResponse>, Error<()>> {
-        let url = format!("{}/bookmarks", self.baseurl,);
-        let mut query = Vec::with_capacity(1usize);
-        if let Some(v) = &pagination {
-            query.push(("pagination", v.to_string()));
-        }
-
-        let request = self
-            .client
-            .get(url)
-            .header(
-                reqwest::header::ACCEPT,
-                reqwest::header::HeaderValue::from_static("application/json"),
-            )
-            .query(&query)
-            .build()?;
-        let result = self.client.execute(request).await;
-        let response = result?;
-        match response.status().as_u16() {
-            200u16 => ResponseValue::from_response(response).await,
-            _ => Err(Error::UnexpectedResponse(response)),
-        }
+    ///
+    ///```ignore
+    /// let response = client.list_bookmarks()
+    ///    .cursor(cursor)
+    ///    .per_page(per_page)
+    ///    .send()
+    ///    .await;
+    /// ```
+    pub fn list_bookmarks(&self) -> builder::ListBookmarks {
+        builder::ListBookmarks::new(self)
     }
 
     ///List bookmarks matching a tag, newest to oldest
@@ -517,39 +1184,199 @@ impl Client {
     ///List bookmarks matching a tag, newest to oldest.
     ///
     ///Sends a `GET` request to `/bookmarks/tagged/{query}`
-    pub async fn list_bookmarks_with_tag<'a>(
-        &'a self,
-        query: &'a str,
-        pagination: Option<&'a types::ListBookmarksWithTagPagination>,
-    ) -> Result<ResponseValue<types::ListBookmarksWithTagResponse>, Error<()>> {
-        let url = format!(
-            "{}/bookmarks/tagged/{}",
-            self.baseurl,
-            encode_path(&query.to_string()),
-        );
-        let mut query = Vec::with_capacity(1usize);
-        if let Some(v) = &pagination {
-            query.push(("pagination", v.to_string()));
+    ///
+    ///```ignore
+    /// let response = client.list_bookmarks_with_tag()
+    ///    .query(query)
+    ///    .cursor(cursor)
+    ///    .per_page(per_page)
+    ///    .send()
+    ///    .await;
+    /// ```
+    pub fn list_bookmarks_with_tag(&self) -> builder::ListBookmarksWithTag {
+        builder::ListBookmarksWithTag::new(self)
+    }
+}
+
+pub mod builder {
+    use super::types;
+    #[allow(unused_imports)]
+    use super::{
+        encode_path, ByteStream, Error, HeaderMap, HeaderValue, RequestBuilderExt, ResponseValue,
+    };
+    ///Builder for [`Client::list_bookmarks`]
+    ///
+    ///[`Client::list_bookmarks`]: super::Client::list_bookmarks
+    #[derive(Debug, Clone)]
+    pub struct ListBookmarks<'a> {
+        client: &'a super::Client,
+        cursor: Result<Option<i64>, String>,
+        per_page: Result<Option<i64>, String>,
+    }
+
+    impl<'a> ListBookmarks<'a> {
+        pub fn new(client: &'a super::Client) -> Self {
+            Self {
+                client,
+                cursor: Ok(None),
+                per_page: Ok(None),
+            }
         }
 
-        let request = self
-            .client
-            .get(url)
-            .header(
-                reqwest::header::ACCEPT,
-                reqwest::header::HeaderValue::from_static("application/json"),
-            )
-            .query(&query)
-            .build()?;
-        let result = self.client.execute(request).await;
-        let response = result?;
-        match response.status().as_u16() {
-            200u16 => ResponseValue::from_response(response).await,
-            _ => Err(Error::UnexpectedResponse(response)),
+        pub fn cursor<V>(mut self, value: V) -> Self
+        where
+            V: std::convert::TryInto<i64>,
+        {
+            self.cursor = value
+                .try_into()
+                .map(Some)
+                .map_err(|_| "conversion to `i64` for cursor failed".to_string());
+            self
+        }
+
+        pub fn per_page<V>(mut self, value: V) -> Self
+        where
+            V: std::convert::TryInto<i64>,
+        {
+            self.per_page = value
+                .try_into()
+                .map(Some)
+                .map_err(|_| "conversion to `i64` for per_page failed".to_string());
+            self
+        }
+
+        ///Sends a `GET` request to `/bookmarks`
+        pub async fn send(self) -> Result<ResponseValue<types::ListBookmarksResponse>, Error<()>> {
+            let Self {
+                client,
+                cursor,
+                per_page,
+            } = self;
+            let cursor = cursor.map_err(Error::InvalidRequest)?;
+            let per_page = per_page.map_err(Error::InvalidRequest)?;
+            let url = format!("{}/bookmarks", client.baseurl,);
+            let mut query = Vec::with_capacity(2usize);
+            if let Some(v) = &cursor {
+                query.push(("cursor", v.to_string()));
+            }
+            if let Some(v) = &per_page {
+                query.push(("per_page", v.to_string()));
+            }
+            let request = client
+                .client
+                .get(url)
+                .header(
+                    reqwest::header::ACCEPT,
+                    reqwest::header::HeaderValue::from_static("application/json"),
+                )
+                .query(&query)
+                .build()?;
+            let result = client.client.execute(request).await;
+            let response = result?;
+            match response.status().as_u16() {
+                200u16 => ResponseValue::from_response(response).await,
+                _ => Err(Error::UnexpectedResponse(response)),
+            }
+        }
+    }
+
+    ///Builder for [`Client::list_bookmarks_with_tag`]
+    ///
+    ///[`Client::list_bookmarks_with_tag`]: super::Client::list_bookmarks_with_tag
+    #[derive(Debug, Clone)]
+    pub struct ListBookmarksWithTag<'a> {
+        client: &'a super::Client,
+        query: Result<String, String>,
+        cursor: Result<Option<i64>, String>,
+        per_page: Result<Option<i64>, String>,
+    }
+
+    impl<'a> ListBookmarksWithTag<'a> {
+        pub fn new(client: &'a super::Client) -> Self {
+            Self {
+                client,
+                query: Err("query was not initialized".to_string()),
+                cursor: Ok(None),
+                per_page: Ok(None),
+            }
+        }
+
+        pub fn query<V>(mut self, value: V) -> Self
+        where
+            V: std::convert::TryInto<String>,
+        {
+            self.query = value
+                .try_into()
+                .map_err(|_| "conversion to `String` for query failed".to_string());
+            self
+        }
+
+        pub fn cursor<V>(mut self, value: V) -> Self
+        where
+            V: std::convert::TryInto<i64>,
+        {
+            self.cursor = value
+                .try_into()
+                .map(Some)
+                .map_err(|_| "conversion to `i64` for cursor failed".to_string());
+            self
+        }
+
+        pub fn per_page<V>(mut self, value: V) -> Self
+        where
+            V: std::convert::TryInto<i64>,
+        {
+            self.per_page = value
+                .try_into()
+                .map(Some)
+                .map_err(|_| "conversion to `i64` for per_page failed".to_string());
+            self
+        }
+
+        ///Sends a `GET` request to `/bookmarks/tagged/{query}`
+        pub async fn send(
+            self,
+        ) -> Result<ResponseValue<types::ListBookmarksWithTagResponse>, Error<()>> {
+            let Self {
+                client,
+                query,
+                cursor,
+                per_page,
+            } = self;
+            let query = query.map_err(Error::InvalidRequest)?;
+            let cursor = cursor.map_err(Error::InvalidRequest)?;
+            let per_page = per_page.map_err(Error::InvalidRequest)?;
+            let url = format!(
+                "{}/bookmarks/tagged/{}",
+                client.baseurl,
+                encode_path(&query.to_string()),
+            );
+            let mut query = Vec::with_capacity(2usize);
+            if let Some(v) = &cursor {
+                query.push(("cursor", v.to_string()));
+            }
+            if let Some(v) = &per_page {
+                query.push(("per_page", v.to_string()));
+            }
+            let request = client
+                .client
+                .get(url)
+                .header(
+                    reqwest::header::ACCEPT,
+                    reqwest::header::HeaderValue::from_static("application/json"),
+                )
+                .query(&query)
+                .build()?;
+            let result = client.client.execute(request).await;
+            let response = result?;
+            match response.status().as_u16() {
+                200u16 => ResponseValue::from_response(response).await,
+                _ => Err(Error::UnexpectedResponse(response)),
+            }
         }
     }
 }
 
 pub mod prelude {
-    pub use super::Client;
+    pub use self::super::Client;
 }

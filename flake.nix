@@ -166,8 +166,7 @@
                   name = "regenerate-openapi-client";
                   runtimeInputs = [config.packages.cargo-progenitor];
                   text = ''
-                    cargo run -- generate-openapi-spec | \
-                       cargo progenitor --input /dev/stdin --output src/lz-openapi --name lz-openapi --version 0.1.0 --interface builder
+                    cargo run --features dev -- generate-openapi-spec --rust-client src/lz-openapi
                     cargo fmt -p lz-openapi
                   '';
                 };

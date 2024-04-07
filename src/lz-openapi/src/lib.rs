@@ -1,60 +1,149 @@
-mod progenitor_client;
-
 #[allow(unused_imports)]
 use progenitor_client::{encode_path, RequestBuilderExt};
+#[allow(unused_imports)]
 pub use progenitor_client::{ByteStream, Error, ResponseValue};
 #[allow(unused_imports)]
 use reqwest::header::{HeaderMap, HeaderValue};
+/// Types used as operation parameters and responses.
+#[allow(clippy::all)]
 pub mod types {
     use serde::{Deserialize, Serialize};
     #[allow(unused_imports)]
     use std::convert::TryFrom;
+    /// Error types.
+    pub mod error {
+        /// Error from a TryFrom or FromStr implementation.
+        pub struct ConversionError(std::borrow::Cow<'static, str>);
+        impl std::error::Error for ConversionError {}
+        impl std::fmt::Display for ConversionError {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+                std::fmt::Display::fmt(&self.0, f)
+            }
+        }
+        impl std::fmt::Debug for ConversionError {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+                std::fmt::Debug::fmt(&self.0, f)
+            }
+        }
+        impl From<&'static str> for ConversionError {
+            fn from(value: &'static str) -> Self {
+                Self(value.into())
+            }
+        }
+        impl From<String> for ConversionError {
+            fn from(value: String) -> Self {
+                Self(value.into())
+            }
+        }
+    }
     ///A bookmark, including tags and associations on it.
-    #[derive(Clone, Debug, Deserialize, Serialize)]
+    ///
+    /// <details><summary>JSON schema</summary>
+    ///
+    /// ```json
+    ///{
+    ///  "description": "A bookmark, including tags and associations on it.",
+    ///  "type": "object",
+    ///  "required": [
+    ///    "associations",
+    ///    "bookmark",
+    ///    "tags"
+    ///  ],
+    ///  "properties": {
+    ///    "associations": {
+    ///      "type": "array",
+    ///      "items": {
+    ///        "$ref": "#/components/schemas/AssociatedLink"
+    ///      }
+    ///    },
+    ///    "bookmark": {
+    ///      "$ref": "#/components/schemas/ExistingBookmark"
+    ///    },
+    ///    "tags": {
+    ///      "type": "array",
+    ///      "items": {
+    ///        "$ref": "#/components/schemas/ExistingTag"
+    ///      }
+    ///    }
+    ///  }
+    ///}
+    /// ```
+    /// </details>
+    #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
     pub struct AnnotatedBookmark {
         pub associations: Vec<AssociatedLink>,
         pub bookmark: ExistingBookmark,
         pub tags: Vec<ExistingTag>,
     }
-
     impl From<&AnnotatedBookmark> for AnnotatedBookmark {
         fn from(value: &AnnotatedBookmark) -> Self {
             value.clone()
         }
     }
-
     impl AnnotatedBookmark {
         pub fn builder() -> builder::AnnotatedBookmark {
-            builder::AnnotatedBookmark::default()
+            Default::default()
         }
     }
+    /**A link associated with a bookmark.
 
-    ///A link associated with a bookmark.
+    Links can have a "context" in which that association happens
+    (free-form text, given by the user), and they point to a URL,
+    which in turn can be another bookmark.*/
     ///
-    ///Links can have a "context" in which that association happens
-    ///(free-form text, given by the user), and they point to a URL,
-    ///which in turn can be another bookmark.
-    #[derive(Clone, Debug, Deserialize, Serialize)]
+    /// <details><summary>JSON schema</summary>
+    ///
+    /// ```json
+    ///{
+    ///  "description": "A link associated with a bookmark.\n\nLinks can have a \"context\" in which that association happens\n(free-form text, given by the user), and they point to a URL,\nwhich in turn can be another bookmark.",
+    ///  "type": "object",
+    ///  "required": [
+    ///    "link"
+    ///  ],
+    ///  "properties": {
+    ///    "context": {
+    ///      "type": [
+    ///        "string",
+    ///        "null"
+    ///      ]
+    ///    },
+    ///    "link": {
+    ///      "type": "string",
+    ///      "format": "uri"
+    ///    }
+    ///  }
+    ///}
+    /// ```
+    /// </details>
+    #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
     pub struct AssociatedLink {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         pub context: Option<String>,
         pub link: String,
     }
-
     impl From<&AssociatedLink> for AssociatedLink {
         fn from(value: &AssociatedLink) -> Self {
             value.clone()
         }
     }
-
     impl AssociatedLink {
         pub fn builder() -> builder::AssociatedLink {
-            builder::AssociatedLink::default()
+            Default::default()
         }
     }
-
     ///The database ID of a bookmark.
-    #[derive(Clone, Debug, Deserialize, Serialize)]
+    ///
+    /// <details><summary>JSON schema</summary>
+    ///
+    /// ```json
+    ///{
+    ///  "description": "The database ID of a bookmark.",
+    ///  "type": "integer",
+    ///  "format": "int64"
+    ///}
+    /// ```
+    /// </details>
+    #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
     pub struct BookmarkId(pub i64);
     impl std::ops::Deref for BookmarkId {
         type Target = i64;
@@ -62,79 +151,163 @@ pub mod types {
             &self.0
         }
     }
-
     impl From<BookmarkId> for i64 {
         fn from(value: BookmarkId) -> Self {
             value.0
         }
     }
-
     impl From<&BookmarkId> for BookmarkId {
         fn from(value: &BookmarkId) -> Self {
             value.clone()
         }
     }
-
     impl From<i64> for BookmarkId {
         fn from(value: i64) -> Self {
             Self(value)
         }
     }
-
     impl std::str::FromStr for BookmarkId {
         type Err = <i64 as std::str::FromStr>::Err;
         fn from_str(value: &str) -> Result<Self, Self::Err> {
             Ok(Self(value.parse()?))
         }
     }
-
     impl std::convert::TryFrom<&str> for BookmarkId {
         type Error = <i64 as std::str::FromStr>::Err;
         fn try_from(value: &str) -> Result<Self, Self::Error> {
             value.parse()
         }
     }
-
     impl std::convert::TryFrom<&String> for BookmarkId {
         type Error = <i64 as std::str::FromStr>::Err;
         fn try_from(value: &String) -> Result<Self, Self::Error> {
             value.parse()
         }
     }
-
     impl std::convert::TryFrom<String> for BookmarkId {
         type Error = <i64 as std::str::FromStr>::Err;
         fn try_from(value: String) -> Result<Self, Self::Error> {
             value.parse()
         }
     }
-
     impl ToString for BookmarkId {
         fn to_string(&self) -> String {
             self.0.to_string()
         }
     }
+    /**A bookmark saved by a user.
 
-    ///A bookmark saved by a user.
+    See the section in [Transaction][Transaction#working-with-bookmarks]*/
     ///
-    ///See the section in [Transaction][Transaction#working-with-bookmarks]
-    #[derive(Clone, Debug, Deserialize, Serialize)]
+    /// <details><summary>JSON schema</summary>
+    ///
+    /// ```json
+    ///{
+    ///  "description": "A bookmark saved by a user.\n\nSee the section in [Transaction][Transaction#working-with-bookmarks]",
+    ///  "type": "object",
+    ///  "required": [
+    ///    "created_at",
+    ///    "id",
+    ///    "shared",
+    ///    "title",
+    ///    "unread",
+    ///    "url",
+    ///    "user_id"
+    ///  ],
+    ///  "properties": {
+    ///    "accessed_at": {
+    ///      "description": "Last time the bookmark was accessed via the web",
+    ///      "type": [
+    ///        "string",
+    ///        "null"
+    ///      ],
+    ///      "format": "date-time"
+    ///    },
+    ///    "created_at": {
+    ///      "description": "Time at which the bookmark was created.\n\nThis time is assigned in code here, not in the database.",
+    ///      "type": "string",
+    ///      "format": "date-time"
+    ///    },
+    ///    "description": {
+    ///      "description": "Description of the bookmark, possibly extracted from the website.",
+    ///      "type": [
+    ///        "string",
+    ///        "null"
+    ///      ]
+    ///    },
+    ///    "id": {
+    ///      "$ref": "#/components/schemas/BookmarkId"
+    ///    },
+    ///    "modified_at": {
+    ///      "description": "Last time the bookmark was modified.\n\nThis field indicates modifications to the bookmark data itself\nonly, not changes to tags or related models.",
+    ///      "type": [
+    ///        "string",
+    ///        "null"
+    ///      ],
+    ///      "format": "date-time"
+    ///    },
+    ///    "notes": {
+    ///      "description": "Private notes that the user attached to the bookmark.",
+    ///      "type": [
+    ///        "string",
+    ///        "null"
+    ///      ]
+    ///    },
+    ///    "shared": {
+    ///      "description": "Whether other users can see the bookmark.",
+    ///      "type": "boolean"
+    ///    },
+    ///    "title": {
+    ///      "description": "Title that the user gave the bookmark.",
+    ///      "type": "string"
+    ///    },
+    ///    "unread": {
+    ///      "description": "Whether the bookmark is \"to read\"",
+    ///      "type": "boolean"
+    ///    },
+    ///    "url": {
+    ///      "description": "URL that the bookmark points to.",
+    ///      "type": "string",
+    ///      "format": "uri"
+    ///    },
+    ///    "user_id": {
+    ///      "$ref": "#/components/schemas/UserId"
+    ///    },
+    ///    "website_description": {
+    ///      "description": "Original description extracted from the website.",
+    ///      "type": [
+    ///        "string",
+    ///        "null"
+    ///      ]
+    ///    },
+    ///    "website_title": {
+    ///      "description": "Original title extracted from the website.",
+    ///      "type": [
+    ///        "string",
+    ///        "null"
+    ///      ]
+    ///    }
+    ///  }
+    ///}
+    /// ```
+    /// </details>
+    #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
     pub struct ExistingBookmark {
         ///Last time the bookmark was accessed via the web
         #[serde(default, skip_serializing_if = "Option::is_none")]
         pub accessed_at: Option<chrono::DateTime<chrono::offset::Utc>>,
-        ///Time at which the bookmark was created.
-        ///
-        ///This time is assigned in code here, not in the database.
+        /**Time at which the bookmark was created.
+
+        This time is assigned in code here, not in the database.*/
         pub created_at: chrono::DateTime<chrono::offset::Utc>,
         ///Description of the bookmark, possibly extracted from the website.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         pub description: Option<String>,
         pub id: BookmarkId,
-        ///Last time the bookmark was modified.
-        ///
-        ///This field indicates modifications to the bookmark data itself
-        ///only, not changes to tags or related models.
+        /**Last time the bookmark was modified.
+
+        This field indicates modifications to the bookmark data itself
+        only, not changes to tags or related models.*/
         #[serde(default, skip_serializing_if = "Option::is_none")]
         pub modified_at: Option<chrono::DateTime<chrono::offset::Utc>>,
         ///Private notes that the user attached to the bookmark.
@@ -156,48 +329,95 @@ pub mod types {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         pub website_title: Option<String>,
     }
-
     impl From<&ExistingBookmark> for ExistingBookmark {
         fn from(value: &ExistingBookmark) -> Self {
             value.clone()
         }
     }
-
     impl ExistingBookmark {
         pub fn builder() -> builder::ExistingBookmark {
-            builder::ExistingBookmark::default()
+            Default::default()
         }
     }
+    /**A named tag, possibly assigned to multiple bookmarks.
 
-    ///A named tag, possibly assigned to multiple bookmarks.
+    See the section in [Transaction][Transaction#working-with-tags]*/
     ///
-    ///See the section in [Transaction][Transaction#working-with-tags]
-    #[derive(Clone, Debug, Deserialize, Serialize)]
+    /// <details><summary>JSON schema</summary>
+    ///
+    /// ```json
+    ///{
+    ///  "description": "A named tag, possibly assigned to multiple bookmarks.\n\nSee the section in [Transaction][Transaction#working-with-tags]",
+    ///  "type": "object",
+    ///  "required": [
+    ///    "created_at",
+    ///    "name"
+    ///  ],
+    ///  "properties": {
+    ///    "created_at": {
+    ///      "description": "When the tag was first created.",
+    ///      "type": "string",
+    ///      "format": "date-time"
+    ///    },
+    ///    "name": {
+    ///      "description": "Name of the tag.",
+    ///      "type": "string"
+    ///    }
+    ///  }
+    ///}
+    /// ```
+    /// </details>
+    #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
     pub struct ExistingTag {
         ///When the tag was first created.
         pub created_at: chrono::DateTime<chrono::offset::Utc>,
         ///Name of the tag.
         pub name: String,
     }
-
     impl From<&ExistingTag> for ExistingTag {
         fn from(value: &ExistingTag) -> Self {
             value.clone()
         }
     }
-
     impl ExistingTag {
         pub fn builder() -> builder::ExistingTag {
-            builder::ExistingTag::default()
+            Default::default()
         }
     }
+    /**The response returned by the `list_bookmarks` API endpoint.
 
-    ///The response returned by the `list_bookmarks` API endpoint.
+    This response contains pagination information; if `next_cursor` is
+    set, passing that value to the `cursor` pagination parameter will
+    fetch the next page.*/
     ///
-    ///This response contains pagination information; if `next_cursor` is
-    ///set, passing that value to the `cursor` pagination parameter will
-    ///fetch the next page.
-    #[derive(Clone, Debug, Deserialize, Serialize)]
+    /// <details><summary>JSON schema</summary>
+    ///
+    /// ```json
+    ///{
+    ///  "description": "The response returned by the `list_bookmarks` API endpoint.\n\nThis response contains pagination information; if `next_cursor` is\nset, passing that value to the `cursor` pagination parameter will\nfetch the next page.",
+    ///  "type": "object",
+    ///  "required": [
+    ///    "bookmarks"
+    ///  ],
+    ///  "properties": {
+    ///    "bookmarks": {
+    ///      "type": "array",
+    ///      "items": {
+    ///        "$ref": "#/components/schemas/AnnotatedBookmark"
+    ///      }
+    ///    },
+    ///    "nextCursor": {
+    ///      "allOf": [
+    ///        {
+    ///          "$ref": "#/components/schemas/BookmarkId"
+    ///        }
+    ///      ]
+    ///    }
+    ///  }
+    ///}
+    /// ```
+    /// </details>
+    #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
     pub struct ListBookmarkResult {
         pub bookmarks: Vec<AnnotatedBookmark>,
         #[serde(
@@ -207,25 +427,50 @@ pub mod types {
         )]
         pub next_cursor: Option<BookmarkId>,
     }
-
     impl From<&ListBookmarkResult> for ListBookmarkResult {
         fn from(value: &ListBookmarkResult) -> Self {
             value.clone()
         }
     }
-
     impl ListBookmarkResult {
         pub fn builder() -> builder::ListBookmarkResult {
-            builder::ListBookmarkResult::default()
+            Default::default()
         }
     }
+    /**The response returned by the `list_bookmarks` API endpoint.
 
-    ///The response returned by the `list_bookmarks` API endpoint.
+    This response contains pagination information; if `next_cursor` is
+    set, passing that value to the `cursor` pagination parameter will
+    fetch the next page.*/
     ///
-    ///This response contains pagination information; if `next_cursor` is
-    ///set, passing that value to the `cursor` pagination parameter will
-    ///fetch the next page.
-    #[derive(Clone, Debug, Deserialize, Serialize)]
+    /// <details><summary>JSON schema</summary>
+    ///
+    /// ```json
+    ///{
+    ///  "description": "The response returned by the `list_bookmarks` API endpoint.\n\nThis response contains pagination information; if `next_cursor` is\nset, passing that value to the `cursor` pagination parameter will\nfetch the next page.",
+    ///  "type": "object",
+    ///  "required": [
+    ///    "bookmarks"
+    ///  ],
+    ///  "properties": {
+    ///    "bookmarks": {
+    ///      "type": "array",
+    ///      "items": {
+    ///        "$ref": "#/components/schemas/AnnotatedBookmark"
+    ///      }
+    ///    },
+    ///    "nextCursor": {
+    ///      "allOf": [
+    ///        {
+    ///          "$ref": "#/components/schemas/BookmarkId"
+    ///        }
+    ///      ]
+    ///    }
+    ///  }
+    ///}
+    /// ```
+    /// </details>
+    #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
     pub struct ListBookmarksResponse {
         pub bookmarks: Vec<AnnotatedBookmark>,
         #[serde(
@@ -235,25 +480,50 @@ pub mod types {
         )]
         pub next_cursor: Option<BookmarkId>,
     }
-
     impl From<&ListBookmarksResponse> for ListBookmarksResponse {
         fn from(value: &ListBookmarksResponse) -> Self {
             value.clone()
         }
     }
-
     impl ListBookmarksResponse {
         pub fn builder() -> builder::ListBookmarksResponse {
-            builder::ListBookmarksResponse::default()
+            Default::default()
         }
     }
+    /**The response returned by the `list_bookmarks` API endpoint.
 
-    ///The response returned by the `list_bookmarks` API endpoint.
+    This response contains pagination information; if `next_cursor` is
+    set, passing that value to the `cursor` pagination parameter will
+    fetch the next page.*/
     ///
-    ///This response contains pagination information; if `next_cursor` is
-    ///set, passing that value to the `cursor` pagination parameter will
-    ///fetch the next page.
-    #[derive(Clone, Debug, Deserialize, Serialize)]
+    /// <details><summary>JSON schema</summary>
+    ///
+    /// ```json
+    ///{
+    ///  "description": "The response returned by the `list_bookmarks` API endpoint.\n\nThis response contains pagination information; if `next_cursor` is\nset, passing that value to the `cursor` pagination parameter will\nfetch the next page.",
+    ///  "type": "object",
+    ///  "required": [
+    ///    "bookmarks"
+    ///  ],
+    ///  "properties": {
+    ///    "bookmarks": {
+    ///      "type": "array",
+    ///      "items": {
+    ///        "$ref": "#/components/schemas/AnnotatedBookmark"
+    ///      }
+    ///    },
+    ///    "nextCursor": {
+    ///      "allOf": [
+    ///        {
+    ///          "$ref": "#/components/schemas/BookmarkId"
+    ///        }
+    ///      ]
+    ///    }
+    ///  }
+    ///}
+    /// ```
+    /// </details>
+    #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
     pub struct ListBookmarksWithTagResponse {
         pub bookmarks: Vec<AnnotatedBookmark>,
         #[serde(
@@ -263,26 +533,54 @@ pub mod types {
         )]
         pub next_cursor: Option<BookmarkId>,
     }
-
     impl From<&ListBookmarksWithTagResponse> for ListBookmarksWithTagResponse {
         fn from(value: &ListBookmarksWithTagResponse) -> Self {
             value.clone()
         }
     }
-
     impl ListBookmarksWithTagResponse {
         pub fn builder() -> builder::ListBookmarksWithTagResponse {
-            builder::ListBookmarksWithTagResponse::default()
+            Default::default()
         }
     }
+    /**Parameters that govern non-offset based pagination.
 
-    ///Parameters that govern non-offset based pagination.
+    Pagination in `lz` works by getting the next page based on what
+    the previous page's last element was, aka "cursor-based
+    pagination". To that end, use the previous call's `nextCursor`
+    parameter into this call's `cursor` parameter.*/
     ///
-    ///Pagination in `lz` works by getting the next page based on what
-    ///the previous page's last element was, aka "cursor-based
-    ///pagination". To that end, use the previous call's `nextCursor`
-    ///parameter into this call's `cursor` parameter.
-    #[derive(Clone, Debug, Deserialize, Serialize)]
+    /// <details><summary>JSON schema</summary>
+    ///
+    /// ```json
+    ///{
+    ///  "description": "Parameters that govern non-offset based pagination.\n\nPagination in `lz` works by getting the next page based on what\nthe previous page's last element was, aka \"cursor-based\npagination\". To that end, use the previous call's `nextCursor`\nparameter into this call's `cursor` parameter.",
+    ///  "type": "object",
+    ///  "properties": {
+    ///    "cursor": {
+    ///      "allOf": [
+    ///        {
+    ///          "$ref": "#/components/schemas/BookmarkId"
+    ///        }
+    ///      ]
+    ///    },
+    ///    "perPage": {
+    ///      "description": "How many items to return",
+    ///      "examples": [
+    ///        50
+    ///      ],
+    ///      "type": [
+    ///        "integer",
+    ///        "null"
+    ///      ],
+    ///      "format": "int32",
+    ///      "minimum": 0.0
+    ///    }
+    ///  }
+    ///}
+    /// ```
+    /// </details>
+    #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
     pub struct Pagination {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         pub cursor: Option<BookmarkId>,
@@ -290,20 +588,27 @@ pub mod types {
         #[serde(rename = "perPage", default, skip_serializing_if = "Option::is_none")]
         pub per_page: Option<i64>,
     }
-
     impl From<&Pagination> for Pagination {
         fn from(value: &Pagination) -> Self {
             value.clone()
         }
     }
-
     impl Pagination {
         pub fn builder() -> builder::Pagination {
-            builder::Pagination::default()
+            Default::default()
         }
     }
-
     ///The name representation of a tag.
+    ///
+    /// <details><summary>JSON schema</summary>
+    ///
+    /// ```json
+    ///{
+    ///  "description": "The name representation of a tag.",
+    ///  "type": "string"
+    ///}
+    /// ```
+    /// </details>
     #[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
     pub struct TagName(pub String);
     impl std::ops::Deref for TagName {
@@ -312,62 +617,87 @@ pub mod types {
             &self.0
         }
     }
-
     impl From<TagName> for String {
         fn from(value: TagName) -> Self {
             value.0
         }
     }
-
     impl From<&TagName> for TagName {
         fn from(value: &TagName) -> Self {
             value.clone()
         }
     }
-
     impl From<String> for TagName {
         fn from(value: String) -> Self {
             Self(value)
         }
     }
-
     impl std::str::FromStr for TagName {
         type Err = std::convert::Infallible;
         fn from_str(value: &str) -> Result<Self, Self::Err> {
             Ok(Self(value.to_string()))
         }
     }
-
     impl ToString for TagName {
         fn to_string(&self) -> String {
             self.0.to_string()
         }
     }
+    /**A search query for retrieving bookmarks via the tags assigned to them.
 
-    ///A search query for retrieving bookmarks via the tags assigned to them.
+    These tag queries are made in a URL path, separated by space
+    (`%20`) characters.*/
     ///
-    ///These tag queries are made in a URL path, separated by space
-    ///(`%20`) characters.
-    #[derive(Clone, Debug, Deserialize, Serialize)]
+    /// <details><summary>JSON schema</summary>
+    ///
+    /// ```json
+    ///{
+    ///  "description": "A search query for retrieving bookmarks via the tags assigned to them.\n\nThese tag queries are made in a URL path, separated by space\n(`%20`) characters.",
+    ///  "type": "object",
+    ///  "required": [
+    ///    "tags"
+    ///  ],
+    ///  "properties": {
+    ///    "tags": {
+    ///      "description": "Tags that all returned items should have.",
+    ///      "type": "array",
+    ///      "items": {
+    ///        "$ref": "#/components/schemas/TagName"
+    ///      },
+    ///      "minItems": 1
+    ///    }
+    ///  }
+    ///}
+    /// ```
+    /// </details>
+    #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
     pub struct TagQuery {
         ///Tags that all returned items should have.
         pub tags: Vec<TagName>,
     }
-
     impl From<&TagQuery> for TagQuery {
         fn from(value: &TagQuery) -> Self {
             value.clone()
         }
     }
-
     impl TagQuery {
         pub fn builder() -> builder::TagQuery {
-            builder::TagQuery::default()
+            Default::default()
         }
     }
-
     ///The database ID of a user.
-    #[derive(Clone, Debug, Deserialize, Serialize)]
+    ///
+    /// <details><summary>JSON schema</summary>
+    ///
+    /// ```json
+    ///{
+    ///  "description": "The database ID of a user.",
+    ///  "type": "integer",
+    ///  "format": "int64"
+    ///}
+    /// ```
+    /// </details>
+    #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
     pub struct UserId(pub i64);
     impl std::ops::Deref for UserId {
         type Target = i64;
@@ -375,59 +705,51 @@ pub mod types {
             &self.0
         }
     }
-
     impl From<UserId> for i64 {
         fn from(value: UserId) -> Self {
             value.0
         }
     }
-
     impl From<&UserId> for UserId {
         fn from(value: &UserId) -> Self {
             value.clone()
         }
     }
-
     impl From<i64> for UserId {
         fn from(value: i64) -> Self {
             Self(value)
         }
     }
-
     impl std::str::FromStr for UserId {
         type Err = <i64 as std::str::FromStr>::Err;
         fn from_str(value: &str) -> Result<Self, Self::Err> {
             Ok(Self(value.parse()?))
         }
     }
-
     impl std::convert::TryFrom<&str> for UserId {
         type Error = <i64 as std::str::FromStr>::Err;
         fn try_from(value: &str) -> Result<Self, Self::Error> {
             value.parse()
         }
     }
-
     impl std::convert::TryFrom<&String> for UserId {
         type Error = <i64 as std::str::FromStr>::Err;
         fn try_from(value: &String) -> Result<Self, Self::Error> {
             value.parse()
         }
     }
-
     impl std::convert::TryFrom<String> for UserId {
         type Error = <i64 as std::str::FromStr>::Err;
         fn try_from(value: String) -> Result<Self, Self::Error> {
             value.parse()
         }
     }
-
     impl ToString for UserId {
         fn to_string(&self) -> String {
             self.0.to_string()
         }
     }
-
+    /// Types for composing complex structures.
     pub mod builder {
         #[derive(Clone, Debug)]
         pub struct AnnotatedBookmark {
@@ -435,7 +757,6 @@ pub mod types {
             bookmark: Result<super::ExistingBookmark, String>,
             tags: Result<Vec<super::ExistingTag>, String>,
         }
-
         impl Default for AnnotatedBookmark {
             fn default() -> Self {
                 Self {
@@ -445,7 +766,6 @@ pub mod types {
                 }
             }
         }
-
         impl AnnotatedBookmark {
             pub fn associations<T>(mut self, value: T) -> Self
             where
@@ -478,10 +798,9 @@ pub mod types {
                 self
             }
         }
-
         impl std::convert::TryFrom<AnnotatedBookmark> for super::AnnotatedBookmark {
-            type Error = String;
-            fn try_from(value: AnnotatedBookmark) -> Result<Self, String> {
+            type Error = super::error::ConversionError;
+            fn try_from(value: AnnotatedBookmark) -> Result<Self, super::error::ConversionError> {
                 Ok(Self {
                     associations: value.associations?,
                     bookmark: value.bookmark?,
@@ -489,7 +808,6 @@ pub mod types {
                 })
             }
         }
-
         impl From<super::AnnotatedBookmark> for AnnotatedBookmark {
             fn from(value: super::AnnotatedBookmark) -> Self {
                 Self {
@@ -499,13 +817,11 @@ pub mod types {
                 }
             }
         }
-
         #[derive(Clone, Debug)]
         pub struct AssociatedLink {
             context: Result<Option<String>, String>,
             link: Result<String, String>,
         }
-
         impl Default for AssociatedLink {
             fn default() -> Self {
                 Self {
@@ -514,7 +830,6 @@ pub mod types {
                 }
             }
         }
-
         impl AssociatedLink {
             pub fn context<T>(mut self, value: T) -> Self
             where
@@ -537,17 +852,15 @@ pub mod types {
                 self
             }
         }
-
         impl std::convert::TryFrom<AssociatedLink> for super::AssociatedLink {
-            type Error = String;
-            fn try_from(value: AssociatedLink) -> Result<Self, String> {
+            type Error = super::error::ConversionError;
+            fn try_from(value: AssociatedLink) -> Result<Self, super::error::ConversionError> {
                 Ok(Self {
                     context: value.context?,
                     link: value.link?,
                 })
             }
         }
-
         impl From<super::AssociatedLink> for AssociatedLink {
             fn from(value: super::AssociatedLink) -> Self {
                 Self {
@@ -556,7 +869,6 @@ pub mod types {
                 }
             }
         }
-
         #[derive(Clone, Debug)]
         pub struct ExistingBookmark {
             accessed_at: Result<Option<chrono::DateTime<chrono::offset::Utc>>, String>,
@@ -573,7 +885,6 @@ pub mod types {
             website_description: Result<Option<String>, String>,
             website_title: Result<Option<String>, String>,
         }
-
         impl Default for ExistingBookmark {
             fn default() -> Self {
                 Self {
@@ -593,7 +904,6 @@ pub mod types {
                 }
             }
         }
-
         impl ExistingBookmark {
             pub fn accessed_at<T>(mut self, value: T) -> Self
             where
@@ -729,10 +1039,9 @@ pub mod types {
                 self
             }
         }
-
         impl std::convert::TryFrom<ExistingBookmark> for super::ExistingBookmark {
-            type Error = String;
-            fn try_from(value: ExistingBookmark) -> Result<Self, String> {
+            type Error = super::error::ConversionError;
+            fn try_from(value: ExistingBookmark) -> Result<Self, super::error::ConversionError> {
                 Ok(Self {
                     accessed_at: value.accessed_at?,
                     created_at: value.created_at?,
@@ -750,7 +1059,6 @@ pub mod types {
                 })
             }
         }
-
         impl From<super::ExistingBookmark> for ExistingBookmark {
             fn from(value: super::ExistingBookmark) -> Self {
                 Self {
@@ -770,13 +1078,11 @@ pub mod types {
                 }
             }
         }
-
         #[derive(Clone, Debug)]
         pub struct ExistingTag {
             created_at: Result<chrono::DateTime<chrono::offset::Utc>, String>,
             name: Result<String, String>,
         }
-
         impl Default for ExistingTag {
             fn default() -> Self {
                 Self {
@@ -785,7 +1091,6 @@ pub mod types {
                 }
             }
         }
-
         impl ExistingTag {
             pub fn created_at<T>(mut self, value: T) -> Self
             where
@@ -808,17 +1113,15 @@ pub mod types {
                 self
             }
         }
-
         impl std::convert::TryFrom<ExistingTag> for super::ExistingTag {
-            type Error = String;
-            fn try_from(value: ExistingTag) -> Result<Self, String> {
+            type Error = super::error::ConversionError;
+            fn try_from(value: ExistingTag) -> Result<Self, super::error::ConversionError> {
                 Ok(Self {
                     created_at: value.created_at?,
                     name: value.name?,
                 })
             }
         }
-
         impl From<super::ExistingTag> for ExistingTag {
             fn from(value: super::ExistingTag) -> Self {
                 Self {
@@ -827,13 +1130,11 @@ pub mod types {
                 }
             }
         }
-
         #[derive(Clone, Debug)]
         pub struct ListBookmarkResult {
             bookmarks: Result<Vec<super::AnnotatedBookmark>, String>,
             next_cursor: Result<Option<super::BookmarkId>, String>,
         }
-
         impl Default for ListBookmarkResult {
             fn default() -> Self {
                 Self {
@@ -842,7 +1143,6 @@ pub mod types {
                 }
             }
         }
-
         impl ListBookmarkResult {
             pub fn bookmarks<T>(mut self, value: T) -> Self
             where
@@ -865,17 +1165,15 @@ pub mod types {
                 self
             }
         }
-
         impl std::convert::TryFrom<ListBookmarkResult> for super::ListBookmarkResult {
-            type Error = String;
-            fn try_from(value: ListBookmarkResult) -> Result<Self, String> {
+            type Error = super::error::ConversionError;
+            fn try_from(value: ListBookmarkResult) -> Result<Self, super::error::ConversionError> {
                 Ok(Self {
                     bookmarks: value.bookmarks?,
                     next_cursor: value.next_cursor?,
                 })
             }
         }
-
         impl From<super::ListBookmarkResult> for ListBookmarkResult {
             fn from(value: super::ListBookmarkResult) -> Self {
                 Self {
@@ -884,13 +1182,11 @@ pub mod types {
                 }
             }
         }
-
         #[derive(Clone, Debug)]
         pub struct ListBookmarksResponse {
             bookmarks: Result<Vec<super::AnnotatedBookmark>, String>,
             next_cursor: Result<Option<super::BookmarkId>, String>,
         }
-
         impl Default for ListBookmarksResponse {
             fn default() -> Self {
                 Self {
@@ -899,7 +1195,6 @@ pub mod types {
                 }
             }
         }
-
         impl ListBookmarksResponse {
             pub fn bookmarks<T>(mut self, value: T) -> Self
             where
@@ -922,17 +1217,17 @@ pub mod types {
                 self
             }
         }
-
         impl std::convert::TryFrom<ListBookmarksResponse> for super::ListBookmarksResponse {
-            type Error = String;
-            fn try_from(value: ListBookmarksResponse) -> Result<Self, String> {
+            type Error = super::error::ConversionError;
+            fn try_from(
+                value: ListBookmarksResponse,
+            ) -> Result<Self, super::error::ConversionError> {
                 Ok(Self {
                     bookmarks: value.bookmarks?,
                     next_cursor: value.next_cursor?,
                 })
             }
         }
-
         impl From<super::ListBookmarksResponse> for ListBookmarksResponse {
             fn from(value: super::ListBookmarksResponse) -> Self {
                 Self {
@@ -941,13 +1236,11 @@ pub mod types {
                 }
             }
         }
-
         #[derive(Clone, Debug)]
         pub struct ListBookmarksWithTagResponse {
             bookmarks: Result<Vec<super::AnnotatedBookmark>, String>,
             next_cursor: Result<Option<super::BookmarkId>, String>,
         }
-
         impl Default for ListBookmarksWithTagResponse {
             fn default() -> Self {
                 Self {
@@ -956,7 +1249,6 @@ pub mod types {
                 }
             }
         }
-
         impl ListBookmarksWithTagResponse {
             pub fn bookmarks<T>(mut self, value: T) -> Self
             where
@@ -979,17 +1271,17 @@ pub mod types {
                 self
             }
         }
-
         impl std::convert::TryFrom<ListBookmarksWithTagResponse> for super::ListBookmarksWithTagResponse {
-            type Error = String;
-            fn try_from(value: ListBookmarksWithTagResponse) -> Result<Self, String> {
+            type Error = super::error::ConversionError;
+            fn try_from(
+                value: ListBookmarksWithTagResponse,
+            ) -> Result<Self, super::error::ConversionError> {
                 Ok(Self {
                     bookmarks: value.bookmarks?,
                     next_cursor: value.next_cursor?,
                 })
             }
         }
-
         impl From<super::ListBookmarksWithTagResponse> for ListBookmarksWithTagResponse {
             fn from(value: super::ListBookmarksWithTagResponse) -> Self {
                 Self {
@@ -998,13 +1290,11 @@ pub mod types {
                 }
             }
         }
-
         #[derive(Clone, Debug)]
         pub struct Pagination {
             cursor: Result<Option<super::BookmarkId>, String>,
             per_page: Result<Option<i64>, String>,
         }
-
         impl Default for Pagination {
             fn default() -> Self {
                 Self {
@@ -1013,7 +1303,6 @@ pub mod types {
                 }
             }
         }
-
         impl Pagination {
             pub fn cursor<T>(mut self, value: T) -> Self
             where
@@ -1036,17 +1325,15 @@ pub mod types {
                 self
             }
         }
-
         impl std::convert::TryFrom<Pagination> for super::Pagination {
-            type Error = String;
-            fn try_from(value: Pagination) -> Result<Self, String> {
+            type Error = super::error::ConversionError;
+            fn try_from(value: Pagination) -> Result<Self, super::error::ConversionError> {
                 Ok(Self {
                     cursor: value.cursor?,
                     per_page: value.per_page?,
                 })
             }
         }
-
         impl From<super::Pagination> for Pagination {
             fn from(value: super::Pagination) -> Self {
                 Self {
@@ -1055,12 +1342,10 @@ pub mod types {
                 }
             }
         }
-
         #[derive(Clone, Debug)]
         pub struct TagQuery {
             tags: Result<Vec<super::TagName>, String>,
         }
-
         impl Default for TagQuery {
             fn default() -> Self {
                 Self {
@@ -1068,7 +1353,6 @@ pub mod types {
                 }
             }
         }
-
         impl TagQuery {
             pub fn tags<T>(mut self, value: T) -> Self
             where
@@ -1081,14 +1365,12 @@ pub mod types {
                 self
             }
         }
-
         impl std::convert::TryFrom<TagQuery> for super::TagQuery {
-            type Error = String;
-            fn try_from(value: TagQuery) -> Result<Self, String> {
+            type Error = super::error::ConversionError;
+            fn try_from(value: TagQuery) -> Result<Self, super::error::ConversionError> {
                 Ok(Self { tags: value.tags? })
             }
         }
-
         impl From<super::TagQuery> for TagQuery {
             fn from(value: super::TagQuery) -> Self {
                 Self {
@@ -1098,18 +1380,16 @@ pub mod types {
         }
     }
 }
-
 #[derive(Clone, Debug)]
-///Client for lz-web
-///
-///
-///
-///Version: 0.1.0
+/**Client for lz-web
+
+
+
+Version: 0.1.0*/
 pub struct Client {
     pub(crate) baseurl: String,
     pub(crate) client: reqwest::Client,
 }
-
 impl Client {
     /// Create a new client.
     ///
@@ -1128,7 +1408,6 @@ impl Client {
         let client = reqwest::ClientBuilder::new();
         Self::new_with_client(baseurl, client.build().unwrap())
     }
-
     /// Construct a new client with an existing `reqwest::Client`,
     /// allowing more control over its configuration.
     ///
@@ -1141,17 +1420,14 @@ impl Client {
             client,
         }
     }
-
     /// Get the base URL to which requests are made.
     pub fn baseurl(&self) -> &String {
         &self.baseurl
     }
-
     /// Get the internal `reqwest::Client` used to make requests.
     pub fn client(&self) -> &reqwest::Client {
         &self.client
     }
-
     /// Get the version of this API.
     ///
     /// This string is pulled directly from the source OpenAPI
@@ -1160,69 +1436,66 @@ impl Client {
         "0.1.0"
     }
 }
-
 impl Client {
-    ///List the user's bookmarks, newest to oldest
-    ///
-    ///List the user's bookmarks, newest to oldest.
-    ///
-    ///Sends a `GET` request to `/bookmarks`
-    ///
-    ///```ignore
-    /// let response = client.list_bookmarks()
-    ///    .cursor(cursor)
-    ///    .per_page(per_page)
-    ///    .send()
-    ///    .await;
-    /// ```
+    /**List the user's bookmarks, newest to oldest
+
+    List the user's bookmarks, newest to oldest.
+
+    Sends a `GET` request to `/bookmarks`
+
+    ```ignore
+    let response = client.list_bookmarks()
+        .cursor(cursor)
+        .per_page(per_page)
+        .send()
+        .await;
+    ```*/
     pub fn list_bookmarks(&self) -> builder::ListBookmarks {
         builder::ListBookmarks::new(self)
     }
+    /**List bookmarks matching a tag, newest to oldest
 
-    ///List bookmarks matching a tag, newest to oldest
-    ///
-    ///List bookmarks matching a tag, newest to oldest.
-    ///
-    ///Sends a `GET` request to `/bookmarks/tagged/{query}`
-    ///
-    ///```ignore
-    /// let response = client.list_bookmarks_with_tag()
-    ///    .query(query)
-    ///    .cursor(cursor)
-    ///    .per_page(per_page)
-    ///    .send()
-    ///    .await;
-    /// ```
+    List bookmarks matching a tag, newest to oldest.
+
+    Sends a `GET` request to `/bookmarks/tagged/{query}`
+
+    ```ignore
+    let response = client.list_bookmarks_with_tag()
+        .query(query)
+        .cursor(cursor)
+        .per_page(per_page)
+        .send()
+        .await;
+    ```*/
     pub fn list_bookmarks_with_tag(&self) -> builder::ListBookmarksWithTag {
         builder::ListBookmarksWithTag::new(self)
     }
 }
-
+/// Types for composing operation parameters.
+#[allow(clippy::all)]
 pub mod builder {
     use super::types;
     #[allow(unused_imports)]
     use super::{
         encode_path, ByteStream, Error, HeaderMap, HeaderValue, RequestBuilderExt, ResponseValue,
     };
-    ///Builder for [`Client::list_bookmarks`]
-    ///
-    ///[`Client::list_bookmarks`]: super::Client::list_bookmarks
+    /**Builder for [`Client::list_bookmarks`]
+
+    [`Client::list_bookmarks`]: super::Client::list_bookmarks*/
     #[derive(Debug, Clone)]
     pub struct ListBookmarks<'a> {
         client: &'a super::Client,
         cursor: Result<Option<i64>, String>,
         per_page: Result<Option<i64>, String>,
     }
-
     impl<'a> ListBookmarks<'a> {
         pub fn new(client: &'a super::Client) -> Self {
             Self {
-                client,
+                client: client,
                 cursor: Ok(None),
                 per_page: Ok(None),
             }
         }
-
         pub fn cursor<V>(mut self, value: V) -> Self
         where
             V: std::convert::TryInto<i64>,
@@ -1233,7 +1506,6 @@ pub mod builder {
                 .map_err(|_| "conversion to `i64` for cursor failed".to_string());
             self
         }
-
         pub fn per_page<V>(mut self, value: V) -> Self
         where
             V: std::convert::TryInto<i64>,
@@ -1244,7 +1516,6 @@ pub mod builder {
                 .map_err(|_| "conversion to `i64` for per_page failed".to_string());
             self
         }
-
         ///Sends a `GET` request to `/bookmarks`
         pub async fn send(self) -> Result<ResponseValue<types::ListBookmarksResponse>, Error<()>> {
             let Self {
@@ -1262,7 +1533,8 @@ pub mod builder {
             if let Some(v) = &per_page {
                 query.push(("per_page", v.to_string()));
             }
-            let request = client
+            #[allow(unused_mut)]
+            let mut request = client
                 .client
                 .get(url)
                 .header(
@@ -1279,10 +1551,9 @@ pub mod builder {
             }
         }
     }
+    /**Builder for [`Client::list_bookmarks_with_tag`]
 
-    ///Builder for [`Client::list_bookmarks_with_tag`]
-    ///
-    ///[`Client::list_bookmarks_with_tag`]: super::Client::list_bookmarks_with_tag
+    [`Client::list_bookmarks_with_tag`]: super::Client::list_bookmarks_with_tag*/
     #[derive(Debug, Clone)]
     pub struct ListBookmarksWithTag<'a> {
         client: &'a super::Client,
@@ -1290,17 +1561,15 @@ pub mod builder {
         cursor: Result<Option<i64>, String>,
         per_page: Result<Option<i64>, String>,
     }
-
     impl<'a> ListBookmarksWithTag<'a> {
         pub fn new(client: &'a super::Client) -> Self {
             Self {
-                client,
+                client: client,
                 query: Err("query was not initialized".to_string()),
                 cursor: Ok(None),
                 per_page: Ok(None),
             }
         }
-
         pub fn query<V>(mut self, value: V) -> Self
         where
             V: std::convert::TryInto<String>,
@@ -1310,7 +1579,6 @@ pub mod builder {
                 .map_err(|_| "conversion to `String` for query failed".to_string());
             self
         }
-
         pub fn cursor<V>(mut self, value: V) -> Self
         where
             V: std::convert::TryInto<i64>,
@@ -1321,7 +1589,6 @@ pub mod builder {
                 .map_err(|_| "conversion to `i64` for cursor failed".to_string());
             self
         }
-
         pub fn per_page<V>(mut self, value: V) -> Self
         where
             V: std::convert::TryInto<i64>,
@@ -1332,7 +1599,6 @@ pub mod builder {
                 .map_err(|_| "conversion to `i64` for per_page failed".to_string());
             self
         }
-
         ///Sends a `GET` request to `/bookmarks/tagged/{query}`
         pub async fn send(
             self,
@@ -1351,21 +1617,22 @@ pub mod builder {
                 client.baseurl,
                 encode_path(&query.to_string()),
             );
-            let mut query = Vec::with_capacity(2usize);
+            let mut _query = Vec::with_capacity(2usize);
             if let Some(v) = &cursor {
-                query.push(("cursor", v.to_string()));
+                _query.push(("cursor", v.to_string()));
             }
             if let Some(v) = &per_page {
-                query.push(("per_page", v.to_string()));
+                _query.push(("per_page", v.to_string()));
             }
-            let request = client
+            #[allow(unused_mut)]
+            let mut request = client
                 .client
                 .get(url)
                 .header(
                     reqwest::header::ACCEPT,
                     reqwest::header::HeaderValue::from_static("application/json"),
                 )
-                .query(&query)
+                .query(&_query)
                 .build()?;
             let result = client.client.execute(request).await;
             let response = result?;
@@ -1376,7 +1643,7 @@ pub mod builder {
         }
     }
 }
-
+/// Items consumers will typically use such as the Client.
 pub mod prelude {
     pub use self::super::Client;
 }

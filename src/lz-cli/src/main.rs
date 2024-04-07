@@ -110,7 +110,7 @@ enum Commands {
 
     /// Writes the contents of the openapi.json file to stdout
     #[clap(alias = "generate-openapi-spec")]
-    GenerateOpenApiSpec,
+    GenerateOpenApiSpec(lz_web::export_openapi::Args),
 }
 
 #[tokio::main]
@@ -141,7 +141,7 @@ async fn main() -> Result<()> {
             let conn = Connection::from_path(&cli.db).await?;
             lz_web::run(conn, args).await?;
         }
-        Commands::GenerateOpenApiSpec => lz_web::export_openapi::run()?,
+        Commands::GenerateOpenApiSpec(args) => lz_web::export_openapi::run(args)?,
     }
     Ok(())
 }

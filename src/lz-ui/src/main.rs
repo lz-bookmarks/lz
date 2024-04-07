@@ -1,6 +1,7 @@
 #![allow(non_snake_case)]
 
 use dioxus::prelude::*;
+use lz_openapi::types::AnnotatedBookmark;
 use tracing::Level;
 #[allow(unused_imports)]
 use tracing::{debug, error, info, warn};
@@ -57,19 +58,29 @@ fn Home() -> Element {
             match &*bookmarks.read_unchecked() {
                 Some(Ok(bookmarks)) =>
                 rsx!{
-                    ul {
+                    section {
                         for abm in &bookmarks.bookmarks {
-                            li {
-                                a {
-                                    href: "{abm.bookmark.url}",
-                                    "{abm.bookmark.title}"
-                                }
-                            }
+                            Bookmark { abm: abm.clone() }
                         }
                     }
                 },
                 Some(Err(e)) => {error!{?e}; None},
                 None => rsx!{ p { "Loading..."}},
+            }
+        }
+    }
+}
+
+#[component]
+fn Bookmark(abm: AnnotatedBookmark) -> Element {
+    rsx! {
+        article {
+            a {
+                href: "{abm.bookmark.url}",
+                "{abm.bookmark.title}"
+            }
+            if let Some(description) = abm.bookmark.description {
+                blockquote { "{description}" }
             }
         }
     }

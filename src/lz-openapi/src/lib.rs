@@ -143,7 +143,7 @@ pub mod types {
     ///}
     /// ```
     /// </details>
-    #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+    #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
     pub struct BookmarkId(pub i64);
     impl std::ops::Deref for BookmarkId {
         type Target = i64;
@@ -697,7 +697,7 @@ pub mod types {
     ///}
     /// ```
     /// </details>
-    #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+    #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
     pub struct UserId(pub i64);
     impl std::ops::Deref for UserId {
         type Target = i64;

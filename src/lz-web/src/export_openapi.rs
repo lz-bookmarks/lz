@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use anyhow::Context as _;
 use clap::Parser;
 #[cfg(feature = "dev")]
-use progenitor::{GenerationSettings, Generator, InterfaceStyle};
+use progenitor::{GenerationSettings, Generator, InterfaceStyle, TypePatch};
 use utoipa::OpenApi as _;
 
 use crate::api;
@@ -30,7 +30,10 @@ pub fn run(args: &Args) -> anyhow::Result<()> {
         let mut generator = Generator::new(
             GenerationSettings::new()
                 .with_interface(InterfaceStyle::Builder)
-                .with_derive("PartialEq"), // required by dioxus component props
+                .with_derive("PartialEq") // required by dioxus component props
+                // Patch Copy onto all ID types:
+                .with_patch("BookmarkId", TypePatch::default().with_derive("Copy"))
+                .with_patch("UserId", TypePatch::default().with_derive("Copy")),
         );
 
         let tokens = generator.generate_tokens(&spec).unwrap();

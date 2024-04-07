@@ -12,6 +12,7 @@ dioxus = { workspace = true, features = ["web", "router"] }
 tracing = {workspace = true}
 tracing-wasm = { workspace = true }
 web-sys = {version = "0.3.69", features = ["Window"] }
+futures = { workspace = true }
 
 # Debug
 log = { workspace = true }

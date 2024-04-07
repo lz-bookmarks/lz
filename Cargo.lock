@@ -2473,6 +2473,7 @@ dependencies = [
  "dioxus",
  "dioxus-logger",
  "log",
+ "lz-openapi",
  "tracing",
  "tracing-wasm",
 ]

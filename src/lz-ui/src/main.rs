@@ -43,18 +43,34 @@ fn Blog(id: i32) -> Element {
 #[component]
 fn Home() -> Element {
     let mut count = use_signal(|| 0);
+    let bookmarks = use_resource(move || async move {
+        let client = lz_openapi::Client::new("http://localhost:3000/api/v1");
+        client.list_bookmarks().send().await
+    });
 
     rsx! {
-        Link {
-            to: Route::Blog {
-                id: count()
-            },
-            "Go to blog"
-        }
+        Link { to: Route::Blog { id: count() }, "Go to blog" }
         div {
             h1 { "High-Five counter: {count}" }
             button { onclick: move |_| count += 1, "Up high!" }
             button { onclick: move |_| count -= 1, "Down low!" }
+            match &*bookmarks.read_unchecked() {
+                Some(Ok(bookmarks)) =>
+                rsx!{
+                    ul {
+                        for abm in &bookmarks.bookmarks {
+                            li {
+                                a {
+                                    href: "{abm.bookmark.url}",
+                                    "{abm.bookmark.title}"
+                                }
+                            }
+                        }
+                    }
+                },
+                Some(Err(e)) => {error!{?e}; None},
+                None => rsx!{ p { "Loading..."}},
+            }
         }
     }
 }

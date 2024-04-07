@@ -10,8 +10,6 @@ use tracing::{debug, error, info, warn};
 enum Route {
     #[route("/")]
     Home {},
-    #[route("/blog/:id")]
-    Blog { id: i32 },
 }
 
 fn main() {
@@ -27,34 +25,27 @@ fn main() {
 }
 
 fn App() -> Element {
-    use_effect(|| debug!("hi"));
     rsx! {
         Router::<Route> {}
     }
 }
 
 #[component]
-fn Blog(id: i32) -> Element {
-    rsx! {
-        Link { to: Route::Home {}, "Go to counter" }
-        "Blog post {id}"
-    }
-}
-
-#[component]
 fn Home() -> Element {
-    let mut count = use_signal(|| 0);
-    let bookmarks = use_resource(move || async move {
-        let client = lz_openapi::Client::new("http://localhost:3000/api/v1");
-        client.list_bookmarks().send().await
+    let base_url = web_sys::window()
+        .map(|w| w.location().href().unwrap() + "api/v1")
+        .unwrap();
+    let bookmarks = use_resource(move || {
+        let base_url = base_url.clone();
+        async move {
+            let client = lz_openapi::Client::new(&base_url);
+            client.list_bookmarks().send().await
+        }
     });
 
     rsx! {
-        Link { to: Route::Blog { id: count() }, "Go to blog" }
         div {
-            h1 { "High-Five counter: {count}" }
-            button { onclick: move |_| count += 1, "Up high!" }
-            button { onclick: move |_| count -= 1, "Down low!" }
+            h1 { "My Bookmarks" }
             match &*bookmarks.read_unchecked() {
                 Some(Ok(bookmarks)) =>
                 rsx!{
@@ -75,6 +66,7 @@ fn Home() -> Element {
 fn Bookmark(abm: AnnotatedBookmark) -> Element {
     rsx! {
         article {
+            span { "{abm.bookmark.created_at} " }
             a {
                 href: "{abm.bookmark.url}",
                 "{abm.bookmark.title}"

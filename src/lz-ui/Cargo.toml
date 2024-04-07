@@ -11,8 +11,8 @@ lz-openapi = { path = "../lz-openapi" }
 dioxus = { workspace = true, features = ["web", "router"] }
 tracing = {workspace = true}
 tracing-wasm = { workspace = true }
+web-sys = {version = "0.3.69", features = ["Window"] }
 
 # Debug
 log = { workspace = true }
-dioxus-logger = { workspace = true }
 console_error_panic_hook = { workspace = true }

@@ -168,8 +168,8 @@ async fn list_cmd(
     };
     if let Some(tag_strings) = tagged {
         for namestring in tag_strings.iter() {
-            let name = lz_db::TagName(namestring.clone());
-            filters.push(BookmarkSearch::TagByName { name });
+            let tag = lz_db::TagName(namestring.clone());
+            filters.push(BookmarkSearch::TagByName { tag });
         }
     }
     loop {

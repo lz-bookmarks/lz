@@ -40,7 +40,7 @@ fn App() -> Element {
 }
 
 /// A context-available signal that contains an API client for the lz server.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub(crate) struct ApiClient(lz_openapi::Client);
 
 /// Use an API client.

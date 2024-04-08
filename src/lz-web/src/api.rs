@@ -7,19 +7,19 @@ mod searching;
 
 use std::sync::Arc;
 
-use axum::extract::Query;
 use axum::http::StatusCode;
-use axum::routing::get;
+use axum::routing::post;
 use axum::{debug_handler, Json, Router};
-use axum_valid::Valid;
 use lz_db::{
-    AssociatedLink, BookmarkId, BookmarkSearch, ExistingBookmark, ExistingTag, TagName, UserId,
+    AssociatedLink, BookmarkId, BookmarkSearch, BookmarkSearchDateParams,
+    BookmarkSearchDatetimeField, BookmarkSearchDatetimeOrientation, DateInput, ExistingBookmark,
+    ExistingTag, TagId, TagName, UserId,
 };
 use searching::TagQuery;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tower_http::cors::CorsLayer;
-use utoipa::{OpenApi, ToResponse, ToSchema};
+use utoipa::{IntoParams, OpenApi, ToResponse, ToSchema};
 use validator::Validate;
 
 use crate::db::{DbTransaction, GlobalWebAppState};
@@ -31,7 +31,7 @@ use crate::db::{DbTransaction, GlobalWebAppState};
     security(),
     servers((url = "/api/v1/")),
     components(
-        schemas(ListBookmarkResult, AnnotatedBookmark, AssociatedLink, UserId, BookmarkId, ExistingBookmark, ExistingTag, Pagination, TagName, TagQuery),
+        schemas(ListBookmarkResult, AnnotatedBookmark, AssociatedLink, UserId, BookmarkId, ExistingBookmark, ExistingTag, Pagination, TagName, TagQuery, ListRequest, BookmarkSearch, BookmarkSearchDateParams, DateInput, BookmarkSearchDatetimeField, BookmarkSearchDatetimeOrientation, TagId),
         responses(ListBookmarkResult, AnnotatedBookmark, AssociatedLink, UserId, ExistingBookmark, ExistingTag)
     )
 )]
@@ -39,7 +39,7 @@ pub struct ApiDoc;
 
 pub fn router() -> Router<Arc<GlobalWebAppState>> {
     let router = Router::new()
-        .route("/bookmarks", get(list_bookmarks_matching))
+        .route("/bookmarks", post(list_bookmarks_matching))
         .layer(CorsLayer::permissive());
     observability::add_layers(router)
 }
@@ -73,7 +73,6 @@ where
     Deserialize, Serialize, Debug, Clone, Default, PartialEq, Eq, Hash, Validate, ToSchema,
 )]
 #[schema(default)]
-#[serde(rename_all = "camelCase")]
 struct Pagination {
     /// The last batch's last (oldest) bookmark ID
     #[schema(example = None)]
@@ -91,7 +90,6 @@ struct Pagination {
 /// set, passing that value to the `cursor` pagination parameter will
 /// fetch the next page.
 #[derive(Serialize, Debug, ToSchema, ToResponse)]
-#[serde(rename_all = "camelCase")]
 pub struct ListBookmarkResult {
     bookmarks: Vec<AnnotatedBookmark>,
     next_cursor: Option<BookmarkId>,
@@ -104,41 +102,40 @@ pub struct AnnotatedBookmark {
     tags: Vec<ExistingTag>,
     associations: Vec<AssociatedLink>,
 }
+
+/// A bookmark search query request
+#[derive(Serialize, Deserialize, ToSchema, IntoParams)]
+pub struct ListRequest {
+    /// A search of criteria, restricting the set of bookmarks that qualify.
+    ///
+    /// All criteria are merged using logical AND / set intersection.
+    #[serde(default)]
+    query: Vec<BookmarkSearch>,
+
+    #[serde(flatten)]
+    pagination: Option<Pagination>,
+}
+
 /// List the user's bookmarks matching a query, newest to oldest.
 #[debug_handler(state = Arc<GlobalWebAppState>)]
-#[utoipa::path(get,
+#[utoipa::path(post,
     path = "/bookmarks",
     tag = "Bookmarks",
-    params(
-        TagQuery,
-        ("cursor" = inline(Option<BookmarkId>),
-            Query,
-            style = Form,
-        ),
-        ("per_page" = inline(Option<u16>),
-            Query,
-            style = Form,
-        ),
-    ),
     responses(
         (status = 200, body = inline(ListBookmarkResult), description = "Lists bookmarks matching the tag"),
     ),
 )]
 #[tracing::instrument(err(Debug, level = tracing::Level::WARN), skip(txn))]
 async fn list_bookmarks_matching(
-    TagQuery { tags }: TagQuery,
     mut txn: DbTransaction,
-    pagination: Option<Valid<Query<Pagination>>>,
+    Json(ListRequest { query, pagination }): Json<ListRequest>,
 ) -> Result<Json<ListBookmarkResult>, (StatusCode, Json<ApiError>)> {
     let pagination = pagination.unwrap_or_default();
     let per_page = pagination.per_page.unwrap_or(20);
     let user_id = txn.user().id;
     let bms = txn
         .list_bookmarks_matching(
-            tags.into_iter()
-                .map(|name| BookmarkSearch::TagByName { name })
-                .chain([BookmarkSearch::User { id: user_id }])
-                .collect(),
+            [&[BookmarkSearch::User { id: user_id }], query.as_slice()].concat(),
             per_page,
             pagination.cursor,
         )

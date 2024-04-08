@@ -1,5 +1,7 @@
 use dioxus::prelude::*;
-use lz_openapi::types::{AnnotatedBookmark, BookmarkId, ListBookmarksResponse};
+use lz_openapi::types::{
+    AnnotatedBookmark, BookmarkId, ListBookmarksMatchingResponse, ListRequest,
+};
 #[allow(unused_imports)]
 use tracing::{debug, error, info, warn};
 
@@ -65,13 +67,15 @@ fn use_bookmark_list(
             };
             let original_state = state.read().clone();
             *state.write() = BookmarkListState::Loading;
-            let mut list_call = client.list_bookmarks();
-            if let Some(next_cursor) = &next_cursor {
-                list_call = list_call.cursor(next_cursor.clone());
-            }
+            let query = ListRequest {
+                query: vec![],
+                cursor: next_cursor,
+                per_page: Default::default(),
+            };
+            let list_call = client.list_bookmarks_matching().body(query);
             match list_call.send().await {
                 Ok(response) => {
-                    let ListBookmarksResponse {
+                    let ListBookmarksMatchingResponse {
                         next_cursor,
                         bookmarks,
                     } = &*response;

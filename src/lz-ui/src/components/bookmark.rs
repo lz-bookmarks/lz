@@ -1,3 +1,4 @@
+use super::Tag;
 use dioxus::prelude::*;
 use lz_openapi::types::AnnotatedBookmark;
 
@@ -9,6 +10,10 @@ pub(crate) fn Bookmark(abm: AnnotatedBookmark) -> Element {
             a {
                 href: "{abm.bookmark.url}",
                 "{abm.bookmark.title}"
+            }
+            for tag in abm.tags {
+                Tag { name: tag.name }
+                "  "
             }
             if let Some(description) = abm.bookmark.description {
                 blockquote { "{description}" }

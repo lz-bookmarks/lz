@@ -21,7 +21,6 @@ use crate::db::GlobalWebAppState;
 #[into_params(style = Form, parameter_in = Query)]
 pub(crate) struct TagQuery {
     /// Tags that all returned items should have.
-    #[schema(min_items = 1)]
     #[serde(default)]
     pub tags: Vec<TagName>,
 }

@@ -195,6 +195,309 @@ pub mod types {
             self.0.to_string()
         }
     }
+    /**The possible criteria that we can search for in a bookmark
+    query. See [BookmarkSearchCriteria].*/
+    ///
+    /// <details><summary>JSON schema</summary>
+    ///
+    /// ```json
+    ///{
+    ///  "description": "The possible criteria that we can search for in a bookmark\nquery. See [BookmarkSearchCriteria].",
+    ///  "oneOf": [
+    ///    {
+    ///      "description": "Only list bookmarks that have matching timestamps",
+    ///      "type": "object",
+    ///      "required": [
+    ///        "date"
+    ///      ],
+    ///      "properties": {
+    ///        "date": {
+    ///          "$ref": "#/components/schemas/BookmarkSearchDateParams"
+    ///        }
+    ///      }
+    ///    },
+    ///    {
+    ///      "description": "Only list bookmarks that are tagged with a tag of the given name.",
+    ///      "type": "object",
+    ///      "required": [
+    ///        "tag"
+    ///      ],
+    ///      "properties": {
+    ///        "tag": {
+    ///          "$ref": "#/components/schemas/TagName"
+    ///        }
+    ///      }
+    ///    },
+    ///    {
+    ///      "description": "Only list bookmarks that are tagged with a tag with the given ID.",
+    ///      "type": "object",
+    ///      "required": [
+    ///        "tag_id"
+    ///      ],
+    ///      "properties": {
+    ///        "tag_id": {
+    ///          "$ref": "#/components/schemas/TagId"
+    ///        }
+    ///      }
+    ///    },
+    ///    {
+    ///      "description": "Only list bookmarks belonging to the given user.",
+    ///      "type": "object",
+    ///      "required": [
+    ///        "user_id"
+    ///      ],
+    ///      "properties": {
+    ///        "user_id": {
+    ///          "$ref": "#/components/schemas/UserId"
+    ///        }
+    ///      }
+    ///    }
+    ///  ]
+    ///}
+    /// ```
+    /// </details>
+    #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+    pub enum BookmarkSearch {
+        ///Only list bookmarks that have matching timestamps
+        #[serde(rename = "date")]
+        Date(BookmarkSearchDateParams),
+        ///Only list bookmarks that are tagged with a tag of the given name.
+        #[serde(rename = "tag")]
+        Tag(TagName),
+        ///Only list bookmarks that are tagged with a tag with the given ID.
+        #[serde(rename = "tag_id")]
+        TagId(TagId),
+        ///Only list bookmarks belonging to the given user.
+        #[serde(rename = "user_id")]
+        UserId(UserId),
+    }
+    impl From<&BookmarkSearch> for BookmarkSearch {
+        fn from(value: &BookmarkSearch) -> Self {
+            value.clone()
+        }
+    }
+    impl From<BookmarkSearchDateParams> for BookmarkSearch {
+        fn from(value: BookmarkSearchDateParams) -> Self {
+            Self::Date(value)
+        }
+    }
+    impl From<TagName> for BookmarkSearch {
+        fn from(value: TagName) -> Self {
+            Self::Tag(value)
+        }
+    }
+    impl From<TagId> for BookmarkSearch {
+        fn from(value: TagId) -> Self {
+            Self::TagId(value)
+        }
+    }
+    impl From<UserId> for BookmarkSearch {
+        fn from(value: UserId) -> Self {
+            Self::UserId(value)
+        }
+    }
+    ///BookmarkSearchDateParams
+    ///
+    /// <details><summary>JSON schema</summary>
+    ///
+    /// ```json
+    ///{
+    ///  "type": "object",
+    ///  "required": [
+    ///    "date",
+    ///    "field",
+    ///    "orientation"
+    ///  ],
+    ///  "properties": {
+    ///    "date": {
+    ///      "$ref": "#/components/schemas/DateInput"
+    ///    },
+    ///    "field": {
+    ///      "$ref": "#/components/schemas/BookmarkSearchDatetimeField"
+    ///    },
+    ///    "orientation": {
+    ///      "$ref": "#/components/schemas/BookmarkSearchDatetimeOrientation"
+    ///    }
+    ///  }
+    ///}
+    /// ```
+    /// </details>
+    #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+    pub struct BookmarkSearchDateParams {
+        pub date: DateInput,
+        pub field: BookmarkSearchDatetimeField,
+        pub orientation: BookmarkSearchDatetimeOrientation,
+    }
+    impl From<&BookmarkSearchDateParams> for BookmarkSearchDateParams {
+        fn from(value: &BookmarkSearchDateParams) -> Self {
+            value.clone()
+        }
+    }
+    impl BookmarkSearchDateParams {
+        pub fn builder() -> builder::BookmarkSearchDateParams {
+            Default::default()
+        }
+    }
+    ///BookmarkSearchDatetimeField
+    ///
+    /// <details><summary>JSON schema</summary>
+    ///
+    /// ```json
+    ///{
+    ///  "type": "string",
+    ///  "enum": [
+    ///    "Created"
+    ///  ]
+    ///}
+    /// ```
+    /// </details>
+    #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
+    pub enum BookmarkSearchDatetimeField {
+        Created,
+    }
+    impl From<&BookmarkSearchDatetimeField> for BookmarkSearchDatetimeField {
+        fn from(value: &BookmarkSearchDatetimeField) -> Self {
+            value.clone()
+        }
+    }
+    impl ToString for BookmarkSearchDatetimeField {
+        fn to_string(&self) -> String {
+            match *self {
+                Self::Created => "Created".to_string(),
+            }
+        }
+    }
+    impl std::str::FromStr for BookmarkSearchDatetimeField {
+        type Err = self::error::ConversionError;
+        fn from_str(value: &str) -> Result<Self, self::error::ConversionError> {
+            match value {
+                "Created" => Ok(Self::Created),
+                _ => Err("invalid value".into()),
+            }
+        }
+    }
+    impl std::convert::TryFrom<&str> for BookmarkSearchDatetimeField {
+        type Error = self::error::ConversionError;
+        fn try_from(value: &str) -> Result<Self, self::error::ConversionError> {
+            value.parse()
+        }
+    }
+    impl std::convert::TryFrom<&String> for BookmarkSearchDatetimeField {
+        type Error = self::error::ConversionError;
+        fn try_from(value: &String) -> Result<Self, self::error::ConversionError> {
+            value.parse()
+        }
+    }
+    impl std::convert::TryFrom<String> for BookmarkSearchDatetimeField {
+        type Error = self::error::ConversionError;
+        fn try_from(value: String) -> Result<Self, self::error::ConversionError> {
+            value.parse()
+        }
+    }
+    ///BookmarkSearchDatetimeOrientation
+    ///
+    /// <details><summary>JSON schema</summary>
+    ///
+    /// ```json
+    ///{
+    ///  "type": "string",
+    ///  "enum": [
+    ///    "After",
+    ///    "Before"
+    ///  ]
+    ///}
+    /// ```
+    /// </details>
+    #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
+    pub enum BookmarkSearchDatetimeOrientation {
+        After,
+        Before,
+    }
+    impl From<&BookmarkSearchDatetimeOrientation> for BookmarkSearchDatetimeOrientation {
+        fn from(value: &BookmarkSearchDatetimeOrientation) -> Self {
+            value.clone()
+        }
+    }
+    impl ToString for BookmarkSearchDatetimeOrientation {
+        fn to_string(&self) -> String {
+            match *self {
+                Self::After => "After".to_string(),
+                Self::Before => "Before".to_string(),
+            }
+        }
+    }
+    impl std::str::FromStr for BookmarkSearchDatetimeOrientation {
+        type Err = self::error::ConversionError;
+        fn from_str(value: &str) -> Result<Self, self::error::ConversionError> {
+            match value {
+                "After" => Ok(Self::After),
+                "Before" => Ok(Self::Before),
+                _ => Err("invalid value".into()),
+            }
+        }
+    }
+    impl std::convert::TryFrom<&str> for BookmarkSearchDatetimeOrientation {
+        type Error = self::error::ConversionError;
+        fn try_from(value: &str) -> Result<Self, self::error::ConversionError> {
+            value.parse()
+        }
+    }
+    impl std::convert::TryFrom<&String> for BookmarkSearchDatetimeOrientation {
+        type Error = self::error::ConversionError;
+        fn try_from(value: &String) -> Result<Self, self::error::ConversionError> {
+            value.parse()
+        }
+    }
+    impl std::convert::TryFrom<String> for BookmarkSearchDatetimeOrientation {
+        type Error = self::error::ConversionError;
+        fn try_from(value: String) -> Result<Self, self::error::ConversionError> {
+            value.parse()
+        }
+    }
+    ///DateInput
+    ///
+    /// <details><summary>JSON schema</summary>
+    ///
+    /// ```json
+    ///{
+    ///  "type": "string"
+    ///}
+    /// ```
+    /// </details>
+    #[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
+    pub struct DateInput(pub String);
+    impl std::ops::Deref for DateInput {
+        type Target = String;
+        fn deref(&self) -> &String {
+            &self.0
+        }
+    }
+    impl From<DateInput> for String {
+        fn from(value: DateInput) -> Self {
+            value.0
+        }
+    }
+    impl From<&DateInput> for DateInput {
+        fn from(value: &DateInput) -> Self {
+            value.clone()
+        }
+    }
+    impl From<String> for DateInput {
+        fn from(value: String) -> Self {
+            Self(value)
+        }
+    }
+    impl std::str::FromStr for DateInput {
+        type Err = std::convert::Infallible;
+        fn from_str(value: &str) -> Result<Self, Self::Err> {
+            Ok(Self(value.to_string()))
+        }
+    }
+    impl ToString for DateInput {
+        fn to_string(&self) -> String {
+            self.0.to_string()
+        }
+    }
     /**A bookmark saved by a user.
 
     See the section in [Transaction][Transaction#working-with-bookmarks]*/
@@ -406,7 +709,7 @@ pub mod types {
     ///        "$ref": "#/components/schemas/AnnotatedBookmark"
     ///      }
     ///    },
-    ///    "nextCursor": {
+    ///    "next_cursor": {
     ///      "allOf": [
     ///        {
     ///          "$ref": "#/components/schemas/BookmarkId"
@@ -420,11 +723,7 @@ pub mod types {
     #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
     pub struct ListBookmarkResult {
         pub bookmarks: Vec<AnnotatedBookmark>,
-        #[serde(
-            rename = "nextCursor",
-            default,
-            skip_serializing_if = "Option::is_none"
-        )]
+        #[serde(default, skip_serializing_if = "Option::is_none")]
         pub next_cursor: Option<BookmarkId>,
     }
     impl From<&ListBookmarkResult> for ListBookmarkResult {
@@ -459,7 +758,7 @@ pub mod types {
     ///        "$ref": "#/components/schemas/AnnotatedBookmark"
     ///      }
     ///    },
-    ///    "nextCursor": {
+    ///    "next_cursor": {
     ///      "allOf": [
     ///        {
     ///          "$ref": "#/components/schemas/BookmarkId"
@@ -473,11 +772,7 @@ pub mod types {
     #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
     pub struct ListBookmarksMatchingResponse {
         pub bookmarks: Vec<AnnotatedBookmark>,
-        #[serde(
-            rename = "nextCursor",
-            default,
-            skip_serializing_if = "Option::is_none"
-        )]
+        #[serde(default, skip_serializing_if = "Option::is_none")]
         pub next_cursor: Option<BookmarkId>,
     }
     impl From<&ListBookmarksMatchingResponse> for ListBookmarksMatchingResponse {
@@ -487,6 +782,60 @@ pub mod types {
     }
     impl ListBookmarksMatchingResponse {
         pub fn builder() -> builder::ListBookmarksMatchingResponse {
+            Default::default()
+        }
+    }
+    ///A bookmark search query request
+    ///
+    /// <details><summary>JSON schema</summary>
+    ///
+    /// ```json
+    ///{
+    ///  "description": "A bookmark search query request",
+    ///  "allOf": [
+    ///    {
+    ///      "allOf": [
+    ///        {
+    ///          "$ref": "#/components/schemas/Pagination"
+    ///        }
+    ///      ]
+    ///    },
+    ///    {
+    ///      "type": "object",
+    ///      "properties": {
+    ///        "query": {
+    ///          "description": "A search of criteria, restricting the set of bookmarks that qualify.\n\nAll criteria are merged using logical AND / set intersection.",
+    ///          "type": "array",
+    ///          "items": {
+    ///            "$ref": "#/components/schemas/BookmarkSearch"
+    ///          }
+    ///        }
+    ///      }
+    ///    }
+    ///  ]
+    ///}
+    /// ```
+    /// </details>
+    #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+    pub struct ListRequest {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub cursor: Option<BookmarkId>,
+        ///How many items to return
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub per_page: Option<i64>,
+        /**A search of criteria, restricting the set of bookmarks that qualify.
+
+        All criteria are merged using logical AND / set intersection.*/
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        pub query: Vec<BookmarkSearch>,
+    }
+    impl From<&ListRequest> for ListRequest {
+        fn from(value: &ListRequest) -> Self {
+            value.clone()
+        }
+    }
+    impl ListRequest {
+        pub fn builder() -> builder::ListRequest {
             Default::default()
         }
     }
@@ -511,7 +860,7 @@ pub mod types {
     ///        }
     ///      ]
     ///    },
-    ///    "perPage": {
+    ///    "per_page": {
     ///      "description": "How many items to return",
     ///      "examples": [
     ///        50
@@ -532,7 +881,7 @@ pub mod types {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         pub cursor: Option<BookmarkId>,
         ///How many items to return
-        #[serde(rename = "perPage", default, skip_serializing_if = "Option::is_none")]
+        #[serde(default, skip_serializing_if = "Option::is_none")]
         pub per_page: Option<i64>,
     }
     impl From<&Pagination> for Pagination {
@@ -543,6 +892,70 @@ pub mod types {
     impl Pagination {
         pub fn builder() -> builder::Pagination {
             Default::default()
+        }
+    }
+    ///The database ID of a tag.
+    ///
+    /// <details><summary>JSON schema</summary>
+    ///
+    /// ```json
+    ///{
+    ///  "description": "The database ID of a tag.",
+    ///  "type": "integer",
+    ///  "format": "int64"
+    ///}
+    /// ```
+    /// </details>
+    #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+    pub struct TagId(pub i64);
+    impl std::ops::Deref for TagId {
+        type Target = i64;
+        fn deref(&self) -> &i64 {
+            &self.0
+        }
+    }
+    impl From<TagId> for i64 {
+        fn from(value: TagId) -> Self {
+            value.0
+        }
+    }
+    impl From<&TagId> for TagId {
+        fn from(value: &TagId) -> Self {
+            value.clone()
+        }
+    }
+    impl From<i64> for TagId {
+        fn from(value: i64) -> Self {
+            Self(value)
+        }
+    }
+    impl std::str::FromStr for TagId {
+        type Err = <i64 as std::str::FromStr>::Err;
+        fn from_str(value: &str) -> Result<Self, Self::Err> {
+            Ok(Self(value.parse()?))
+        }
+    }
+    impl std::convert::TryFrom<&str> for TagId {
+        type Error = <i64 as std::str::FromStr>::Err;
+        fn try_from(value: &str) -> Result<Self, Self::Error> {
+            value.parse()
+        }
+    }
+    impl std::convert::TryFrom<&String> for TagId {
+        type Error = <i64 as std::str::FromStr>::Err;
+        fn try_from(value: &String) -> Result<Self, Self::Error> {
+            value.parse()
+        }
+    }
+    impl std::convert::TryFrom<String> for TagId {
+        type Error = <i64 as std::str::FromStr>::Err;
+        fn try_from(value: String) -> Result<Self, Self::Error> {
+            value.parse()
+        }
+    }
+    impl ToString for TagId {
+        fn to_string(&self) -> String {
+            self.0.to_string()
         }
     }
     ///The name representation of a tag.
@@ -606,8 +1019,7 @@ pub mod types {
     ///      "type": "array",
     ///      "items": {
     ///        "$ref": "#/components/schemas/TagName"
-    ///      },
-    ///      "minItems": 1
+    ///      }
     ///    }
     ///  }
     ///}
@@ -810,6 +1222,74 @@ pub mod types {
                 Self {
                     context: Ok(value.context),
                     link: Ok(value.link),
+                }
+            }
+        }
+        #[derive(Clone, Debug)]
+        pub struct BookmarkSearchDateParams {
+            date: Result<super::DateInput, String>,
+            field: Result<super::BookmarkSearchDatetimeField, String>,
+            orientation: Result<super::BookmarkSearchDatetimeOrientation, String>,
+        }
+        impl Default for BookmarkSearchDateParams {
+            fn default() -> Self {
+                Self {
+                    date: Err("no value supplied for date".to_string()),
+                    field: Err("no value supplied for field".to_string()),
+                    orientation: Err("no value supplied for orientation".to_string()),
+                }
+            }
+        }
+        impl BookmarkSearchDateParams {
+            pub fn date<T>(mut self, value: T) -> Self
+            where
+                T: std::convert::TryInto<super::DateInput>,
+                T::Error: std::fmt::Display,
+            {
+                self.date = value
+                    .try_into()
+                    .map_err(|e| format!("error converting supplied value for date: {}", e));
+                self
+            }
+            pub fn field<T>(mut self, value: T) -> Self
+            where
+                T: std::convert::TryInto<super::BookmarkSearchDatetimeField>,
+                T::Error: std::fmt::Display,
+            {
+                self.field = value
+                    .try_into()
+                    .map_err(|e| format!("error converting supplied value for field: {}", e));
+                self
+            }
+            pub fn orientation<T>(mut self, value: T) -> Self
+            where
+                T: std::convert::TryInto<super::BookmarkSearchDatetimeOrientation>,
+                T::Error: std::fmt::Display,
+            {
+                self.orientation = value
+                    .try_into()
+                    .map_err(|e| format!("error converting supplied value for orientation: {}", e));
+                self
+            }
+        }
+        impl std::convert::TryFrom<BookmarkSearchDateParams> for super::BookmarkSearchDateParams {
+            type Error = super::error::ConversionError;
+            fn try_from(
+                value: BookmarkSearchDateParams,
+            ) -> Result<Self, super::error::ConversionError> {
+                Ok(Self {
+                    date: value.date?,
+                    field: value.field?,
+                    orientation: value.orientation?,
+                })
+            }
+        }
+        impl From<super::BookmarkSearchDateParams> for BookmarkSearchDateParams {
+            fn from(value: super::BookmarkSearchDateParams) -> Self {
+                Self {
+                    date: Ok(value.date),
+                    field: Ok(value.field),
+                    orientation: Ok(value.orientation),
                 }
             }
         }
@@ -1181,6 +1661,72 @@ pub mod types {
             }
         }
         #[derive(Clone, Debug)]
+        pub struct ListRequest {
+            cursor: Result<Option<super::BookmarkId>, String>,
+            per_page: Result<Option<i64>, String>,
+            query: Result<Vec<super::BookmarkSearch>, String>,
+        }
+        impl Default for ListRequest {
+            fn default() -> Self {
+                Self {
+                    cursor: Ok(Default::default()),
+                    per_page: Ok(Default::default()),
+                    query: Ok(Default::default()),
+                }
+            }
+        }
+        impl ListRequest {
+            pub fn cursor<T>(mut self, value: T) -> Self
+            where
+                T: std::convert::TryInto<Option<super::BookmarkId>>,
+                T::Error: std::fmt::Display,
+            {
+                self.cursor = value
+                    .try_into()
+                    .map_err(|e| format!("error converting supplied value for cursor: {}", e));
+                self
+            }
+            pub fn per_page<T>(mut self, value: T) -> Self
+            where
+                T: std::convert::TryInto<Option<i64>>,
+                T::Error: std::fmt::Display,
+            {
+                self.per_page = value
+                    .try_into()
+                    .map_err(|e| format!("error converting supplied value for per_page: {}", e));
+                self
+            }
+            pub fn query<T>(mut self, value: T) -> Self
+            where
+                T: std::convert::TryInto<Vec<super::BookmarkSearch>>,
+                T::Error: std::fmt::Display,
+            {
+                self.query = value
+                    .try_into()
+                    .map_err(|e| format!("error converting supplied value for query: {}", e));
+                self
+            }
+        }
+        impl std::convert::TryFrom<ListRequest> for super::ListRequest {
+            type Error = super::error::ConversionError;
+            fn try_from(value: ListRequest) -> Result<Self, super::error::ConversionError> {
+                Ok(Self {
+                    cursor: value.cursor?,
+                    per_page: value.per_page?,
+                    query: value.query?,
+                })
+            }
+        }
+        impl From<super::ListRequest> for ListRequest {
+            fn from(value: super::ListRequest) -> Self {
+                Self {
+                    cursor: Ok(value.cursor),
+                    per_page: Ok(value.per_page),
+                    query: Ok(value.query),
+                }
+            }
+        }
+        #[derive(Clone, Debug)]
         pub struct Pagination {
             cursor: Result<Option<super::BookmarkId>, String>,
             per_page: Result<Option<i64>, String>,
@@ -1331,17 +1877,13 @@ impl Client {
 
     List the user's bookmarks matching a query, newest to oldest.
 
-    Sends a `GET` request to `/bookmarks`
+    Sends a `POST` request to `/bookmarks`
 
     Arguments:
-    - `cursor`
-    - `per_page`
-    - `tags`: Tags that all returned items should have.
+    - `body`:
     ```ignore
     let response = client.list_bookmarks_matching()
-        .cursor(cursor)
-        .per_page(per_page)
-        .tags(tags)
+        .body(body)
         .send()
         .await;
     ```*/
@@ -1363,82 +1905,51 @@ pub mod builder {
     #[derive(Debug, Clone)]
     pub struct ListBookmarksMatching<'a> {
         client: &'a super::Client,
-        cursor: Result<Option<i64>, String>,
-        per_page: Result<Option<i64>, String>,
-        tags: Result<Option<Vec<types::TagName>>, String>,
+        body: Result<types::builder::ListRequest, String>,
     }
     impl<'a> ListBookmarksMatching<'a> {
         pub fn new(client: &'a super::Client) -> Self {
             Self {
                 client: client,
-                cursor: Ok(None),
-                per_page: Ok(None),
-                tags: Ok(None),
+                body: Ok(types::builder::ListRequest::default()),
             }
         }
-        pub fn cursor<V>(mut self, value: V) -> Self
+        pub fn body<V>(mut self, value: V) -> Self
         where
-            V: std::convert::TryInto<i64>,
+            V: std::convert::TryInto<types::ListRequest>,
+            <V as std::convert::TryInto<types::ListRequest>>::Error: std::fmt::Display,
         {
-            self.cursor = value
+            self.body = value
                 .try_into()
-                .map(Some)
-                .map_err(|_| "conversion to `i64` for cursor failed".to_string());
+                .map(From::from)
+                .map_err(|s| format!("conversion to `ListRequest` for body failed: {}", s));
             self
         }
-        pub fn per_page<V>(mut self, value: V) -> Self
+        pub fn body_map<F>(mut self, f: F) -> Self
         where
-            V: std::convert::TryInto<i64>,
+            F: std::ops::FnOnce(types::builder::ListRequest) -> types::builder::ListRequest,
         {
-            self.per_page = value
-                .try_into()
-                .map(Some)
-                .map_err(|_| "conversion to `i64` for per_page failed".to_string());
+            self.body = self.body.map(f);
             self
         }
-        pub fn tags<V>(mut self, value: V) -> Self
-        where
-            V: std::convert::TryInto<Vec<types::TagName>>,
-        {
-            self.tags = value
-                .try_into()
-                .map(Some)
-                .map_err(|_| "conversion to `Vec < TagName >` for tags failed".to_string());
-            self
-        }
-        ///Sends a `GET` request to `/bookmarks`
+        ///Sends a `POST` request to `/bookmarks`
         pub async fn send(
             self,
         ) -> Result<ResponseValue<types::ListBookmarksMatchingResponse>, Error<()>> {
-            let Self {
-                client,
-                cursor,
-                per_page,
-                tags,
-            } = self;
-            let cursor = cursor.map_err(Error::InvalidRequest)?;
-            let per_page = per_page.map_err(Error::InvalidRequest)?;
-            let tags = tags.map_err(Error::InvalidRequest)?;
+            let Self { client, body } = self;
+            let body = body
+                .and_then(|v| types::ListRequest::try_from(v).map_err(|e| e.to_string()))
+                .map_err(Error::InvalidRequest)?;
             let url = format!("{}/bookmarks", client.baseurl,);
-            let mut query = Vec::with_capacity(3usize);
-            if let Some(v) = &cursor {
-                query.push(("cursor", v.to_string()));
-            }
-            if let Some(v) = &per_page {
-                query.push(("per_page", v.to_string()));
-            }
-            if let Some(v) = &tags {
-                query.push(("tags", v.to_string()));
-            }
             #[allow(unused_mut)]
             let mut request = client
                 .client
-                .get(url)
+                .post(url)
                 .header(
                     reqwest::header::ACCEPT,
                     reqwest::header::HeaderValue::from_static("application/json"),
                 )
-                .query(&query)
+                .json(&body)
                 .build()?;
             let result = client.client.execute(request).await;
             let response = result?;

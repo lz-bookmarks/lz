@@ -471,7 +471,7 @@ pub mod types {
     /// ```
     /// </details>
     #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
-    pub struct ListBookmarksResponse {
+    pub struct ListBookmarksMatchingResponse {
         pub bookmarks: Vec<AnnotatedBookmark>,
         #[serde(
             rename = "nextCursor",
@@ -480,66 +480,13 @@ pub mod types {
         )]
         pub next_cursor: Option<BookmarkId>,
     }
-    impl From<&ListBookmarksResponse> for ListBookmarksResponse {
-        fn from(value: &ListBookmarksResponse) -> Self {
+    impl From<&ListBookmarksMatchingResponse> for ListBookmarksMatchingResponse {
+        fn from(value: &ListBookmarksMatchingResponse) -> Self {
             value.clone()
         }
     }
-    impl ListBookmarksResponse {
-        pub fn builder() -> builder::ListBookmarksResponse {
-            Default::default()
-        }
-    }
-    /**The response returned by the `list_bookmarks` API endpoint.
-
-    This response contains pagination information; if `next_cursor` is
-    set, passing that value to the `cursor` pagination parameter will
-    fetch the next page.*/
-    ///
-    /// <details><summary>JSON schema</summary>
-    ///
-    /// ```json
-    ///{
-    ///  "description": "The response returned by the `list_bookmarks` API endpoint.\n\nThis response contains pagination information; if `next_cursor` is\nset, passing that value to the `cursor` pagination parameter will\nfetch the next page.",
-    ///  "type": "object",
-    ///  "required": [
-    ///    "bookmarks"
-    ///  ],
-    ///  "properties": {
-    ///    "bookmarks": {
-    ///      "type": "array",
-    ///      "items": {
-    ///        "$ref": "#/components/schemas/AnnotatedBookmark"
-    ///      }
-    ///    },
-    ///    "nextCursor": {
-    ///      "allOf": [
-    ///        {
-    ///          "$ref": "#/components/schemas/BookmarkId"
-    ///        }
-    ///      ]
-    ///    }
-    ///  }
-    ///}
-    /// ```
-    /// </details>
-    #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
-    pub struct ListBookmarksWithTagResponse {
-        pub bookmarks: Vec<AnnotatedBookmark>,
-        #[serde(
-            rename = "nextCursor",
-            default,
-            skip_serializing_if = "Option::is_none"
-        )]
-        pub next_cursor: Option<BookmarkId>,
-    }
-    impl From<&ListBookmarksWithTagResponse> for ListBookmarksWithTagResponse {
-        fn from(value: &ListBookmarksWithTagResponse) -> Self {
-            value.clone()
-        }
-    }
-    impl ListBookmarksWithTagResponse {
-        pub fn builder() -> builder::ListBookmarksWithTagResponse {
+    impl ListBookmarksMatchingResponse {
+        pub fn builder() -> builder::ListBookmarksMatchingResponse {
             Default::default()
         }
     }
@@ -645,18 +592,14 @@ pub mod types {
     }
     /**A search query for retrieving bookmarks via the tags assigned to them.
 
-    These tag queries are made in a URL path, separated by space
-    (`%20`) characters.*/
+    Each*/
     ///
     /// <details><summary>JSON schema</summary>
     ///
     /// ```json
     ///{
-    ///  "description": "A search query for retrieving bookmarks via the tags assigned to them.\n\nThese tag queries are made in a URL path, separated by space\n(`%20`) characters.",
+    ///  "description": "A search query for retrieving bookmarks via the tags assigned to them.\n\nEach",
     ///  "type": "object",
-    ///  "required": [
-    ///    "tags"
-    ///  ],
     ///  "properties": {
     ///    "tags": {
     ///      "description": "Tags that all returned items should have.",
@@ -673,6 +616,7 @@ pub mod types {
     #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
     pub struct TagQuery {
         ///Tags that all returned items should have.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
         pub tags: Vec<TagName>,
     }
     impl From<&TagQuery> for TagQuery {
@@ -1183,11 +1127,11 @@ pub mod types {
             }
         }
         #[derive(Clone, Debug)]
-        pub struct ListBookmarksResponse {
+        pub struct ListBookmarksMatchingResponse {
             bookmarks: Result<Vec<super::AnnotatedBookmark>, String>,
             next_cursor: Result<Option<super::BookmarkId>, String>,
         }
-        impl Default for ListBookmarksResponse {
+        impl Default for ListBookmarksMatchingResponse {
             fn default() -> Self {
                 Self {
                     bookmarks: Err("no value supplied for bookmarks".to_string()),
@@ -1195,7 +1139,7 @@ pub mod types {
                 }
             }
         }
-        impl ListBookmarksResponse {
+        impl ListBookmarksMatchingResponse {
             pub fn bookmarks<T>(mut self, value: T) -> Self
             where
                 T: std::convert::TryInto<Vec<super::AnnotatedBookmark>>,
@@ -1217,10 +1161,10 @@ pub mod types {
                 self
             }
         }
-        impl std::convert::TryFrom<ListBookmarksResponse> for super::ListBookmarksResponse {
+        impl std::convert::TryFrom<ListBookmarksMatchingResponse> for super::ListBookmarksMatchingResponse {
             type Error = super::error::ConversionError;
             fn try_from(
-                value: ListBookmarksResponse,
+                value: ListBookmarksMatchingResponse,
             ) -> Result<Self, super::error::ConversionError> {
                 Ok(Self {
                     bookmarks: value.bookmarks?,
@@ -1228,62 +1172,8 @@ pub mod types {
                 })
             }
         }
-        impl From<super::ListBookmarksResponse> for ListBookmarksResponse {
-            fn from(value: super::ListBookmarksResponse) -> Self {
-                Self {
-                    bookmarks: Ok(value.bookmarks),
-                    next_cursor: Ok(value.next_cursor),
-                }
-            }
-        }
-        #[derive(Clone, Debug)]
-        pub struct ListBookmarksWithTagResponse {
-            bookmarks: Result<Vec<super::AnnotatedBookmark>, String>,
-            next_cursor: Result<Option<super::BookmarkId>, String>,
-        }
-        impl Default for ListBookmarksWithTagResponse {
-            fn default() -> Self {
-                Self {
-                    bookmarks: Err("no value supplied for bookmarks".to_string()),
-                    next_cursor: Ok(Default::default()),
-                }
-            }
-        }
-        impl ListBookmarksWithTagResponse {
-            pub fn bookmarks<T>(mut self, value: T) -> Self
-            where
-                T: std::convert::TryInto<Vec<super::AnnotatedBookmark>>,
-                T::Error: std::fmt::Display,
-            {
-                self.bookmarks = value
-                    .try_into()
-                    .map_err(|e| format!("error converting supplied value for bookmarks: {}", e));
-                self
-            }
-            pub fn next_cursor<T>(mut self, value: T) -> Self
-            where
-                T: std::convert::TryInto<Option<super::BookmarkId>>,
-                T::Error: std::fmt::Display,
-            {
-                self.next_cursor = value
-                    .try_into()
-                    .map_err(|e| format!("error converting supplied value for next_cursor: {}", e));
-                self
-            }
-        }
-        impl std::convert::TryFrom<ListBookmarksWithTagResponse> for super::ListBookmarksWithTagResponse {
-            type Error = super::error::ConversionError;
-            fn try_from(
-                value: ListBookmarksWithTagResponse,
-            ) -> Result<Self, super::error::ConversionError> {
-                Ok(Self {
-                    bookmarks: value.bookmarks?,
-                    next_cursor: value.next_cursor?,
-                })
-            }
-        }
-        impl From<super::ListBookmarksWithTagResponse> for ListBookmarksWithTagResponse {
-            fn from(value: super::ListBookmarksWithTagResponse) -> Self {
+        impl From<super::ListBookmarksMatchingResponse> for ListBookmarksMatchingResponse {
+            fn from(value: super::ListBookmarksMatchingResponse) -> Self {
                 Self {
                     bookmarks: Ok(value.bookmarks),
                     next_cursor: Ok(value.next_cursor),
@@ -1349,7 +1239,7 @@ pub mod types {
         impl Default for TagQuery {
             fn default() -> Self {
                 Self {
-                    tags: Err("no value supplied for tags".to_string()),
+                    tags: Ok(Default::default()),
                 }
             }
         }
@@ -1437,38 +1327,26 @@ impl Client {
     }
 }
 impl Client {
-    /**List the user's bookmarks, newest to oldest
+    /**List the user's bookmarks matching a query, newest to oldest
 
-    List the user's bookmarks, newest to oldest.
+    List the user's bookmarks matching a query, newest to oldest.
 
     Sends a `GET` request to `/bookmarks`
 
+    Arguments:
+    - `cursor`
+    - `per_page`
+    - `tags`: Tags that all returned items should have.
     ```ignore
-    let response = client.list_bookmarks()
+    let response = client.list_bookmarks_matching()
         .cursor(cursor)
         .per_page(per_page)
+        .tags(tags)
         .send()
         .await;
     ```*/
-    pub fn list_bookmarks(&self) -> builder::ListBookmarks {
-        builder::ListBookmarks::new(self)
-    }
-    /**List bookmarks matching a tag, newest to oldest
-
-    List bookmarks matching a tag, newest to oldest.
-
-    Sends a `GET` request to `/bookmarks/tagged/{query}`
-
-    ```ignore
-    let response = client.list_bookmarks_with_tag()
-        .query(query)
-        .cursor(cursor)
-        .per_page(per_page)
-        .send()
-        .await;
-    ```*/
-    pub fn list_bookmarks_with_tag(&self) -> builder::ListBookmarksWithTag {
-        builder::ListBookmarksWithTag::new(self)
+    pub fn list_bookmarks_matching(&self) -> builder::ListBookmarksMatching {
+        builder::ListBookmarksMatching::new(self)
     }
 }
 /// Types for composing operation parameters.
@@ -1479,21 +1357,23 @@ pub mod builder {
     use super::{
         encode_path, ByteStream, Error, HeaderMap, HeaderValue, RequestBuilderExt, ResponseValue,
     };
-    /**Builder for [`Client::list_bookmarks`]
+    /**Builder for [`Client::list_bookmarks_matching`]
 
-    [`Client::list_bookmarks`]: super::Client::list_bookmarks*/
+    [`Client::list_bookmarks_matching`]: super::Client::list_bookmarks_matching*/
     #[derive(Debug, Clone)]
-    pub struct ListBookmarks<'a> {
+    pub struct ListBookmarksMatching<'a> {
         client: &'a super::Client,
         cursor: Result<Option<i64>, String>,
         per_page: Result<Option<i64>, String>,
+        tags: Result<Option<Vec<types::TagName>>, String>,
     }
-    impl<'a> ListBookmarks<'a> {
+    impl<'a> ListBookmarksMatching<'a> {
         pub fn new(client: &'a super::Client) -> Self {
             Self {
                 client: client,
                 cursor: Ok(None),
                 per_page: Ok(None),
+                tags: Ok(None),
             }
         }
         pub fn cursor<V>(mut self, value: V) -> Self
@@ -1516,22 +1396,39 @@ pub mod builder {
                 .map_err(|_| "conversion to `i64` for per_page failed".to_string());
             self
         }
+        pub fn tags<V>(mut self, value: V) -> Self
+        where
+            V: std::convert::TryInto<Vec<types::TagName>>,
+        {
+            self.tags = value
+                .try_into()
+                .map(Some)
+                .map_err(|_| "conversion to `Vec < TagName >` for tags failed".to_string());
+            self
+        }
         ///Sends a `GET` request to `/bookmarks`
-        pub async fn send(self) -> Result<ResponseValue<types::ListBookmarksResponse>, Error<()>> {
+        pub async fn send(
+            self,
+        ) -> Result<ResponseValue<types::ListBookmarksMatchingResponse>, Error<()>> {
             let Self {
                 client,
                 cursor,
                 per_page,
+                tags,
             } = self;
             let cursor = cursor.map_err(Error::InvalidRequest)?;
             let per_page = per_page.map_err(Error::InvalidRequest)?;
+            let tags = tags.map_err(Error::InvalidRequest)?;
             let url = format!("{}/bookmarks", client.baseurl,);
-            let mut query = Vec::with_capacity(2usize);
+            let mut query = Vec::with_capacity(3usize);
             if let Some(v) = &cursor {
                 query.push(("cursor", v.to_string()));
             }
             if let Some(v) = &per_page {
                 query.push(("per_page", v.to_string()));
+            }
+            if let Some(v) = &tags {
+                query.push(("tags", v.to_string()));
             }
             #[allow(unused_mut)]
             let mut request = client
@@ -1542,97 +1439,6 @@ pub mod builder {
                     reqwest::header::HeaderValue::from_static("application/json"),
                 )
                 .query(&query)
-                .build()?;
-            let result = client.client.execute(request).await;
-            let response = result?;
-            match response.status().as_u16() {
-                200u16 => ResponseValue::from_response(response).await,
-                _ => Err(Error::UnexpectedResponse(response)),
-            }
-        }
-    }
-    /**Builder for [`Client::list_bookmarks_with_tag`]
-
-    [`Client::list_bookmarks_with_tag`]: super::Client::list_bookmarks_with_tag*/
-    #[derive(Debug, Clone)]
-    pub struct ListBookmarksWithTag<'a> {
-        client: &'a super::Client,
-        query: Result<String, String>,
-        cursor: Result<Option<i64>, String>,
-        per_page: Result<Option<i64>, String>,
-    }
-    impl<'a> ListBookmarksWithTag<'a> {
-        pub fn new(client: &'a super::Client) -> Self {
-            Self {
-                client: client,
-                query: Err("query was not initialized".to_string()),
-                cursor: Ok(None),
-                per_page: Ok(None),
-            }
-        }
-        pub fn query<V>(mut self, value: V) -> Self
-        where
-            V: std::convert::TryInto<String>,
-        {
-            self.query = value
-                .try_into()
-                .map_err(|_| "conversion to `String` for query failed".to_string());
-            self
-        }
-        pub fn cursor<V>(mut self, value: V) -> Self
-        where
-            V: std::convert::TryInto<i64>,
-        {
-            self.cursor = value
-                .try_into()
-                .map(Some)
-                .map_err(|_| "conversion to `i64` for cursor failed".to_string());
-            self
-        }
-        pub fn per_page<V>(mut self, value: V) -> Self
-        where
-            V: std::convert::TryInto<i64>,
-        {
-            self.per_page = value
-                .try_into()
-                .map(Some)
-                .map_err(|_| "conversion to `i64` for per_page failed".to_string());
-            self
-        }
-        ///Sends a `GET` request to `/bookmarks/tagged/{query}`
-        pub async fn send(
-            self,
-        ) -> Result<ResponseValue<types::ListBookmarksWithTagResponse>, Error<()>> {
-            let Self {
-                client,
-                query,
-                cursor,
-                per_page,
-            } = self;
-            let query = query.map_err(Error::InvalidRequest)?;
-            let cursor = cursor.map_err(Error::InvalidRequest)?;
-            let per_page = per_page.map_err(Error::InvalidRequest)?;
-            let url = format!(
-                "{}/bookmarks/tagged/{}",
-                client.baseurl,
-                encode_path(&query.to_string()),
-            );
-            let mut _query = Vec::with_capacity(2usize);
-            if let Some(v) = &cursor {
-                _query.push(("cursor", v.to_string()));
-            }
-            if let Some(v) = &per_page {
-                _query.push(("per_page", v.to_string()));
-            }
-            #[allow(unused_mut)]
-            let mut request = client
-                .client
-                .get(url)
-                .header(
-                    reqwest::header::ACCEPT,
-                    reqwest::header::HeaderValue::from_static("application/json"),
-                )
-                .query(&_query)
                 .build()?;
             let result = client.client.execute(request).await;
             let response = result?;

@@ -27,7 +27,7 @@ use crate::db::{DbTransaction, GlobalWebAppState};
 #[derive(OpenApi)]
 #[openapi(
     tags((name = "Bookmarks", description = "Managing one's bookmarks")),
-    paths(list_bookmarks, list_bookmarks_with_tag),
+    paths(list_bookmarks_matching),
     security(),
     servers((url = "/api/v1/")),
     components(
@@ -39,8 +39,7 @@ pub struct ApiDoc;
 
 pub fn router() -> Router<Arc<GlobalWebAppState>> {
     let router = Router::new()
-        .route("/bookmarks", get(list_bookmarks))
-        .route("/bookmarks/tagged/*query", get(list_bookmarks_with_tag))
+        .route("/bookmarks", get(list_bookmarks_matching))
         .layer(CorsLayer::permissive());
     observability::add_layers(router)
 }
@@ -105,85 +104,13 @@ pub struct AnnotatedBookmark {
     tags: Vec<ExistingTag>,
     associations: Vec<AssociatedLink>,
 }
-
-/// List the user's bookmarks, newest to oldest.
+/// List the user's bookmarks matching a query, newest to oldest.
 #[debug_handler(state = Arc<GlobalWebAppState>)]
 #[utoipa::path(get,
     path = "/bookmarks",
     tag = "Bookmarks",
     params(
-        ("cursor" = inline(Option<BookmarkId>),
-            Query,
-            style = Form,
-        ),
-        ("per_page" = inline(Option<u16>),
-            Query,
-            style = Form,
-        ),
-    ),
-    responses(
-        (status = 200, body = inline(ListBookmarkResult), description = "Lists all bookmarks"),
-    ),
-)]
-#[tracing::instrument(err(Debug, level = tracing::Level::WARN), skip(txn))]
-async fn list_bookmarks(
-    mut txn: DbTransaction,
-    pagination: Option<Valid<Query<Pagination>>>,
-) -> Result<Json<ListBookmarkResult>, (StatusCode, Json<ApiError>)> {
-    let pagination = pagination.unwrap_or_default();
-    let per_page = pagination.per_page.unwrap_or(20);
-    let user_id = txn.user().id;
-    let bms = txn
-        .list_bookmarks_matching(
-            vec![BookmarkSearch::User { id: user_id }],
-            per_page,
-            pagination.cursor,
-        )
-        .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiError::from(e))))?;
-    let mut taggings = txn.tags_on_bookmarks(&bms).await.map_err(|e| {
-        tracing::error!(error=%e, error_debug=?e, "could not query tags for bookmarks");
-        (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiError::from(e)))
-    })?;
-    let mut associations = txn.associated_links_on_bookmarks(&bms).await.map_err(|e| {
-        tracing::error!(error=%e, error_debug=?e, "could not query for bookmark associations");
-        (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiError::from(e)))
-    })?;
-    let mut next_cursor = None;
-    let mut bookmarks = vec![];
-    for (elt, bm) in bms.into_iter().enumerate() {
-        if elt == usize::from(per_page) {
-            // The "next cursor" element:
-            next_cursor = Some(bm.id);
-            break;
-        }
-        let id = bm.id;
-        if let Some(tags) = taggings.remove(&id) {
-            bookmarks.push(AnnotatedBookmark {
-                bookmark: bm.clone(),
-                tags,
-                associations: associations.remove(&id).unwrap_or_else(std::vec::Vec::new),
-            });
-        } else {
-            tracing::warn!(
-                bookmark_id=?id,
-                "somehow this bookmark seems to have appeared twice in the list of bookmarks?"
-            );
-        }
-    }
-    Ok(Json(ListBookmarkResult {
-        bookmarks,
-        next_cursor,
-    }))
-}
-
-/// List bookmarks matching a tag, newest to oldest.
-#[debug_handler(state = Arc<GlobalWebAppState>)]
-#[utoipa::path(get,
-    path = "/bookmarks/tagged/{query}",
-    tag = "Bookmarks",
-    params(
-        ("query" = inline(String), Path,),
+        TagQuery,
         ("cursor" = inline(Option<BookmarkId>),
             Query,
             style = Form,
@@ -198,7 +125,7 @@ async fn list_bookmarks(
     ),
 )]
 #[tracing::instrument(err(Debug, level = tracing::Level::WARN), skip(txn))]
-async fn list_bookmarks_with_tag(
+async fn list_bookmarks_matching(
     TagQuery { tags }: TagQuery,
     mut txn: DbTransaction,
     pagination: Option<Valid<Query<Pagination>>>,

@@ -2,7 +2,7 @@ use std::io;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use axum::Router;
+use axum::{routing, Router};
 use clap::Parser;
 use db::GlobalWebAppState;
 use opentelemetry::KeyValue;
@@ -46,6 +46,7 @@ pub async fn run(pool: lz_db::Connection, args: &Args) -> anyhow::Result<()> {
     let app = Router::new()
         .merge(SwaggerUi::new("/docs/swagger").url("/openapi.json", api::ApiDoc::openapi()))
         .merge(Redoc::with_url("/docs/api", api::ApiDoc::openapi()))
+        .route("/health", routing::get(health))
         .nest("/api/v1", api_router)
         .with_state(db_conns);
 
@@ -53,6 +54,10 @@ pub async fn run(pool: lz_db::Connection, args: &Args) -> anyhow::Result<()> {
     let listener = tokio::net::TcpListener::bind(args.listen_on).await.unwrap();
     axum::serve(listener, app).await.unwrap();
     Ok(())
+}
+
+async fn health() -> &'static str {
+    "ok"
 }
 
 fn init_observability(_args: &Args) -> anyhow::Result<()> {

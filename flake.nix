@@ -19,8 +19,8 @@
         inputs.devshell.flakeModule
         inputs.flake-parts.flakeModules.easyOverlay
         inputs.flake-root.flakeModule
-        inputs.proc-flake.flakeModule
         inputs.pre-commit-hooks-nix.flakeModule
+        inputs.process-compose-flake.flakeModule
       ];
 
       perSystem = {
@@ -99,27 +99,6 @@
                 '';
               }));
           };
-        packages.cargo-progenitor = rustPlatform.buildRustPackage {
-          pname = "cargo-progenitor";
-          version = "0.6.0";
-          src = inputs.progenitor;
-          cargoLock = {
-            lockFile = "${inputs.progenitor}/Cargo.lock";
-            outputHashes = {
-              "dropshot-0.9.1-dev" = "sha256-xjOwr9/NJgfAv/5GlqZY1/TsyBc3cNmhF8vlBdYt8Tw=";
-            };
-          };
-          buildAndTestSubdir = "cargo-progenitor";
-          doCheck = false;
-          buildInputs =
-            if pkgs.stdenv.isDarwin
-            then
-              with pkgs.darwin.apple_sdk.frameworks; [
-                Security
-                SystemConfiguration
-              ]
-            else [];
-        };
 
         apps = {
           default = config.apps.lz-web;
@@ -137,13 +116,7 @@
                 category = "development";
                 help = "run all servers for development";
                 name = "dev-server";
-                package = pkgs.writeShellApplication {
-                  name = "dev-server";
-                  text = ''
-                    cd "$PRJ_ROOT"/src/lz-ui
-                    dx serve
-                  '';
-                };
+                package = config.packages.dev-server;
               }
               {
                 category = "development";
@@ -164,7 +137,6 @@
                 name = "regenerate-openapi-client";
                 package = pkgs.writeShellApplication {
                   name = "regenerate-openapi-client";
-                  runtimeInputs = [config.packages.cargo-progenitor];
                   text = ''
                     cargo run --features dev -- generate-openapi-spec --rust-client src/lz-openapi
                     cargo fmt -p lz-openapi
@@ -186,7 +158,6 @@
             ];
             packages = [
               config.packages.dioxus-cli
-              config.packages.cargo-progenitor
               pkgs.sqlx-cli
               pkgs.sqlite
               pkgs.cargo-watch
@@ -215,6 +186,47 @@
           };
         };
 
+        process-compose."dev-server" = {
+          settings = {
+            processes = {
+              frontend = {
+                command = ''
+                  dx serve --verbose
+                '';
+                working_dir = "./src/lz-ui";
+                depends_on.backend.condition = "process_healthy";
+              };
+              backend = let
+                http_get = {
+                  host = "127.0.0.1";
+                  port = 3000;
+                  path = "/health";
+                };
+              in {
+                command = ''
+                  cargo watch --why -L info \
+                    -i src/lz-ui -i src/lz-openapi -i flake.nix -i flake.lock -- \
+                    cargo run --features dev -- --db dev-db.sqlite web --authentication-header-name X-Tailscale-User-LoginName --default-user-name=developer --listen-on=127.0.0.1:3000
+                '';
+                working_dir = "./";
+                readiness_probe = {
+                  success_threshold = 1;
+                  failure_threshold = 120;
+                  initial_delay_seconds = 5;
+                  period_seconds = 1;
+                  inherit http_get;
+                };
+                liveness_probe = {
+                  success_threshold = 1;
+                  failure_threshold = 5;
+                  period_seconds = 1;
+                  inherit http_get;
+                };
+              };
+            };
+          };
+        };
+
         pre-commit.settings = {
           hooks = {
             alejandra.enable = true;
@@ -227,7 +239,7 @@
   inputs = {
     flake-parts.url = "github:hercules-ci/flake-parts";
     devshell.url = "github:numtide/devshell";
-    proc-flake.url = "github:srid/proc-flake";
+    process-compose-flake.url = "github:Platonic-Systems/process-compose-flake";
     flake-root.url = "github:srid/flake-root";
     pre-commit-hooks-nix.url = "github:cachix/pre-commit-hooks.nix";
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";

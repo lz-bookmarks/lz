@@ -187,6 +187,14 @@
         };
 
         process-compose."dev-server" = {
+          package = pkgs.writeShellApplication {
+            name = "process-compose";
+            runtimeInputs = [config.flake-root.package];
+            text = ''
+              cd "$(flake-root)"
+              exec ${pkgs.lib.getExe pkgs.process-compose} "$@"
+            '';
+          };
           settings = {
             processes = {
               frontend = {

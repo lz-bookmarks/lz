@@ -7,10 +7,7 @@ pub(crate) fn Bookmark(abm: AnnotatedBookmark) -> Element {
     rsx! {
         article {
             span { "{abm.bookmark.created_at} " }
-            Link {
-                to: "{abm.bookmark.url}",
-                "{abm.bookmark.title}"
-            }
+            Link { to: "{abm.bookmark.url}", "{abm.bookmark.title}" }
             for tag in abm.tags {
                 Tag { name: tag.name }
                 "  "

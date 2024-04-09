@@ -1,7 +1,6 @@
 #![allow(non_snake_case)]
 
 use std::collections::HashSet;
-use std::fmt;
 use std::ops::Deref;
 
 use dioxus::prelude::*;
@@ -15,10 +14,10 @@ use components::BookmarkList;
 #[derive(Clone, Routable, Debug, PartialEq)]
 pub(crate) enum Route {
     #[route("/:..search")]
-    Bookmarks { search: Vec<String> },
+    Bookmarks { search: BookmarkQuery },
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
 struct BookmarkQuery(HashSet<BookmarkSearch>);
 
 impl FromRouteSegments for BookmarkQuery {
@@ -39,10 +38,9 @@ impl FromRouteSegments for BookmarkQuery {
     type Err = String;
 }
 
-// TODO: This is unused because we can't use FromRouteSegments properly.
-impl ToRouteSegments for BookmarkQuery {
+impl ToRouteSegments for &BookmarkQuery {
     fn display_route_segments(self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for segment in self.0 {
+        for segment in self.clone().0 {
             write!(f, "/")?;
             let segment = BookmarkQuery::format_route_segment(&segment);
             match urlencoding::decode(&segment) {
@@ -76,25 +74,15 @@ impl BookmarkQuery {
             BookmarkSearch::UserId(user_id) => format!("user_id:{}", user_id.0),
         }
     }
-
-    pub fn to_route(&self) -> Vec<String> {
-        self.0
-            .iter()
-            .map(|s| Self::format_route_segment(s))
-            .collect()
-    }
 }
 
 #[component]
-fn Bookmarks(search: Vec<String>) -> Element {
-    let segments: Vec<&str> = search.iter().map(|s| s.as_str()).collect();
-    if let Ok(search) = BookmarkQuery::from_route_segments(&segments.as_slice()) {
-        rsx! {
-            BookmarkList { search }
-        }
-    } else {
-        error!("Could not generate route segments");
-        None
+fn Bookmarks(search: ReadOnlySignal<BookmarkQuery>) -> Element {
+    info!(?search, "got a search");
+    let mut existing_search = use_search_criteria();
+    use_memo(move || *existing_search.write() = (*search.read()).clone());
+    rsx! {
+        BookmarkList {}
     }
 }
 
@@ -123,6 +111,7 @@ fn App() -> Element {
         })
         .unwrap();
     use_context_provider(move || Signal::new(ApiClient(lz_openapi::Client::new(&base_url))));
+    use_context_provider(|| Signal::new(BookmarkQuery::default()));
     rsx! {
         Router::<Route> {}
     }

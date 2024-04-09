@@ -69,7 +69,7 @@ pub mod types {
     ///}
     /// ```
     /// </details>
-    #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+    #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
     pub struct AnnotatedBookmark {
         pub associations: Vec<AssociatedLink>,
         pub bookmark: ExistingBookmark,
@@ -115,7 +115,7 @@ pub mod types {
     ///}
     /// ```
     /// </details>
-    #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+    #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
     pub struct AssociatedLink {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         pub context: Option<String>,
@@ -143,7 +143,7 @@ pub mod types {
     ///}
     /// ```
     /// </details>
-    #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
+    #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
     pub struct BookmarkId(pub i64);
     impl std::ops::Deref for BookmarkId {
         type Target = i64;
@@ -256,7 +256,7 @@ pub mod types {
     ///}
     /// ```
     /// </details>
-    #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+    #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
     pub enum BookmarkSearch {
         ///Only list bookmarks that have matching timestamps
         #[serde(rename = "date")]
@@ -322,7 +322,7 @@ pub mod types {
     ///}
     /// ```
     /// </details>
-    #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+    #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
     pub struct BookmarkSearchDateParams {
         pub date: DateInput,
         pub field: BookmarkSearchDatetimeField,
@@ -594,7 +594,7 @@ pub mod types {
     ///}
     /// ```
     /// </details>
-    #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+    #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
     pub struct ExistingBookmark {
         ///Last time the bookmark was accessed via the web
         #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -670,7 +670,7 @@ pub mod types {
     ///}
     /// ```
     /// </details>
-    #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+    #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
     pub struct ExistingTag {
         ///When the tag was first created.
         pub created_at: chrono::DateTime<chrono::offset::Utc>,
@@ -720,7 +720,7 @@ pub mod types {
     ///}
     /// ```
     /// </details>
-    #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+    #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
     pub struct ListBookmarkResult {
         pub bookmarks: Vec<AnnotatedBookmark>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -769,7 +769,7 @@ pub mod types {
     ///}
     /// ```
     /// </details>
-    #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+    #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
     pub struct ListBookmarksMatchingResponse {
         pub bookmarks: Vec<AnnotatedBookmark>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -816,7 +816,7 @@ pub mod types {
     ///}
     /// ```
     /// </details>
-    #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+    #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
     pub struct ListRequest {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         pub cursor: Option<BookmarkId>,
@@ -876,7 +876,7 @@ pub mod types {
     ///}
     /// ```
     /// </details>
-    #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+    #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
     pub struct Pagination {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         pub cursor: Option<BookmarkId>,
@@ -906,7 +906,7 @@ pub mod types {
     ///}
     /// ```
     /// </details>
-    #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+    #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
     pub struct TagId(pub i64);
     impl std::ops::Deref for TagId {
         type Target = i64;
@@ -1025,7 +1025,7 @@ pub mod types {
     ///}
     /// ```
     /// </details>
-    #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+    #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
     pub struct TagQuery {
         ///Tags that all returned items should have.
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -1053,7 +1053,7 @@ pub mod types {
     ///}
     /// ```
     /// </details>
-    #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
+    #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
     pub struct UserId(pub i64);
     impl std::ops::Deref for UserId {
         type Target = i64;

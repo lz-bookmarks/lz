@@ -17,3 +17,4 @@ futures = { workspace = true }
 # Debug
 log = { workspace = true }
 console_error_panic_hook = { workspace = true }
+urlencoding = "2.1.3"

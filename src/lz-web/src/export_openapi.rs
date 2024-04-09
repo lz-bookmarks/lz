@@ -30,7 +30,11 @@ pub fn run(args: &Args) -> anyhow::Result<()> {
         let mut generator = Generator::new(
             GenerationSettings::new()
                 .with_interface(InterfaceStyle::Builder)
-                .with_derive("PartialEq") // required by dioxus component props
+                // required by dioxus component props:
+                .with_derive("PartialEq")
+                // required for hashability:
+                .with_derive("Eq")
+                .with_derive("Hash")
                 // Patch Copy onto all ID types:
                 .with_patch("BookmarkId", TypePatch::default().with_derive("Copy"))
                 .with_patch("UserId", TypePatch::default().with_derive("Copy")),

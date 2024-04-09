@@ -1,19 +1,25 @@
 use dioxus::prelude::*;
 use lz_openapi::types::{
-    AnnotatedBookmark, BookmarkId, ListBookmarksMatchingResponse, ListRequest,
+    AnnotatedBookmark, BookmarkId, BookmarkSearch, ListBookmarksMatchingResponse, ListRequest,
 };
 #[allow(unused_imports)]
 use tracing::{debug, error, info, warn};
 
 use crate::components::Bookmark;
-use crate::use_api_client;
+use crate::{use_api_client, BookmarkQuery};
 
 #[component]
-pub(crate) fn BookmarkList() -> Element {
+pub(crate) fn BookmarkList(search: BookmarkQuery) -> Element {
     let load_state = use_signal(|| BookmarkListState::default());
     let endless_bookmarks = use_signal(|| vec![]);
-    let load_next_batch = use_bookmark_list(load_state, endless_bookmarks);
-
+    let mut load_next_batch =
+        use_bookmark_list(load_state, endless_bookmarks, search.clone().to_criteria());
+    use_effect(use_reactive(&search, move |search| {
+        info!(?search, "restarting batch");
+        load_next_batch.restart();
+    }));
+    use_effect(move || load_next_batch.send(()));
+    use_context_provider(move || Signal::new(search));
     rsx! {
         div {
             h1 { "My Bookmarks" }
@@ -57,18 +63,24 @@ enum BookmarkListState {
 fn use_bookmark_list(
     mut state: Signal<BookmarkListState>,
     mut batches: Signal<Vec<Vec<AnnotatedBookmark>>>,
+    criteria: Vec<BookmarkSearch>,
 ) -> Coroutine<()> {
     use futures::StreamExt as _;
+    info!(?criteria, "criteria");
     let client = use_api_client().read().clone();
-    let load_task = use_coroutine(|mut rx: UnboundedReceiver<Option<BookmarkId>>| async move {
+    use_coroutine(|mut rx: UnboundedReceiver<()>| async move {
         while *state.read() != BookmarkListState::Finished {
-            let Some(next_cursor) = rx.next().await else {
-                break;
-            };
+            rx.next().await;
+            info!("taking next step!");
             let original_state = state.read().clone();
+            let next_cursor = if let BookmarkListState::MoreAvailable(next) = original_state {
+                Some(next)
+            } else {
+                None
+            };
             *state.write() = BookmarkListState::Loading;
             let query = ListRequest {
-                query: vec![],
+                query: criteria.clone(),
                 cursor: next_cursor,
                 per_page: Default::default(),
             };
@@ -92,15 +104,5 @@ fn use_bookmark_list(
                 }
             }
         }
-    });
-    let next_task = use_coroutine(|mut rx: UnboundedReceiver<()>| async move {
-        load_task.send(None); // kick off loading the batches
-        while let Some(_) = rx.next().await {
-            match *state.read() {
-                BookmarkListState::MoreAvailable(cursor) => load_task.send(Some(cursor.clone())),
-                _ => break,
-            }
-        }
-    });
-    next_task
+    })
 }

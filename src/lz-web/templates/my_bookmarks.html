@@ -7,5 +7,9 @@
     {% for item in batch %}
       {% include "partials/bookmark_item.html" %}
     {% endfor %}
+    {% match next_cursor %}
+      {% when Some(id) %}<a href="?cursor={{ id.id() }}">Next page</a>
+      {% when None %}
+    {% endmatch %}
   </body>
 </html>

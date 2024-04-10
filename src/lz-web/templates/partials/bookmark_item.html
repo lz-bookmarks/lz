@@ -2,7 +2,7 @@
   <div>{{ item.bookmark.created_at }}</div>
   <a href="{{ item.bookmark.url }}">{{ item.bookmark.title }}</a>
   <section class="tags">
-    {% for tag in item.tags %}<a href="#{{ tag.name }}">{{ tag.name }}</a>{% endfor %}
+    {% for tag in item.tags %}{{- " " -}}<a href="#{{ tag.name }}">{{ tag.name }}</a>{% endfor %}
   </section>
   {% match item.bookmark.description %}
     {% when Some with (description) %}

@@ -6,8 +6,8 @@ use askama_axum::Template;
 use axum::extract::Query;
 use axum::routing::get;
 use axum::Router;
-use lz_db::BookmarkSearch;
 use lz_db::IdType as _;
+use lz_db::{BookmarkId, BookmarkSearch};
 use tower_http::cors::CorsLayer;
 
 use crate::api::{AnnotatedBookmark, Pagination};
@@ -24,6 +24,7 @@ pub fn router() -> Router<Arc<GlobalWebAppState>> {
 #[template(path = "my_bookmarks.html")]
 struct MyBookmarks {
     batch: Vec<AnnotatedBookmark>,
+    next_cursor: Option<BookmarkId>,
 }
 
 async fn my_bookmarks(
@@ -71,5 +72,5 @@ async fn my_bookmarks(
             );
         }
     }
-    Ok(MyBookmarks { batch })
+    Ok(MyBookmarks { batch, next_cursor })
 }

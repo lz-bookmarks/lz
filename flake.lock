@@ -19,23 +19,6 @@
         "type": "github"
       }
     },
-    "dioxus": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1712280734,
-        "narHash": "sha256-ZYAn2YYy7AKJXWbmniFvFmPN2XiZc0ibC3uFi7AOMsk=",
-        "owner": "DioxusLabs",
-        "repo": "dioxus",
-        "rev": "7eccc7a104df013b06c104fc1275450d2747e78c",
-        "type": "github"
-      },
-      "original": {
-        "owner": "DioxusLabs",
-        "ref": "v0.5.2",
-        "repo": "dioxus",
-        "type": "github"
-      }
-    },
     "fenix": {
       "inputs": {
         "nixpkgs": [
@@ -283,18 +266,18 @@
         "type": "github"
       }
     },
-    "process-compose-flake": {
+    "proc-flake": {
       "locked": {
-        "lastModified": 1708624100,
-        "narHash": "sha256-zZPheCD9JGg2EtK4A9BsIdyl8447egOow4fjIfHFHRg=",
-        "owner": "Platonic-Systems",
-        "repo": "process-compose-flake",
-        "rev": "44d260ddba5a51570dee54d5cd4d8984edaf98c2",
+        "lastModified": 1692742849,
+        "narHash": "sha256-Nv8SOX+O6twFfPnA9BfubbPLZpqc+UeK6JvIWnWkdb0=",
+        "owner": "srid",
+        "repo": "proc-flake",
+        "rev": "25291b6e3074ad5dd573c1cb7d96110a9591e10f",
         "type": "github"
       },
       "original": {
-        "owner": "Platonic-Systems",
-        "repo": "process-compose-flake",
+        "owner": "srid",
+        "repo": "proc-flake",
         "type": "github"
       }
     },
@@ -318,14 +301,13 @@
     "root": {
       "inputs": {
         "devshell": "devshell",
-        "dioxus": "dioxus",
         "fenix": "fenix",
         "flake-compat": "flake-compat",
         "flake-parts": "flake-parts",
         "flake-root": "flake-root",
         "nixpkgs": "nixpkgs_2",
         "pre-commit-hooks-nix": "pre-commit-hooks-nix",
-        "process-compose-flake": "process-compose-flake",
+        "proc-flake": "proc-flake",
         "progenitor": "progenitor"
       }
     },

@@ -20,7 +20,7 @@
         inputs.flake-parts.flakeModules.easyOverlay
         inputs.flake-root.flakeModule
         inputs.pre-commit-hooks-nix.flakeModule
-        inputs.process-compose-flake.flakeModule
+        inputs.proc-flake.flakeModule
       ];
 
       perSystem = {
@@ -76,29 +76,6 @@
             postFixup = "mv $out/bin/lz-cli $out/bin/lz";
             meta.mainProgram = "lz";
           };
-        packages.dioxus-cli =
-          pkgs.dioxus-cli.override
-          {
-            rustPlatform.buildRustPackage = args: (rustPlatform.buildRustPackage (args
-              // {
-                version = (builtins.fromTOML (builtins.readFile "${inputs.dioxus}/Cargo.toml")).workspace.package.version;
-                src = inputs.dioxus;
-                cargoLock.lockFile = "${inputs.dioxus}/Cargo.lock";
-                cargoHash = null;
-                buildAndTestSubdir = "packages/cli";
-                doCheck = false;
-                nativeBuildInputs = args.nativeBuildInputs ++ [pkgs.makeBinaryWrapper];
-
-                # Unset RUSTFLAGS to prevent cargo from attempting to
-                # link the wasm binary with macOS frameworks, which
-                # panics rustc:
-                postFixup = ''
-                  mv $out/bin/dx $out/bin/.dx-wrapped
-                  makeBinaryWrapper $out/bin/.dx-wrapped $out/bin/dx \
-                    --unset RUSTFLAGS
-                '';
-              }));
-          };
 
         apps = {
           default = config.apps.lz-web;
@@ -108,7 +85,6 @@
         devshells = {
           default = {
             packages = [
-              config.packages.dioxus-cli
               pkgs.sqlx-cli
               pkgs.sqlite
               pkgs.cargo-watch
@@ -127,7 +103,8 @@
                 category = "development";
                 help = "run all servers for development";
                 name = "dev-server";
-                package = config.packages.dev-server;
+                package =
+                  config.proc.groups.dev-server.package;
               }
               {
                 category = "development";
@@ -188,44 +165,18 @@
           };
         };
 
-        process-compose."dev-server" = {
-          package = pkgs.writeShellApplication {
-            name = "process-compose";
-            runtimeInputs = [config.flake-root.package];
-            text = ''
-              cd "$(flake-root)"
-              exec ${pkgs.lib.getExe pkgs.process-compose} "$@"
-            '';
-          };
-          settings = {
-            processes = {
-              backend = let
-                http_get = {
-                  host = "127.0.0.1";
-                  port = 3000;
-                  path = "/health";
-                };
-              in {
-                command = ''
-                  cargo watch --why -L info \
-                    -i src/lz-ui -i src/lz-openapi -i flake.nix -i flake.lock -- \
-                    cargo run --features dev -- --db dev-db.sqlite web --authentication-header-name X-Tailscale-User-LoginName --default-user-name=developer --listen-on=127.0.0.1:3000
+        proc.groups."dev-server" = {
+          processes = {
+            backend = {
+              command = pkgs.lib.getExe (pkgs.writeShellApplication {
+                name = "backend";
+                runtimeInputs = [pkgs.cargo-watch];
+                text = ''
+                  cargo watch --why -L info -i src/lz-ui -i src/lz-openapi -i flake.nix -i flake.lock -- \
+                     cargo run --features dev -- \
+                     --db dev-db.sqlite web --authentication-header-name X-Tailscale-User-LoginName --default-user-name=developer --listen-on=127.0.0.1:3000
                 '';
-                working_dir = "./";
-                readiness_probe = {
-                  success_threshold = 1;
-                  failure_threshold = 120;
-                  initial_delay_seconds = 5;
-                  period_seconds = 1;
-                  inherit http_get;
-                };
-                liveness_probe = {
-                  success_threshold = 1;
-                  failure_threshold = 5;
-                  period_seconds = 1;
-                  inherit http_get;
-                };
-              };
+              });
             };
           };
         };
@@ -242,7 +193,7 @@
   inputs = {
     flake-parts.url = "github:hercules-ci/flake-parts";
     devshell.url = "github:numtide/devshell";
-    process-compose-flake.url = "github:Platonic-Systems/process-compose-flake";
+    proc-flake.url = "github:srid/proc-flake";
     flake-root.url = "github:srid/flake-root";
     pre-commit-hooks-nix.url = "github:cachix/pre-commit-hooks.nix";
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
@@ -253,10 +204,6 @@
     fenix = {
       url = "github:nix-community/fenix";
       inputs.nixpkgs.follows = "nixpkgs";
-    };
-    dioxus = {
-      url = "github:DioxusLabs/dioxus/v0.5.2";
-      flake = false;
     };
     progenitor = {
       url = "github:oxidecomputer/progenitor/v0.6.0";

@@ -13,6 +13,9 @@ use tower_http::cors::CorsLayer;
 use crate::api::{AnnotatedBookmark, Pagination};
 use crate::db::{DbTransaction, GlobalWebAppState};
 
+mod htmz;
+use htmz::*;
+
 pub fn router() -> Router<Arc<GlobalWebAppState>> {
     let router = Router::new()
         .route("/", get(my_bookmarks))
@@ -27,9 +30,11 @@ struct MyBookmarks {
     next_cursor: Option<BookmarkId>,
 }
 
+#[tracing::instrument()]
 async fn my_bookmarks(
     mut txn: DbTransaction,
     Query(pagination): Query<Pagination>,
+    mode: HtmzMode,
 ) -> Result<MyBookmarks, ()> {
     let per_page = pagination.per_page.unwrap_or(20);
     let user_id = txn.user().id;

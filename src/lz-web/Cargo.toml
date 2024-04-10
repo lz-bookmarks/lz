@@ -44,3 +44,7 @@ prettyplease = { workspace = true, optional = true }
 axum-extra = { workspace = true, features = ["query"] }
 askama_axum = { workspace = true }
 askama = { workspace = true, features = ["with-axum", "serde"] }
+
+# From https://djc.github.io/askama/performance.html:
+[profile.dev.package.askama_derive]
+opt-level = 3

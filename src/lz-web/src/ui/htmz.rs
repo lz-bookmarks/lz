@@ -1,5 +1,6 @@
 //! Types to support element interpolation via [HTMZ](https://leanrada.com/htmz/).
 
+use askama_axum::Template;
 use axum::async_trait;
 use axum::extract::FromRequestParts;
 use axum::http::request::Parts;
@@ -33,6 +34,56 @@ impl<S> FromRequestParts<S> for HtmzMode {
             Ok(HtmzMode::IFrame)
         } else {
             Ok(HtmzMode::Standalone)
+        }
+    }
+}
+
+const HTMZ_SCRIPT: &'static str = include_str!("htmz.js");
+
+#[derive(Template, Clone, Debug)]
+#[template(path = "auto_htmz.html")]
+pub struct HtmzTemplate<T: Template> {
+    template: T,
+    title: Option<String>,
+    mode: HtmzMode,
+}
+
+impl HtmzMode {
+    pub fn build(self) -> HtmzRenderBuilder {
+        HtmzRenderBuilder {
+            title: None,
+            mode: self,
+        }
+    }
+
+    pub fn wrap<T: Template>(self, template: T) -> HtmzTemplate<T> {
+        HtmzRenderBuilder {
+            title: None,
+            mode: self,
+        }
+        .wrap(template)
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct HtmzRenderBuilder {
+    title: Option<String>,
+    mode: HtmzMode,
+}
+
+impl HtmzRenderBuilder {
+    /// Updates the title of the page via htmz.
+    pub fn title(mut self, title: impl Into<String>) -> Self {
+        self.title = Some(title.into());
+        self
+    }
+
+    /// Finish and wrap a template in a htmz-able template.
+    pub fn wrap<T: Template>(self, template: T) -> HtmzTemplate<T> {
+        HtmzTemplate {
+            template,
+            title: self.title,
+            mode: self.mode,
         }
     }
 }

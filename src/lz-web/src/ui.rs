@@ -24,7 +24,7 @@ pub fn router() -> Router<Arc<GlobalWebAppState>> {
 }
 
 #[derive(Template)]
-#[template(path = "my_bookmarks.html")]
+#[template(path = "my_bookmarks.html", ext = "html")]
 struct MyBookmarks {
     batch: Vec<AnnotatedBookmark>,
     next_cursor: Option<BookmarkId>,
@@ -34,8 +34,8 @@ struct MyBookmarks {
 async fn my_bookmarks(
     mut txn: DbTransaction,
     Query(pagination): Query<Pagination>,
-    mode: HtmzMode,
-) -> Result<MyBookmarks, ()> {
+    htmz: HtmzMode,
+) -> Result<HtmzTemplate<MyBookmarks>, ()> {
     let per_page = pagination.per_page.unwrap_or(20);
     let user_id = txn.user().id;
     let query = vec![];
@@ -77,5 +77,8 @@ async fn my_bookmarks(
             );
         }
     }
-    Ok(MyBookmarks { batch, next_cursor })
+    Ok(htmz
+        .build()
+        .title("My bookmarks")
+        .wrap(MyBookmarks { batch, next_cursor }))
 }

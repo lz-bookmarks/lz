@@ -1,15 +1,9 @@
-<html>
-  <head>
-    <title>lz - my bookmarks</title>
-  </head>
-  <body>
-    <h1>My bookmarks</h1>
-    {% for item in batch %}
-      {% include "partials/bookmark_item.html" %}
-    {% endfor %}
-    {% match next_cursor %}
-      {% when Some(id) %}<a href="?cursor={{ id.id() }}">Next page</a>
-      {% when None %}
-    {% endmatch %}
-  </body>
-</html>
+<div "">
+  {% for item in batch %}
+    {% include "partials/bookmark_item.html" %}
+  {% endfor %}
+  {% match next_cursor %}
+    {% when Some(id) %}<a id="load-more" target="htmz" href="?cursor={{ id.id() }}#load-more">Next page</a>
+    {% when None %}
+  {% endmatch %}
+</div>

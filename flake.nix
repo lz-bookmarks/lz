@@ -107,6 +107,17 @@
 
         devshells = {
           default = {
+            packages = [
+              config.packages.dioxus-cli
+              pkgs.sqlx-cli
+              pkgs.sqlite
+              pkgs.cargo-watch
+              pkgs.cargo-udeps
+              pkgs.nodejs_21
+              pkgs.djlint
+              pkgs.nodePackages.typescript-language-server
+              fenix.packages.${system}.targets.wasm32-unknown-unknown.stable.rust-std
+            ];
             imports = [
               "${inputs.devshell}/extra/language/rust.nix"
               "${inputs.devshell}/extra/language/c.nix"
@@ -155,16 +166,6 @@
                   '';
                 };
               }
-            ];
-            packages = [
-              config.packages.dioxus-cli
-              pkgs.sqlx-cli
-              pkgs.sqlite
-              pkgs.cargo-watch
-              pkgs.nodejs_21
-              pkgs.djlint
-              pkgs.nodePackages.typescript-language-server
-              fenix.packages.${system}.targets.wasm32-unknown-unknown.stable.rust-std
             ];
             language.rust = {
               enableDefaultToolchain = false;

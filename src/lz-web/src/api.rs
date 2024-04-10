@@ -73,15 +73,15 @@ where
     Deserialize, Serialize, Debug, Clone, Default, PartialEq, Eq, Hash, Validate, ToSchema,
 )]
 #[schema(default)]
-struct Pagination {
+pub struct Pagination {
     /// The last batch's last (oldest) bookmark ID
     #[schema(example = None)]
-    cursor: Option<BookmarkId>,
+    pub cursor: Option<BookmarkId>,
 
     /// How many items to return
     #[schema(example = 50)]
     #[validate(range(min = 1, max = 500))]
-    per_page: Option<u16>,
+    pub per_page: Option<u16>,
 }
 
 /// The response returned by the `list_bookmarks` API endpoint.
@@ -98,9 +98,9 @@ pub struct ListBookmarkResult {
 /// A bookmark, including tags and associations on it.
 #[derive(Serialize, Debug, ToSchema, ToResponse)]
 pub struct AnnotatedBookmark {
-    bookmark: ExistingBookmark,
-    tags: Vec<ExistingTag>,
-    associations: Vec<AssociatedLink>,
+    pub bookmark: ExistingBookmark,
+    pub tags: Vec<ExistingTag>,
+    pub associations: Vec<AssociatedLink>,
 }
 
 /// A bookmark search query request

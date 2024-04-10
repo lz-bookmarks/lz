@@ -197,13 +197,6 @@
           };
           settings = {
             processes = {
-              frontend = {
-                command = ''
-                  dx serve --verbose
-                '';
-                working_dir = "./src/lz-ui";
-                depends_on.backend.condition = "process_healthy";
-              };
               backend = let
                 http_get = {
                   host = "127.0.0.1";

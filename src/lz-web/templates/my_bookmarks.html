@@ -1,0 +1,11 @@
+<html>
+  <head>
+    <title>lz - my bookmarks</title>
+  </head>
+  <body>
+    <h1>My bookmarks</h1>
+    {% for item in batch %}
+      {% include "partials/bookmark_item.html" %}
+    {% endfor %}
+  </body>
+</html>

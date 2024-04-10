@@ -11,7 +11,6 @@ dev = ["lz-web/dev"]
 
 [dependencies]
 anyhow = { workspace = true }
-askama = { version = "0.12.1", features = ["with-axum", "serde", "serde-json"] }
 chrono = { workspace = true }
 clap = { workspace = true, features = ["derive"] }
 reqwest = { workspace = true }

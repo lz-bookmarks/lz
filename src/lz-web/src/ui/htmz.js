@@ -10,12 +10,15 @@ function htmz(frame) {
   if (frame.contentWindow.location.href === "about:blank") return;
   // --------------------------------->8-----------------------------------
   setTimeout(() => {
+    // push the new URL to browser history
+    const loc = frame.contentWindow.location;
+    window.history.pushState({}, "", loc.pathname + loc.search);
+
+    // Assign elements and replace iframe to avoid history modification:
     document
       .querySelector(frame.contentWindow.location.hash || null)
       ?.replaceWith(...frame.contentDocument.body.childNodes);
-    // ---------------------------------8<-----------------------------------
     frame.remove();
     document.body.appendChild(frame);
-    // --------------------------------->8-----------------------------------
   });
 }

@@ -174,7 +174,7 @@ async fn list_cmd(
     }
     loop {
         let bookmarks = txn
-            .list_bookmarks_matching(filters.clone(), page_size, last_seen)
+            .list_bookmarks_matching(&filters, page_size, last_seen)
             .await?;
         for (elt, bm) in bookmarks.iter().enumerate() {
             if elt == usize::from(page_size) {

@@ -37,7 +37,7 @@ async fn my_bookmarks(
     Query(pagination): Query<Pagination>,
     htmz: HtmzMode,
 ) -> Result<HtmzTemplate<MyBookmarks>, ()> {
-    let ListResult { batch, next_cursor } = list_bookmarks(&mut txn, vec![], &pagination)
+    let ListResult { batch, next_cursor } = list_bookmarks(&mut txn, &vec![], &pagination)
         .await
         .map_err(|error| {
             tracing::error!(?error, %error, ?txn, "Could not query for bookmarks");

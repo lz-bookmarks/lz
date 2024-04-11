@@ -11,14 +11,14 @@ pub struct ListResult {
 
 pub async fn list_bookmarks(
     txn: &mut DbTransaction,
-    query: Vec<BookmarkSearch>,
+    query: &[BookmarkSearch],
     pagination: &Pagination,
 ) -> Result<ListResult, sqlx::Error> {
     let per_page = pagination.per_page.unwrap_or(20);
     let user_id = txn.user().id;
     let bms = txn
         .list_bookmarks_matching(
-            [&[BookmarkSearch::User { id: user_id }], query.as_slice()].concat(),
+            &[&[BookmarkSearch::User { id: user_id }], query].concat(),
             per_page,
             pagination.cursor,
         )

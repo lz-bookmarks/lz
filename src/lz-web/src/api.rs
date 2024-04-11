@@ -133,7 +133,7 @@ async fn list_bookmarks_matching(
 ) -> Result<Json<ListBookmarkResult>, (StatusCode, Json<ApiError>)> {
     let ListResult { batch, next_cursor } = list_bookmarks(
         &mut txn,
-        vec![],
+        &query,
         &pagination.unwrap_or_default(),
     )
     .await

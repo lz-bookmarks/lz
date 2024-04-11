@@ -55,14 +55,6 @@ impl HtmzMode {
             mode: self,
         }
     }
-
-    pub fn wrap<T: Template>(self, template: T) -> HtmzTemplate<T> {
-        HtmzRenderBuilder {
-            title: None,
-            mode: self,
-        }
-        .wrap(template)
-    }
 }
 
 #[derive(Clone, Debug)]

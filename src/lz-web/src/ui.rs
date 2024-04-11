@@ -6,11 +6,12 @@ use askama_axum::Template;
 use axum::extract::Query;
 use axum::routing::get;
 use axum::Router;
+use lz_db::BookmarkId;
 use lz_db::IdType as _;
-use lz_db::{BookmarkId, BookmarkSearch};
 use tower_http::cors::CorsLayer;
 
 use crate::api::{AnnotatedBookmark, Pagination};
+use crate::db::queries::{list_bookmarks, ListResult};
 use crate::db::{DbTransaction, GlobalWebAppState};
 
 mod htmz;
@@ -36,47 +37,11 @@ async fn my_bookmarks(
     Query(pagination): Query<Pagination>,
     htmz: HtmzMode,
 ) -> Result<HtmzTemplate<MyBookmarks>, ()> {
-    let per_page = pagination.per_page.unwrap_or(20);
-    let user_id = txn.user().id;
-    let query = vec![];
-    let bms = txn
-        .list_bookmarks_matching(
-            [&[BookmarkSearch::User { id: user_id }], query.as_slice()].concat(),
-            per_page,
-            pagination.cursor,
-        )
+    let ListResult { batch, next_cursor } = list_bookmarks(&mut txn, vec![], &pagination)
         .await
-        .map_err(|e| ())?;
-    let mut taggings = txn.tags_on_bookmarks(&bms).await.map_err(|e| {
-        tracing::error!(error=%e, error_debug=?e, "could not query tags for bookmarks");
-        ()
-    })?;
-    let mut associations = txn.associated_links_on_bookmarks(&bms).await.map_err(|e| {
-        tracing::error!(error=%e, error_debug=?e, "could not query for bookmark associations");
-        ()
-    })?;
-    let mut next_cursor = None;
-    let mut batch = vec![];
-    for (elt, bm) in bms.into_iter().enumerate() {
-        if elt == usize::from(per_page) {
-            // The "next cursor" element:
-            next_cursor = Some(bm.id);
-            break;
-        }
-        let id = bm.id;
-        if let Some(tags) = taggings.remove(&id) {
-            batch.push(AnnotatedBookmark {
-                bookmark: bm.clone(),
-                tags,
-                associations: associations.remove(&id).unwrap_or_else(std::vec::Vec::new),
-            });
-        } else {
-            tracing::warn!(
-                bookmark_id=?id,
-                "somehow this bookmark seems to have appeared twice in the list of bookmarks?"
-            );
-        }
-    }
+        .map_err(|error| {
+            tracing::error!(?error, %error, ?txn, "Could not query for bookmarks");
+        })?;
     Ok(htmz
         .build()
         .title("My bookmarks")

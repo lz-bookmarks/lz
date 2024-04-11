@@ -11,6 +11,8 @@ use axum::http::request::Parts;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 
+pub(crate) mod queries;
+
 /// An axum state object containing a connection pool to the SQLite DB.
 ///
 /// This isn't all that useful (or safe) in a web request handler. Use

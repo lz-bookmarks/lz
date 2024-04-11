@@ -22,6 +22,7 @@ use tower_http::cors::CorsLayer;
 use utoipa::{IntoParams, OpenApi, ToResponse, ToSchema};
 use validator::Validate;
 
+use crate::db::queries::{list_bookmarks, ListResult};
 use crate::db::{DbTransaction, GlobalWebAppState};
 
 #[derive(OpenApi)]
@@ -130,49 +131,18 @@ async fn list_bookmarks_matching(
     mut txn: DbTransaction,
     Json(ListRequest { query, pagination }): Json<ListRequest>,
 ) -> Result<Json<ListBookmarkResult>, (StatusCode, Json<ApiError>)> {
-    let pagination = pagination.unwrap_or_default();
-    let per_page = pagination.per_page.unwrap_or(20);
-    let user_id = txn.user().id;
-    let bms = txn
-        .list_bookmarks_matching(
-            [&[BookmarkSearch::User { id: user_id }], query.as_slice()].concat(),
-            per_page,
-            pagination.cursor,
-        )
-        .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiError::from(e))))?;
-    let mut taggings = txn.tags_on_bookmarks(&bms).await.map_err(|e| {
-        tracing::error!(error=%e, error_debug=?e, "could not query tags for bookmarks");
-        (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiError::from(e)))
-    })?;
-    let mut associations = txn.associated_links_on_bookmarks(&bms).await.map_err(|e| {
+    let ListResult { batch, next_cursor } = list_bookmarks(
+        &mut txn,
+        vec![],
+        &pagination.unwrap_or_default(),
+    )
+    .await
+    .map_err(|e| {
         tracing::error!(error=%e, error_debug=?e, "could not query for bookmark associations");
         (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiError::from(e)))
     })?;
-    let mut next_cursor = None;
-    let mut bookmarks = vec![];
-    for (elt, bm) in bms.into_iter().enumerate() {
-        if elt == usize::from(per_page) {
-            // The "next cursor" element:
-            next_cursor = Some(bm.id);
-            break;
-        }
-        let id = bm.id;
-        if let Some(tags) = taggings.remove(&id) {
-            bookmarks.push(AnnotatedBookmark {
-                bookmark: bm.clone(),
-                tags,
-                associations: associations.remove(&id).unwrap_or_else(std::vec::Vec::new),
-            });
-        } else {
-            tracing::warn!(
-                bookmark_id=?id,
-                "somehow this bookmark seems to have appeared twice in the list of bookmarks?"
-            );
-        }
-    }
     Ok(Json(ListBookmarkResult {
-        bookmarks,
+        bookmarks: batch,
         next_cursor,
     }))
 }

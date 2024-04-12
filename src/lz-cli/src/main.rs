@@ -109,8 +109,8 @@ enum Commands {
     Web(lz_web::Args),
 
     /// Writes the contents of the openapi.json file to stdout
-    #[clap(alias = "generate-openapi-spec")]
-    GenerateOpenApiSpec(lz_web::export_openapi::Args),
+    #[clap(subcommand, alias = "generate-openapi-spec")]
+    GenerateOpenApiSpec(lz_web::export_openapi::Command),
 }
 
 #[tokio::main]

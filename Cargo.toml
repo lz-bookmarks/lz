@@ -70,3 +70,7 @@ web-sys = "0.3.69"
 askama = "0.12.1"
 askama_axum = "0.4.0"
 axum-test = "14.8.0"
+
+# From https://djc.github.io/askama/performance.html:
+[profile.dev.package.askama_derive]
+opt-level = 3

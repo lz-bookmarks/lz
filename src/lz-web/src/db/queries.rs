@@ -69,7 +69,7 @@ pub async fn annotate_bookmarks<M: TransactionMode>(
 
     let mut next_cursor = None;
     let mut batch = vec![];
-    for (elt, bm) in bookmarks.into_iter().enumerate() {
+    for (elt, bm) in bookmarks.iter().enumerate() {
         if elt == usize::from(per_page) {
             // The "next cursor" element:
             next_cursor = Some(bm.id);

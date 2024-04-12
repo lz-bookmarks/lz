@@ -20,12 +20,11 @@ mod htmz;
 use htmz::*;
 
 pub fn router() -> Router<Arc<GlobalWebAppState>> {
-    let router = Router::new()
+    Router::new()
         .route("/", get(my_bookmarks))
         .route("/edit", get(bookmark_edit_form))
         .route("/edit", post(bookmark_save))
-        .layer(CorsLayer::permissive());
-    router
+        .layer(CorsLayer::permissive())
 }
 
 #[derive(Template)]
@@ -41,7 +40,7 @@ async fn my_bookmarks(
     Query(pagination): Query<Pagination>,
     htmz: HtmzMode,
 ) -> Result<HtmzTemplate<MyBookmarks>, ()> {
-    let ListResult { batch, next_cursor } = list_bookmarks(&mut txn, &vec![], &pagination)
+    let ListResult { batch, next_cursor } = list_bookmarks(&mut txn, &[], &pagination)
         .await
         .map_err(|error| {
             tracing::error!(?error, %error, ?txn, "Could not query for bookmarks");

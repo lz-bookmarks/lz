@@ -22,7 +22,7 @@ pub struct Args {
 pub fn run(args: &Args) -> anyhow::Result<()> {
     let json = api::ApiDoc::openapi().to_pretty_json()?;
     if let Some(out) = &args.openapi_json {
-        std::fs::write(out, &json).with_context(|| format!("writing {out:?}"))?;
+        std::fs::write(out, json).with_context(|| format!("writing {out:?}"))?;
     }
     #[cfg(feature = "dev")]
     if let Some(dest_crate) = &args.rust_client {

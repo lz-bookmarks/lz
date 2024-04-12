@@ -38,7 +38,7 @@ impl<S> FromRequestParts<S> for HtmzMode {
     }
 }
 
-const HTMZ_SCRIPT: &'static str = include_str!("htmz.js");
+const HTMZ_SCRIPT: &str = include_str!("htmz.js");
 
 #[derive(Template, Clone, Debug)]
 #[template(path = "auto_htmz.html")]

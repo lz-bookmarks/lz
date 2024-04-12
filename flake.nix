@@ -126,7 +126,7 @@
                 package = pkgs.writeShellApplication {
                   name = "regenerate-openapi-client";
                   text = ''
-                    cargo run --features dev -- generate-openapi-spec --rust-client src/lz-openapi
+                    cargo run --features dev -- generate-openapi-spec rust-client src/lz-openapi
                     cargo fmt -p lz-openapi
                   '';
                 };

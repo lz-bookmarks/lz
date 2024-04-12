@@ -511,9 +511,7 @@ pub mod types {
     ///  "required": [
     ///    "created_at",
     ///    "id",
-    ///    "shared",
     ///    "title",
-    ///    "unread",
     ///    "url",
     ///    "user_id"
     ///  ],
@@ -617,11 +615,13 @@ pub mod types {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         pub notes: Option<String>,
         ///Whether other users can see the bookmark.
-        pub shared: bool,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub shared: Option<bool>,
         ///Title that the user gave the bookmark.
         pub title: String,
         ///Whether the bookmark is "to read"
-        pub unread: bool,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub unread: Option<bool>,
         ///URL that the bookmark points to.
         pub url: String,
         pub user_id: UserId,
@@ -1301,9 +1301,9 @@ pub mod types {
             id: Result<super::BookmarkId, String>,
             modified_at: Result<Option<chrono::DateTime<chrono::offset::Utc>>, String>,
             notes: Result<Option<String>, String>,
-            shared: Result<bool, String>,
+            shared: Result<Option<bool>, String>,
             title: Result<String, String>,
-            unread: Result<bool, String>,
+            unread: Result<Option<bool>, String>,
             url: Result<String, String>,
             user_id: Result<super::UserId, String>,
             website_description: Result<Option<String>, String>,
@@ -1318,9 +1318,9 @@ pub mod types {
                     id: Err("no value supplied for id".to_string()),
                     modified_at: Ok(Default::default()),
                     notes: Ok(Default::default()),
-                    shared: Err("no value supplied for shared".to_string()),
+                    shared: Ok(Default::default()),
                     title: Err("no value supplied for title".to_string()),
-                    unread: Err("no value supplied for unread".to_string()),
+                    unread: Ok(Default::default()),
                     url: Err("no value supplied for url".to_string()),
                     user_id: Err("no value supplied for user_id".to_string()),
                     website_description: Ok(Default::default()),
@@ -1391,7 +1391,7 @@ pub mod types {
             }
             pub fn shared<T>(mut self, value: T) -> Self
             where
-                T: std::convert::TryInto<bool>,
+                T: std::convert::TryInto<Option<bool>>,
                 T::Error: std::fmt::Display,
             {
                 self.shared = value
@@ -1411,7 +1411,7 @@ pub mod types {
             }
             pub fn unread<T>(mut self, value: T) -> Self
             where
-                T: std::convert::TryInto<bool>,
+                T: std::convert::TryInto<Option<bool>>,
                 T::Error: std::fmt::Display,
             {
                 self.unread = value

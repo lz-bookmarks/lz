@@ -4,7 +4,9 @@ use std::str::FromStr;
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Local, LocalResult, NaiveDateTime, TimeZone, Utc};
 use clap::{Parser, Subcommand};
-use lz_db::{Bookmark, BookmarkId, BookmarkSearch, Connection, DateInput, ReadOnly, Transaction};
+use lz_db::{
+    Bookmark, BookmarkId, BookmarkSearch, Connection, DateInput, NoId, ReadOnly, Transaction,
+};
 use scraper::{Html, Selector};
 use url::Url;
 
@@ -264,7 +266,7 @@ async fn add_link(
     }
 }
 
-async fn lookup_link_from_web(link: &String) -> Result<Bookmark<(), ()>> {
+async fn lookup_link_from_web(link: &String) -> Result<Bookmark<NoId, NoId>> {
     // This currently assumes all lookups are against HTML pages, which is a
     // reasonable starting point but would prevent e.g. bookmarking images.
     let now = Utc::now();
@@ -293,7 +295,7 @@ async fn lookup_link_from_web(link: &String) -> Result<Bookmark<(), ()>> {
         accessed_at: Some(now),
         created_at: now,
         description: description.clone(),
-        id: (),
+        id: NoId,
         import_properties: None,
         modified_at: None,
         notes: None,
@@ -301,7 +303,7 @@ async fn lookup_link_from_web(link: &String) -> Result<Bookmark<(), ()>> {
         title: title.clone(),
         unread: true,
         url,
-        user_id: (),
+        user_id: NoId,
         website_title: if title.as_str() == "" {
             None
         } else {

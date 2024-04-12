@@ -1,3 +1,4 @@
+use serde::{Deserialize, Deserializer, Serialize};
 use std::marker::PhantomData;
 
 use crate::Connection;
@@ -124,11 +125,40 @@ pub trait IdType<T>: Copy {
     fn id(self) -> Self::Id;
 }
 
-/// The () type can be an ID for any DB type here.
+/// The type of ID that is "no ID".
+///
+/// This type parameter indicates that the corresponding ID field
+/// would be unset, e.g. for creation of a new element.
+///
+/// # Important traits
+/// This type implements the following traits worth knowing about:
+/// * [`IdType<T>`](#impl-IdType%3CT%3E-for-NoId) - A "no ID" is valid
+///   for any type of concrete database element ID.
+///
+/// * [`Deserialize`](#impl-Deserialize%3C'de%3E-for-NoId) - a "no ID"
+///   can be deserialized even/especially if the field is absent in
+///   the structure being deserialized. This allows using the
+///   structures using the [IdType] trait to be used for database row
+///   creation operations.
+#[derive(PartialEq, Eq, Clone, Copy, Default, Serialize, Debug)]
+pub struct NoId;
+
+/// NoId can be deserialized from any source, even if the field is not
+/// present.
+impl<'de> Deserialize<'de> for NoId {
+    fn deserialize<D>(_deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        Ok(NoId)
+    }
+}
+
+/// The NoId type can be an ID for any DB type here.
 ///
 /// This is useful for passing [`Bookmark`] to a creation function,
 /// where we need no ID to be set.
-impl<T> IdType<T> for () {
+impl<T> IdType<T> for NoId {
     type Id = std::convert::Infallible;
 
     fn id(self) -> Self::Id {

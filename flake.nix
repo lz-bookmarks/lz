@@ -19,8 +19,8 @@
         inputs.devshell.flakeModule
         inputs.flake-parts.flakeModules.easyOverlay
         inputs.flake-root.flakeModule
-        inputs.proc-flake.flakeModule
         inputs.pre-commit-hooks-nix.flakeModule
+        inputs.proc-flake.flakeModule
       ];
 
       perSystem = {
@@ -39,16 +39,17 @@
               CoreFoundation
               SystemConfiguration
               Security
+              CoreServices
             ]
           else [];
+        rustPlatform = pkgs.makeRustPlatform {
+          inherit (fenix.packages.${system}.stable) rustc cargo;
+        };
       in {
         formatter = pkgs.alejandra;
 
-        packages.default = config.packages.disk-spinner;
-        packages.lz-web = let
-          rustPlatform = pkgs.makeRustPlatform {
-            inherit (fenix.packages.${system}.stable) rustc cargo;
-          };
+        packages.default = config.packages.lz;
+        packages.lz = let
           nativeBuildInputs =
             (builtins.map (l: pkgs.lib.getDev l) cIncludes)
             ++ cIncludes
@@ -56,7 +57,7 @@
             ++ [pkgs.pkg-config];
         in
           rustPlatform.buildRustPackage {
-            pname = "lz-web";
+            pname = "lz";
             version = (builtins.fromTOML (builtins.readFile ./src/lz-web/Cargo.toml)).package.version;
             inherit nativeBuildInputs;
             buildInputs = nativeBuildInputs;
@@ -72,7 +73,8 @@
                 ];
               };
             cargoLock.lockFile = ./Cargo.lock;
-            meta.mainProgram = "lz-web";
+            postFixup = "mv $out/bin/lz-cli $out/bin/lz";
+            meta.mainProgram = "lz";
           };
 
         apps = {
@@ -82,6 +84,16 @@
 
         devshells = {
           default = {
+            packages = [
+              pkgs.sqlx-cli
+              pkgs.sqlite
+              pkgs.cargo-watch
+              pkgs.cargo-udeps
+              pkgs.nodejs_21
+              pkgs.djlint
+              pkgs.nodePackages.typescript-language-server
+              fenix.packages.${system}.targets.wasm32-unknown-unknown.stable.rust-std
+            ];
             imports = [
               "${inputs.devshell}/extra/language/rust.nix"
               "${inputs.devshell}/extra/language/c.nix"
@@ -91,7 +103,14 @@
                 category = "development";
                 help = "run all servers for development";
                 name = "dev-server";
-                package = config.proc.groups.dev-server.package;
+                package =
+                  config.proc.groups.dev-server.package;
+              }
+              {
+                category = "development";
+                help = "Run the sqlite-web DB browser on dev-db.sqlite";
+                name = "sqlite-web";
+                command = "${pkgs.sqlite-web}/bin/sqlite_web -r $PRJ_ROOT/dev-db.sqlite";
               }
               {
                 category = "development";
@@ -102,20 +121,13 @@
 
               {
                 category = "maintenance";
-                help = "regenerate the frontend TS types from our OpenAPI spec";
-                name = "regenerate-openapi-spec";
+                help = "regenerate the frontend OpenAPI client";
+                name = "regenerate-openapi-client";
                 package = pkgs.writeShellApplication {
-                  name = "regenerate-openapi-spec";
+                  name = "regenerate-openapi-client";
                   text = ''
-                    spec="$(mktemp)"
-                    trap 'rm "$spec"' EXIT
-                    while ! curl -s http://localhost:3000/openapi.json > "$spec" ; do
-                      echo "OpenAPI spec is not online yet, waiting..." >&2
-                      sleep 1
-                    done
-                    cd lz-frontend
-                    npm install --no-fund
-                    ./node_modules/.bin/openapi-typescript "$spec" -o src/api/v1.d.ts
+                    cargo run --features dev -- generate-openapi-spec --rust-client src/lz-openapi
+                    cargo fmt -p lz-openapi
                   '';
                 };
               }
@@ -131,13 +143,6 @@
                   '';
                 };
               }
-            ];
-            packages = [
-              pkgs.sqlx-cli
-              pkgs.sqlite
-              pkgs.cargo-watch
-              pkgs.nodejs_21
-              pkgs.nodePackages.typescript-language-server
             ];
             language.rust = {
               enableDefaultToolchain = false;
@@ -160,18 +165,19 @@
           };
         };
 
-        proc.groups.dev-server.processes = {
-          backend.command = ''
-            ${pkgs.cargo-watch}/bin/cargo-watch -L info --why -i *.nix -i lz-frontend -- cargo run  --color always --bin lz-cli -- --db dev-db.sqlite web --authentication-header-name X-Tailscale-User-LoginName --default-user-name=developer --listen-on=127.0.0.1:3000
-          '';
-          sqlite-web = {
-            command = "${pkgs.sqlite-web}/bin/sqlite_web -x -r dev-db.sqlite";
-          };
-          frontend = {
-            command = "cd lz-frontend && npm i && npm run dev -- --strictPort --open";
-          };
-          regenerate-openapi = {
-            command = "sleep 5; ${pkgs.cargo-watch}/bin/cargo-watch -d 20 --why -w src/lz-web -- regenerate-openapi-spec";
+        proc.groups."dev-server" = {
+          processes = {
+            backend = {
+              command = pkgs.lib.getExe (pkgs.writeShellApplication {
+                name = "backend";
+                runtimeInputs = [pkgs.cargo-watch];
+                text = ''
+                  cargo watch --why -L info -i src/lz-ui -i src/lz-openapi -i flake.nix -i flake.lock -- \
+                     cargo run --features dev -- \
+                     --db dev-db.sqlite web --authentication-header-name X-Tailscale-User-LoginName --default-user-name=developer --listen-on=127.0.0.1:3000
+                '';
+              });
+            };
           };
         };
 
@@ -198,6 +204,10 @@
     fenix = {
       url = "github:nix-community/fenix";
       inputs.nixpkgs.follows = "nixpkgs";
+    };
+    progenitor = {
+      url = "github:oxidecomputer/progenitor/v0.6.0";
+      flake = false;
     };
   };
 }

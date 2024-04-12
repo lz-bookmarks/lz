@@ -10,6 +10,9 @@ use axum::http::header::ToStrError;
 use axum::http::request::Parts;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
+use lz_db::ReadWrite;
+
+pub(crate) mod queries;
 
 /// An axum state object containing a connection pool to the SQLite DB.
 ///
@@ -41,6 +44,12 @@ impl GlobalWebAppState {
 /// request causes any changes to the DB, it _must_ call `commit`.
 pub struct DbTransaction<M: lz_db::TransactionMode = lz_db::ReadOnly> {
     txn: lz_db::Transaction<M>,
+}
+
+impl DbTransaction<ReadWrite> {
+    pub async fn commit(self) -> Result<(), sqlx::Error> {
+        self.txn.commit().await
+    }
 }
 
 impl<M: lz_db::TransactionMode> Deref for DbTransaction<M> {
@@ -157,5 +166,56 @@ impl FromRequestParts<Arc<GlobalWebAppState>> for DbTransaction<lz_db::ReadWrite
                 DbTransactionRejection
             })?;
         Ok(DbTransaction { txn })
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use ::axum_test::TestServer;
+    use axum::http::StatusCode;
+    use axum::routing::post;
+    use axum::Router;
+    use lz_db::{Bookmark, BookmarkId, IdType as _, UserId};
+    use serde::Serialize;
+    use testresult::TestResult;
+    use url::Url;
+
+    #[tokio::test]
+    async fn deserialize_bookmark() -> TestResult {
+        #[axum::debug_handler]
+        async fn refer_to_bookmark(
+            axum::Form(bm): axum::Form<Bookmark<BookmarkId, UserId>>,
+        ) -> &'static str {
+            assert_eq!(bm.id.id(), 1);
+            assert_eq!(bm.user_id.id(), 666);
+            assert_eq!(bm.url.to_string(), "https://example.com/");
+            "ok"
+        }
+
+        let app = Router::new().route("/", post(refer_to_bookmark));
+        let server = TestServer::new(app)?;
+        #[derive(Serialize)]
+        struct IncompleteBookmark {
+            id: u64,
+            user_id: u64,
+            url: Url,
+            title: &'static str,
+            created_at: chrono::DateTime<chrono::Utc>,
+        }
+        let response = server
+            .post("/")
+            .form(&IncompleteBookmark {
+                id: 1,
+                user_id: 666,
+                url: Url::parse("https://example.com")?,
+                title: "example",
+                created_at: Default::default(),
+            })
+            .await;
+        assert_eq!(
+            (response.text().as_str(), response.status_code()),
+            ("ok", StatusCode::OK)
+        );
+        Ok(())
     }
 }

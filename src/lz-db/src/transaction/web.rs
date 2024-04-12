@@ -32,7 +32,7 @@ impl<M: TransactionMode> Transaction<M> {
     #[tracing::instrument(err(Debug, level = tracing::Level::WARN), skip(self))]
     pub async fn list_bookmarks_matching(
         &mut self,
-        criteria: Vec<BookmarkSearch>,
+        criteria: &[BookmarkSearch],
         page_size: u16,
         last_seen: Option<BookmarkId>,
     ) -> Result<Vec<Bookmark<BookmarkId, UserId>>, sqlx::Error> {
@@ -253,11 +253,13 @@ mod tests {
             .await
             .with_context(|| "adding backdated bookmark".to_string())?;
 
-        let bookmarks_batch_1 = txn.list_bookmarks_matching(vec![], page_size, None).await?;
+        let bookmarks_batch_1 = txn
+            .list_bookmarks_matching(&vec![], page_size, None)
+            .await?;
         assert_eq!(bookmarks_batch_1.len(), (page_size + 1) as usize);
 
         let bookmarks_batch_2 = txn
-            .list_bookmarks_matching(vec![], page_size, bookmarks_batch_1.last().map(|bm| bm.id))
+            .list_bookmarks_matching(&vec![], page_size, bookmarks_batch_1.last().map(|bm| bm.id))
             .await?;
         assert_eq!(bookmarks_batch_2.len(), 10);
         assert_eq!(bookmarks_batch_2.last().map(|bm| bm.id), Some(backdated_id));

@@ -27,6 +27,7 @@ use crate::{IdType, Transaction, TransactionMode};
     ToResponse,
 )]
 #[sqlx(transparent)]
+#[serde(transparent)]
 pub struct UserId(i64);
 
 impl IdType<UserId> for UserId {

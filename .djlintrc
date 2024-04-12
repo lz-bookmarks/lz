@@ -1,0 +1,5 @@
+{
+  "indent": 2,
+  "custom_blocks": "match",
+  "ignore_blocks": "call"
+}

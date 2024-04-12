@@ -5,8 +5,10 @@ use std::str::FromStr;
 
 use anyhow::{anyhow, Result};
 use chrono::NaiveDateTime;
+use serde::{Deserialize, Serialize};
 use sqlx::query_builder::Separated;
 use sqlx::Sqlite;
+use utoipa::ToSchema;
 
 use crate::{IdType, TagId, TagName, UserId};
 
@@ -69,25 +71,25 @@ pub trait BookmarkSearchCriteria {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, ToSchema)]
 pub enum BookmarkSearchDatetimeField {
     Created,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, ToSchema)]
 pub enum BookmarkSearchDatetimeOrientation {
     After,
     Before,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 pub struct BookmarkSearchDateParams {
     date: DateInput,
     field: BookmarkSearchDatetimeField,
     orientation: BookmarkSearchDatetimeOrientation,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 pub struct DateInput(String);
 
 impl FromStr for DateInput {
@@ -106,12 +108,28 @@ impl FromStr for DateInput {
 /// The possible criteria that we can search for in a bookmark
 /// query. See [BookmarkSearchCriteria].
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, ToSchema)]
+#[serde(untagged)]
 pub enum BookmarkSearch {
-    ByDate { params: BookmarkSearchDateParams },
-    TagByName { name: TagName },
-    TagById { id: TagId },
-    User { id: UserId },
+    /// Only list bookmarks that have matching timestamps
+    #[serde(rename = "time")]
+    ByDate { date: BookmarkSearchDateParams },
+
+    /// Only list bookmarks that are tagged with a tag of the given name.
+    #[serde(rename = "tag")]
+    TagByName { tag: TagName },
+
+    /// Only list bookmarks that are tagged with a tag with the given ID.
+    TagById {
+        #[serde(rename = "tag_id")]
+        id: TagId,
+    },
+
+    /// Only list bookmarks belonging to the given user.
+    User {
+        #[serde(rename = "user_id")]
+        id: UserId,
+    },
 }
 
 impl BookmarkSearchCriteria for BookmarkSearch {
@@ -120,8 +138,8 @@ impl BookmarkSearchCriteria for BookmarkSearch {
         sep: Separated<'qb, 'args, Sqlite, Sep>,
     ) -> Separated<'qb, 'args, Sqlite, Sep> {
         match self {
-            BookmarkSearch::ByDate { params } => params.bookmarks_join_table(sep),
-            BookmarkSearch::TagByName { name } => name.bookmarks_join_table(sep),
+            BookmarkSearch::ByDate { date } => date.bookmarks_join_table(sep),
+            BookmarkSearch::TagByName { tag } => tag.bookmarks_join_table(sep),
             BookmarkSearch::TagById { id } => id.bookmarks_join_table(sep),
             BookmarkSearch::User { id } => id.bookmarks_join_table(sep),
         }
@@ -132,8 +150,8 @@ impl BookmarkSearchCriteria for BookmarkSearch {
         sep: Separated<'qb, 'args, Sqlite, Sep>,
     ) -> Separated<'qb, 'args, Sqlite, Sep> {
         match self {
-            BookmarkSearch::ByDate { params } => params.where_clause(sep),
-            BookmarkSearch::TagByName { name } => name.where_clause(sep),
+            BookmarkSearch::ByDate { date } => date.where_clause(sep),
+            BookmarkSearch::TagByName { tag } => tag.where_clause(sep),
             BookmarkSearch::TagById { id } => id.where_clause(sep),
             BookmarkSearch::User { id } => id.where_clause(sep),
         }
@@ -201,7 +219,7 @@ impl BookmarkSearchCriteria for UserId {
 /// Convenience method to make a ByDate search object, tied to `created_at >=`.
 pub fn created_after_from_datetime(date: DateInput) -> BookmarkSearch {
     BookmarkSearch::ByDate {
-        params: BookmarkSearchDateParams {
+        date: BookmarkSearchDateParams {
             date,
             field: BookmarkSearchDatetimeField::Created,
             orientation: BookmarkSearchDatetimeOrientation::After,
@@ -212,7 +230,7 @@ pub fn created_after_from_datetime(date: DateInput) -> BookmarkSearch {
 /// Convenience method to make a ByDate search object, tied to `created_at <=`.
 pub fn created_before_from_datetime(date: DateInput) -> BookmarkSearch {
     BookmarkSearch::ByDate {
-        params: BookmarkSearchDateParams {
+        date: BookmarkSearchDateParams {
             date,
             field: BookmarkSearchDatetimeField::Created,
             orientation: BookmarkSearchDatetimeOrientation::Before,

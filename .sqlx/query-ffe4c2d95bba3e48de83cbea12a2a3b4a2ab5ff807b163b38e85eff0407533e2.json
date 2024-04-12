@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n                  SELECT url_id FROM urls WHERE link = ?\n                ",
+  "query": "\n              SELECT url_id FROM urls WHERE link = ?\n            ",
   "describe": {
     "columns": [
       {
@@ -16,5 +16,5 @@
       false
     ]
   },
-  "hash": "e538f8d54d6a5e0035790e926452ba57ed9d42c23af135941ca846cc8441a626"
+  "hash": "ffe4c2d95bba3e48de83cbea12a2a3b4a2ab5ff807b163b38e85eff0407533e2"
 }

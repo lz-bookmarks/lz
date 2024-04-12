@@ -1,0 +1,15 @@
+[package]
+name = "lz-openapi"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+bytes = { workspace = true }
+chrono = { workspace = true, features = ["serde"] }
+futures-core = { workspace = true }
+percent-encoding = { workspace = true }
+reqwest = { workspace = true, features = ["json", "stream"] }
+serde = { workspace = true, features = ["derive"] }
+serde_urlencoded = { workspace = true }
+progenitor-client = {workspace = true}

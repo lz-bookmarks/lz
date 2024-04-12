@@ -124,15 +124,12 @@ pub trait IdType<T>: Copy {
     fn id(self) -> Self::Id;
 }
 
-/// The "don't even think about it" type.
-pub enum Never {}
-
 /// The () type can be an ID for any DB type here.
 ///
 /// This is useful for passing [`Bookmark`] to a creation function,
 /// where we need no ID to be set.
 impl<T> IdType<T> for () {
-    type Id = Never;
+    type Id = std::convert::Infallible;
 
     fn id(self) -> Self::Id {
         unreachable!("You mustn't try to access non-IDs.");
@@ -157,7 +154,8 @@ pub use web::*;
 pub(crate) mod criteria;
 pub use criteria::{
     created_after_from_datetime, created_before_from_datetime, BookmarkSearch,
-    BookmarkSearchCriteria, DateInput,
+    BookmarkSearchCriteria, BookmarkSearchDateParams, BookmarkSearchDatetimeField,
+    BookmarkSearchDatetimeOrientation, DateInput,
 };
 
 mod url;

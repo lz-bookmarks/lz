@@ -4,6 +4,9 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 
+[features]
+default = []
+dev = ["progenitor", "syn", "prettyplease"]
 
 [dependencies]
 lz-db = { path = "../lz-db" }
@@ -33,3 +36,20 @@ opentelemetry-otlp = { workspace = true, features = ["trace", "logs", "metrics",
 url = { workspace = true, features = ["serde"] }
 tonic = { workspace = true }
 tonic-web = { workspace = true }
+
+# Deps for generating the rust client:
+progenitor = { workspace = true, optional = true }
+syn = { workspace = true, optional = true }
+prettyplease = { workspace = true, optional = true }
+axum-extra = { workspace = true, features = ["query"] }
+askama_axum = { workspace = true }
+askama = { workspace = true, features = ["with-axum", "serde"] }
+
+[dev-dependencies]
+axum-test = { workspace = true }
+chrono = { workspace = true, features = ["serde"] }
+testresult = { workspace = true }
+
+# From https://djc.github.io/askama/performance.html:
+[profile.dev.package.askama_derive]
+opt-level = 3

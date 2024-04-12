@@ -2,7 +2,7 @@ use std::io;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use axum::Router;
+use axum::{routing, Router};
 use clap::Parser;
 use db::GlobalWebAppState;
 use opentelemetry::KeyValue;
@@ -15,6 +15,9 @@ use utoipa_swagger_ui::SwaggerUi;
 
 pub mod api;
 pub mod db;
+pub mod ui;
+
+pub mod export_openapi;
 
 /// The lz tagged bookmark manager web server
 #[derive(Clone, Eq, PartialEq, Debug, Parser)]
@@ -41,16 +44,23 @@ pub async fn run(pool: lz_db::Connection, args: &Args) -> anyhow::Result<()> {
         args.default_user_name.to_owned(),
     ));
     let api_router = api::router();
+    let ui_router = ui::router();
     let app = Router::new()
         .merge(SwaggerUi::new("/docs/swagger").url("/openapi.json", api::ApiDoc::openapi()))
         .merge(Redoc::with_url("/docs/api", api::ApiDoc::openapi()))
+        .route("/health", routing::get(health))
         .nest("/api/v1", api_router)
+        .merge(ui_router)
         .with_state(db_conns);
 
     // run our app with hyper, listening globally on port 3000
     let listener = tokio::net::TcpListener::bind(args.listen_on).await.unwrap();
     axum::serve(listener, app).await.unwrap();
     Ok(())
+}
+
+async fn health() -> &'static str {
+    "ok"
 }
 
 fn init_observability(_args: &Args) -> anyhow::Result<()> {

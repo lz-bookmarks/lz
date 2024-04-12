@@ -1,0 +1,23 @@
+<article id="bookmark-{{ item.bookmark.id.id() }}">
+  <div>{{ item.bookmark.created_at }}</div>
+  <a href="{{ item.bookmark.url }}">{{ item.bookmark.title }}</a>
+  <section class="tags">
+    {% for tag in item.tags %}{{- " " -}}<a href="#{{ tag.name }}">{{ tag.name }}</a>{% endfor %}
+  </section>
+  {% match item.bookmark.description %}
+    {% when Some with (description) %}
+    <blockquote>
+      {{ description }}
+    </blockquote>
+    {% when None %}
+  {% endmatch %}
+  {% match item.bookmark.notes %}
+    {% when Some with (notes) %}
+    <blockquote>
+      {{ notes }}
+    </blockquote>
+    {% when None %}
+  {% endmatch %}
+  <a target="htmz"
+     href="/edit?id={{- item.bookmark.id.id() -}}#bookmark-{{ item.bookmark.id.id() }}">edit</a>
+</article>

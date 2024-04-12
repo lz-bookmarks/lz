@@ -2,33 +2,33 @@
 
 use std::sync::Arc;
 
-use axum::extract::rejection::PathRejection;
-use axum::extract::{FromRequestParts, Path};
+use axum::extract::FromRequestParts;
 use axum::http::request::Parts;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
+use axum_extra::extract::{Query, QueryRejection};
 use lz_db::TagName;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use utoipa::{ToResponse, ToSchema};
+use utoipa::{IntoParams, ToResponse, ToSchema};
 
 use crate::db::GlobalWebAppState;
 
 /// A search query for retrieving bookmarks via the tags assigned to them.
 ///
-/// These tag queries are made in a URL path, separated by space
-/// (`%20`) characters.
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone, ToSchema, ToResponse)]
+/// Each
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone, IntoParams, ToSchema, ToResponse)]
+#[into_params(style = Form, parameter_in = Query)]
 pub(crate) struct TagQuery {
     /// Tags that all returned items should have.
-    #[schema(min_items = 1)]
+    #[serde(default)]
     pub tags: Vec<TagName>,
 }
 
 #[derive(Error, Debug)]
 pub enum TagQueryRejection {
     #[error("Internal error: The handler has no `*query` parameter defined")]
-    NoStarQueryParameterDefined(#[from] PathRejection),
+    NoStarQueryParameterDefined(#[from] QueryRejection),
 }
 
 impl IntoResponse for TagQueryRejection {
@@ -44,12 +44,7 @@ impl FromRequestParts<Arc<GlobalWebAppState>> for TagQuery {
         parts: &mut Parts,
         state: &Arc<GlobalWebAppState>,
     ) -> Result<Self, Self::Rejection> {
-        let Path(query): Path<String> = Path::from_request_parts(parts, state).await?;
-        let tags = query
-            .split(' ')
-            .filter(|q| !q.is_empty())
-            .map(TagName::from)
-            .collect();
-        Ok(TagQuery { tags })
+        let Query(q) = Query::from_request_parts(parts, state).await?;
+        Ok(q)
     }
 }

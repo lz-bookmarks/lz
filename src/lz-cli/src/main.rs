@@ -107,18 +107,22 @@ enum Commands {
     /// Run the lz web server
     #[clap(alias = "serve")]
     Web(lz_web::Args),
+
+    /// Writes the contents of the openapi.json file to stdout
+    #[clap(alias = "generate-openapi-spec")]
+    GenerateOpenApiSpec(lz_web::export_openapi::Args),
 }
 
 #[tokio::main]
 async fn main() -> Result<()> {
     let cli = Cli::parse();
-    let conn = Connection::from_path(&cli.db).await?;
 
     match &cli.command {
         Commands::Add {
             common_args,
             add_args,
         } => {
+            let conn = Connection::from_path(&cli.db).await?;
             let mut txn = conn.begin_for_user(&common_args.user).await?;
             add_cmd(&mut txn, add_args).await?;
             txn.commit().await?;
@@ -129,10 +133,15 @@ async fn main() -> Result<()> {
             created_before,
             tagged,
         } => {
+            let conn = Connection::from_path(&cli.db).await?;
             let txn = conn.begin_ro_for_user(&common_args.user).await?;
             list_cmd(txn, created_after, created_before, tagged).await?;
         }
-        Commands::Web(args) => lz_web::run(conn, args).await?,
+        Commands::Web(args) => {
+            let conn = Connection::from_path(&cli.db).await?;
+            lz_web::run(conn, args).await?;
+        }
+        Commands::GenerateOpenApiSpec(args) => lz_web::export_openapi::run(args)?,
     }
     Ok(())
 }
@@ -159,13 +168,13 @@ async fn list_cmd(
     };
     if let Some(tag_strings) = tagged {
         for namestring in tag_strings.iter() {
-            let name = lz_db::TagName(namestring.clone());
-            filters.push(BookmarkSearch::TagByName { name });
+            let tag = lz_db::TagName(namestring.clone());
+            filters.push(BookmarkSearch::TagByName { tag });
         }
     }
     loop {
         let bookmarks = txn
-            .list_bookmarks_matching(filters.clone(), page_size, last_seen)
+            .list_bookmarks_matching(&filters, page_size, last_seen)
             .await?;
         for (elt, bm) in bookmarks.iter().enumerate() {
             if elt == usize::from(page_size) {

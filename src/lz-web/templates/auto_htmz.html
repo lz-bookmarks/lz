@@ -1,0 +1,25 @@
+<html>
+  {% match mode %}
+    {% when HtmzMode::Standalone %}
+    <head>
+      {% match title %}
+        {% when Some with (title) %}
+        <title>{{ title }}</title>
+        {% when None %}
+      {% endmatch %}
+    </head>
+    <body>{{- template|safe -}}</body>
+    <script>{{- HTMZ_SCRIPT|safe -}}</script>
+    <iframe hidden="" name="htmz" onload="window.htmz(this)"></iframe>
+  </html>
+  {% when HtmzMode::IFrame %}
+  <head>
+    {% match title %}
+      {% when Some with (title) %}
+      <title>{{ title }}</title>
+      {% when None %}
+    {% endmatch %}
+  </head>
+  <body>{{- template|safe -}}</body>
+{% endmatch %}
+</html>

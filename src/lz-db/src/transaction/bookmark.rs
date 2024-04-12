@@ -21,6 +21,7 @@ use crate::{IdType, ReadWrite, Transaction, TransactionMode, UserId};
     ToResponse,
 )]
 #[sqlx(transparent)]
+#[serde(transparent)]
 pub struct BookmarkId(i64);
 
 impl IdType<BookmarkId> for BookmarkId {
@@ -77,12 +78,15 @@ pub struct Bookmark<ID: IdType<BookmarkId>, UID: IdType<UserId>> {
     pub website_description: Option<String>,
 
     /// Private notes that the user attached to the bookmark.
+    #[serde(default)]
     pub notes: Option<String>,
 
     /// Whether the bookmark is "to read"
+    #[serde(default)]
     pub unread: bool,
 
     /// Whether other users can see the bookmark.
+    #[serde(default)]
     pub shared: bool,
 
     /// Properties imported from other systems.
@@ -156,11 +160,12 @@ impl Transaction<ReadWrite> {
     /// - `accessed_at` and `created_at` - these timestamps can't be
     ///   manually reset.
     #[tracing::instrument(skip(self))]
-    pub async fn update_bookmark(
+    pub async fn update_bookmark<U: IdType<UserId> + std::fmt::Debug>(
         &mut self,
-        bm: &Bookmark<BookmarkId, UserId>,
+        bm: &Bookmark<BookmarkId, U>,
     ) -> Result<(), sqlx::Error> {
         let url_id = self.ensure_url(&bm.url).await?;
+        let user_id = self.user().id;
         sqlx::query!(
             r#"
               UPDATE bookmarks
@@ -187,7 +192,7 @@ impl Transaction<ReadWrite> {
             bm.notes,
             bm.import_properties,
             bm.id,
-            bm.user_id,
+            user_id,
         )
         .execute(&mut *self.txn)
         .await

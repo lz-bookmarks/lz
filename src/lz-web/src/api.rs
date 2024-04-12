@@ -20,9 +20,8 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tower_http::cors::CorsLayer;
 use utoipa::{IntoParams, OpenApi, ToResponse, ToSchema};
-use validator::Validate;
 
-use crate::db::queries::{list_bookmarks, ListResult};
+use crate::db::queries::{list_bookmarks, AnnotatedBookmark, ListResult, Pagination};
 use crate::db::{DbTransaction, GlobalWebAppState};
 
 #[derive(OpenApi)]
@@ -64,27 +63,6 @@ where
     s.serialize_str("(nasty DB error omitted)")
 }
 
-/// Parameters that govern non-offset based pagination.
-///
-/// Pagination in `lz` works by getting the next page based on what
-/// the previous page's last element was, aka "cursor-based
-/// pagination". To that end, use the previous call's `nextCursor`
-/// parameter into this call's `cursor` parameter.
-#[derive(
-    Deserialize, Serialize, Debug, Clone, Default, PartialEq, Eq, Hash, Validate, ToSchema,
-)]
-#[schema(default)]
-pub struct Pagination {
-    /// The last batch's last (oldest) bookmark ID
-    #[schema(example = None)]
-    pub cursor: Option<BookmarkId>,
-
-    /// How many items to return
-    #[schema(example = 50)]
-    #[validate(range(min = 1, max = 500))]
-    pub per_page: Option<u16>,
-}
-
 /// The response returned by the `list_bookmarks` API endpoint.
 ///
 /// This response contains pagination information; if `next_cursor` is
@@ -94,14 +72,6 @@ pub struct Pagination {
 pub struct ListBookmarkResult {
     bookmarks: Vec<AnnotatedBookmark>,
     next_cursor: Option<BookmarkId>,
-}
-
-/// A bookmark, including tags and associations on it.
-#[derive(Serialize, Debug, ToSchema, ToResponse)]
-pub struct AnnotatedBookmark {
-    pub bookmark: ExistingBookmark,
-    pub tags: Vec<ExistingTag>,
-    pub associations: Vec<AssociatedLink>,
 }
 
 /// A bookmark search query request

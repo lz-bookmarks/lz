@@ -1,16 +1,40 @@
-use lz_db::{BookmarkId, BookmarkSearch};
-
-use crate::api::{AnnotatedBookmark, Pagination};
+use lz_db::{
+    AssociatedLink, BookmarkId, BookmarkSearch, ExistingBookmark, ExistingTag, TransactionMode,
+};
+use serde::{Deserialize, Serialize};
+use utoipa::{ToResponse, ToSchema};
+use validator::Validate;
 
 use super::DbTransaction;
+
+/// Parameters that govern non-offset based pagination.
+///
+/// Pagination in `lz` works by getting the next page based on what
+/// the previous page's last element was, aka "cursor-based
+/// pagination". To that end, use the previous call's `nextCursor`
+/// parameter into this call's `cursor` parameter.
+#[derive(
+    Deserialize, Serialize, Debug, Clone, Default, PartialEq, Eq, Hash, Validate, ToSchema,
+)]
+#[schema(default)]
+pub struct Pagination {
+    /// The last batch's last (oldest) bookmark ID
+    #[schema(example = None)]
+    pub cursor: Option<BookmarkId>,
+
+    /// How many items to return
+    #[schema(example = 50)]
+    #[validate(range(min = 1, max = 500))]
+    pub per_page: Option<u16>,
+}
 
 pub struct ListResult {
     pub next_cursor: Option<BookmarkId>,
     pub batch: Vec<AnnotatedBookmark>,
 }
 
-pub async fn list_bookmarks(
-    txn: &mut DbTransaction,
+pub async fn list_bookmarks<M: TransactionMode>(
+    txn: &mut DbTransaction<M>,
     query: &[BookmarkSearch],
     pagination: &Pagination,
 ) -> Result<ListResult, sqlx::Error> {
@@ -23,11 +47,29 @@ pub async fn list_bookmarks(
             pagination.cursor,
         )
         .await?;
-    let mut taggings = txn.tags_on_bookmarks(&bms).await?;
-    let mut associations = txn.associated_links_on_bookmarks(&bms).await?;
+    let (batch, next_cursor) = annotate_bookmarks(txn, &bms, per_page).await?;
+    Ok(ListResult { next_cursor, batch })
+}
+
+/// A bookmark, including tags and associations on it.
+#[derive(Serialize, Debug, ToSchema, ToResponse)]
+pub struct AnnotatedBookmark {
+    pub bookmark: ExistingBookmark,
+    pub tags: Vec<ExistingTag>,
+    pub associations: Vec<AssociatedLink>,
+}
+
+pub async fn annotate_bookmarks<M: TransactionMode>(
+    txn: &mut DbTransaction<M>,
+    bookmarks: &[ExistingBookmark],
+    per_page: u16,
+) -> Result<(Vec<AnnotatedBookmark>, Option<BookmarkId>), sqlx::Error> {
+    let mut taggings = txn.tags_on_bookmarks(bookmarks).await?;
+    let mut associations = txn.associated_links_on_bookmarks(bookmarks).await?;
+
     let mut next_cursor = None;
     let mut batch = vec![];
-    for (elt, bm) in bms.into_iter().enumerate() {
+    for (elt, bm) in bookmarks.into_iter().enumerate() {
         if elt == usize::from(per_page) {
             // The "next cursor" element:
             next_cursor = Some(bm.id);
@@ -47,5 +89,5 @@ pub async fn list_bookmarks(
             );
         }
     }
-    Ok(ListResult { next_cursor, batch })
+    Ok((batch, next_cursor))
 }

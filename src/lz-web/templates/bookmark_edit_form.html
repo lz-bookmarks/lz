@@ -1,0 +1,25 @@
+<html>
+  <body>
+    <form method="post"
+          id="bookmark-{{- item.bookmark.id.id() -}}"
+          action="#bookmark-{{- item.bookmark.id.id() -}}"
+          target="htmz">
+      <section>
+        <input name="id" type="hidden" value="{{- item.bookmark.id.id() -}}">
+        <input name="user_id"
+               type="hidden"
+               value="{{- item.bookmark.user_id.id() -}}">
+        <input name="created_at"
+               type="hidden"
+               value="{{- item.bookmark.created_at -}}">
+        <input name="shared" type="hidden" value="{{- item.bookmark.shared -}}">
+        <input name="url" value="{{- item.bookmark.url -}}">
+        <input name="title" value="{{- item.bookmark.title -}}">
+        <textarea name="description">{{- item.bookmark.description.as_deref().unwrap_or(item.bookmark.website_description.as_deref().unwrap_or("")) -}}</textarea>
+        <textarea name="notes">{{- item.bookmark.notes.as_deref().unwrap_or("") -}}</textarea>
+        <input name="unread" type="checkbox" value="true" {{- item.bookmark.unread.then_some("checked").unwrap_or("") -}}>
+        <input type="submit" value="Save">
+      </section>
+    </form>
+  </body>
+</html>

@@ -23,7 +23,7 @@ pub fn router() -> Router<Arc<GlobalWebAppState>> {
     Router::new()
         .route("/", get(my_bookmarks))
         .route("/edit", get(bookmark_edit_form))
-        .route("/edit", post(bookmark_save))
+        .route("/edit", post(bookmark_update))
         .layer(CorsLayer::permissive())
 }
 
@@ -92,7 +92,7 @@ struct BookmarkItem {
 }
 
 #[tracing::instrument()]
-async fn bookmark_save(
+async fn bookmark_update(
     mut txn: DbTransaction<ReadWrite>,
     htmz: HtmzMode,
     Form(data): Form<Bookmark<BookmarkId, UserId>>,

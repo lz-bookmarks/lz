@@ -17,6 +17,7 @@ sqlx = { workspace = true, features = ["sqlite", "migrate", "runtime-tokio", "js
 serde_json = { workspace = true, features = ["raw_value"] }
 chrono = { workspace = true, features = ["serde"] }
 utoipa = { workspace = true, features = ["chrono", "url"] }
+delegate-display = { workspace = true }
 
 [dev-dependencies]
 test-context = { workspace = true }

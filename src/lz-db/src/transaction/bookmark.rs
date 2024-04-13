@@ -4,7 +4,7 @@ use sqlx::query_scalar;
 use url::Url;
 use utoipa::{ToResponse, ToSchema};
 
-use crate::{IdType, ReadWrite, Transaction, TransactionMode, UserId};
+use crate::{IdType, NoId, ReadWrite, Transaction, TransactionMode, UserId};
 
 /// The database ID of a bookmark.
 #[derive(
@@ -19,6 +19,7 @@ use crate::{IdType, ReadWrite, Transaction, TransactionMode, UserId};
     sqlx::Type,
     ToSchema,
     ToResponse,
+    delegate_display::DelegateDisplay,
 )]
 #[sqlx(transparent)]
 #[serde(transparent)]
@@ -110,7 +111,10 @@ impl<U: IdType<UserId>> From<Bookmark<BookmarkId, U>> for BookmarkId {
 impl Transaction<ReadWrite> {
     /// Store a new bookmark in the database.
     #[tracing::instrument(skip(self))]
-    pub async fn add_bookmark(&mut self, bm: Bookmark<(), ()>) -> Result<BookmarkId, sqlx::Error> {
+    pub async fn add_bookmark(
+        &mut self,
+        bm: Bookmark<NoId, NoId>,
+    ) -> Result<BookmarkId, sqlx::Error> {
         let user_id = self.user().id;
         let url_id = self.ensure_url(&bm.url).await?;
         let id = query_scalar!(

@@ -11,10 +11,8 @@ dev = ["lz-web/dev"]
 
 [dependencies]
 anyhow = { workspace = true }
-chrono = { workspace = true }
 clap = { workspace = true, features = ["derive"] }
-reqwest = { workspace = true }
-scraper = { workspace = true }
+chrono = { workspace = true }
 sqlx = { workspace = true }
 tokio = { workspace = true }
 url = { workspace = true }

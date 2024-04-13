@@ -175,15 +175,15 @@ mod test {
     use axum::http::StatusCode;
     use axum::routing::post;
     use axum::Router;
-    use lz_db::{Bookmark, BookmarkId, IdType as _, UserId};
+    use lz_db::{Bookmark, BookmarkId, IdType as _, NoId, UserId};
     use serde::Serialize;
     use testresult::TestResult;
     use url::Url;
 
     #[tokio::test]
-    async fn deserialize_bookmark() -> TestResult {
+    async fn deserialize_bookmark_types() -> TestResult {
         #[axum::debug_handler]
-        async fn refer_to_bookmark(
+        async fn refer_to_existing_bookmark(
             axum::Form(bm): axum::Form<Bookmark<BookmarkId, UserId>>,
         ) -> &'static str {
             assert_eq!(bm.id.id(), 1);
@@ -192,21 +192,34 @@ mod test {
             "ok"
         }
 
-        let app = Router::new().route("/", post(refer_to_bookmark));
+        async fn refer_to_new_bookmark(
+            axum::Form(bm): axum::Form<Bookmark<NoId, NoId>>,
+        ) -> &'static str {
+            assert_eq!(bm.id, NoId);
+            assert_eq!(bm.user_id, NoId);
+            assert_eq!(bm.url.to_string(), "https://example.com/");
+            "ok"
+        }
+
+        let app = Router::new()
+            .route("/existing", post(refer_to_existing_bookmark))
+            .route("/new", post(refer_to_new_bookmark));
         let server = TestServer::new(app)?;
         #[derive(Serialize)]
         struct IncompleteBookmark {
-            id: u64,
-            user_id: u64,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            id: Option<u64>,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            user_id: Option<u64>,
             url: Url,
             title: &'static str,
             created_at: chrono::DateTime<chrono::Utc>,
         }
         let response = server
-            .post("/")
+            .post("/existing")
             .form(&IncompleteBookmark {
-                id: 1,
-                user_id: 666,
+                id: Some(1),
+                user_id: Some(666),
                 url: Url::parse("https://example.com")?,
                 title: "example",
                 created_at: Default::default(),
@@ -216,6 +229,21 @@ mod test {
             (response.text().as_str(), response.status_code()),
             ("ok", StatusCode::OK)
         );
+        let response = server
+            .post("/new")
+            .form(&IncompleteBookmark {
+                id: None,
+                user_id: None,
+                url: Url::parse("https://example.com")?,
+                title: "example",
+                created_at: Default::default(),
+            })
+            .await;
+        assert_eq!(
+            (response.text().as_str(), response.status_code()),
+            ("ok", StatusCode::OK)
+        );
+
         Ok(())
     }
 }

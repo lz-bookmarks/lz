@@ -1,23 +1,45 @@
 <html>
   <body>
     <form method="post"
-          id="bookmark-{{- item.bookmark.id.id() -}}"
-          action="#bookmark-{{- item.bookmark.id.id() -}}"
+          id="bookmark-{{- bookmark.id -}}"
+          action="#bookmark-{{- bookmark.id -}}"
           target="htmz">
       <section>
-        <input name="id" type="hidden" value="{{- item.bookmark.id.id() -}}">
-        <input name="user_id"
-               type="hidden"
-               value="{{- item.bookmark.user_id.id() -}}">
-        <input name="created_at"
-               type="hidden"
-               value="{{- item.bookmark.created_at -}}">
-        <input name="shared" type="hidden" value="{{- item.bookmark.shared -}}">
-        <input name="url" value="{{- item.bookmark.url -}}">
-        <input name="title" value="{{- item.bookmark.title -}}">
-        <textarea name="description">{{- item.bookmark.description.as_deref().unwrap_or(item.bookmark.website_description.as_deref().unwrap_or("")) -}}</textarea>
-        <textarea name="notes">{{- item.bookmark.notes.as_deref().unwrap_or("") -}}</textarea>
-        <input name="unread" type="checkbox" value="true" {{- item.bookmark.unread.then_some("checked").unwrap_or("") -}}>
+        <!-- Hidden IDs/fields: -->
+        <input name="id" type="hidden" value="{{- bookmark.id -}}">
+        <input name="user_id" type="hidden" value="{{- bookmark.user_id -}}">
+        <input name="created_at" type="hidden" value="{{- bookmark.created_at -}}">
+        <input name="shared" type="hidden" value="{{- bookmark.shared -}}">
+        <!-- actual inputs: -->
+        <p>
+          <label for="bookmark-url">URL</label>
+          <input id="bookmark-url"
+                 type="url"
+                 name="url"
+                 size="90"
+                 value="{{- bookmark.url -}}"
+                 required>
+        </p>
+        <p>
+          <label for="bookmark-title">Title</label>
+          <input id="bookmark-title"
+                 name="title"
+                 size="90"
+                 value="{{- bookmark.title -}}"
+                 required>
+        </p>
+        <p>
+          <label for="bookmark-description">Description</label>
+          <textarea id="bookmark-description" cols="80" rows="10" name="description">{{- bookmark.description.as_deref().unwrap_or(bookmark.website_description.as_deref().unwrap_or("")) -}}</textarea>
+        </p>
+        <p>
+          <label for="bookmark-notes">Notes</label>
+          <textarea id="bookmark-notes" cols="80" rows="10" name="notes">{{- bookmark.notes.as_deref().unwrap_or("") -}}</textarea>
+        </p>
+        <p>
+          <label for="bookmark-unread">Unread</label>
+          <input id="bookmark-unread" name="unread" type="checkbox" value="true" {{- bookmark.unread.then_some("checked").unwrap_or("") -}}>
+        </p>
         <input type="submit" value="Save">
       </section>
     </form>

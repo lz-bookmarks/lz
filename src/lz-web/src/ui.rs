@@ -6,10 +6,10 @@ use askama_axum::Template;
 use axum::extract::Query;
 use axum::routing::{get, post};
 use axum::{Form, Router};
-use lz_db::{Bookmark, BookmarkId, UserId};
-use lz_db::{IdType as _, ReadWrite};
+use lz_db::{AssociatedLink, Bookmark, BookmarkId, ExistingTag, IdType, NoId, ReadWrite, UserId};
 use serde::{Deserialize, Serialize};
 use tower_http::cors::CorsLayer;
+use url::Url;
 
 use crate::db::queries::{
     annotate_bookmarks, list_bookmarks, AnnotatedBookmark, ListResult, Pagination,
@@ -23,7 +23,8 @@ pub fn router() -> Router<Arc<GlobalWebAppState>> {
     Router::new()
         .route("/", get(my_bookmarks))
         .route("/edit", get(bookmark_edit_form))
-        .route("/edit", post(bookmark_save))
+        .route("/edit", post(bookmark_update))
+        .route("/new", get(bookmark_create_form))
         .layer(CorsLayer::permissive())
 }
 
@@ -53,8 +54,31 @@ async fn my_bookmarks(
 
 #[derive(Template)]
 #[template(path = "bookmark_edit_form.html", ext = "html")]
-struct BookmarkEditForm {
-    item: AnnotatedBookmark,
+#[allow(dead_code)] // TODO: show them for adding/editing
+struct BookmarkEditForm<ID: IdType<BookmarkId>, UID: IdType<UserId>> {
+    bookmark: Bookmark<ID, UID>,
+    tags: Vec<ExistingTag>,
+    associations: Vec<AssociatedLink>,
+}
+
+impl From<AnnotatedBookmark> for BookmarkEditForm<BookmarkId, UserId> {
+    fn from(value: AnnotatedBookmark) -> Self {
+        Self {
+            bookmark: value.bookmark,
+            tags: value.tags,
+            associations: value.associations,
+        }
+    }
+}
+
+impl From<Bookmark<NoId, NoId>> for BookmarkEditForm<NoId, NoId> {
+    fn from(value: Bookmark<NoId, NoId>) -> Self {
+        Self {
+            bookmark: value,
+            tags: vec![],
+            associations: vec![],
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, PartialEq, Eq)]
@@ -67,7 +91,7 @@ async fn bookmark_edit_form(
     mut txn: DbTransaction,
     Query(BookmarkEditFormParams { id }): Query<BookmarkEditFormParams>,
     htmz: HtmzMode,
-) -> Result<HtmzTemplate<BookmarkEditForm>, ()> {
+) -> Result<HtmzTemplate<BookmarkEditForm<BookmarkId, UserId>>, ()> {
     let bm = txn.get_bookmark_by_id(id.id()).await.map_err(|error| {
         tracing::error!(?error, %error, "Could not get bookmark");
     })?;
@@ -80,9 +104,50 @@ async fn bookmark_edit_form(
     Ok(htmz
         .build()
         .title(format!("Editing bookmark {:?}", id))
-        .wrap(BookmarkEditForm {
-            item: annotated.remove(0),
-        }))
+        .wrap(annotated.remove(0).into()))
+}
+
+#[derive(Debug, Deserialize, PartialEq, Eq)]
+struct BookmarkCreateFormParams {
+    url: Url,
+}
+
+#[tracing::instrument()]
+async fn bookmark_create_form(
+    mut txn: DbTransaction,
+    Query(BookmarkCreateFormParams { url }): Query<BookmarkCreateFormParams>,
+    htmz: HtmzMode,
+) -> Result<axum::response::Response, ()> {
+    if let Some(existing) = txn.find_bookmark_with_url(&url).await.map_err(|error| {
+        tracing::error!(?error, %error, "could not query for existing bookmark");
+    })? {
+        let (mut annotated, _) =
+            annotate_bookmarks(&mut txn, &[existing], 1)
+                .await
+                .map_err(|error| {
+                    tracing::error!(?error, %error, %url, "could not annotate existing bookmark");
+                })?;
+        Ok(askama_axum::into_response(
+            &htmz
+                .build()
+                .title(format!("Editing bookmark with URL {:?}", url))
+                .wrap(BookmarkEditForm::<BookmarkId, UserId>::from(
+                    annotated.remove(0),
+                )),
+        ))
+    } else {
+        let new_bookmark = crate::http::lookup_link_from_web(&url)
+            .await
+            .map_err(|error| {
+                tracing::error!(?error, %error, %url, "could not retrieve url");
+            })?;
+        Ok(askama_axum::into_response(
+            &htmz
+                .build()
+                .title(format!("Adding new bookmark for {}", url))
+                .wrap(BookmarkEditForm::from(new_bookmark)),
+        ))
+    }
 }
 
 #[derive(Debug, Serialize, Template)]
@@ -92,7 +157,7 @@ struct BookmarkItem {
 }
 
 #[tracing::instrument()]
-async fn bookmark_save(
+async fn bookmark_update(
     mut txn: DbTransaction<ReadWrite>,
     htmz: HtmzMode,
     Form(data): Form<Bookmark<BookmarkId, UserId>>,

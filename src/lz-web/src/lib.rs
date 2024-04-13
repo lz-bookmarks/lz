@@ -15,6 +15,7 @@ use utoipa_swagger_ui::SwaggerUi;
 
 pub mod api;
 pub mod db;
+pub mod http;
 pub mod ui;
 
 pub mod export_openapi;

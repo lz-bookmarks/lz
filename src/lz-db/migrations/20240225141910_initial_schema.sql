@@ -53,7 +53,7 @@ CREATE TABLE "bookmark_tags" (
   "tag_id" INTEGER NOT NULL,
 
   PRIMARY KEY ("bookmark_id","tag_id"),
-  FOREIGN KEY("bookmark_id") REFERENCES "bookmarks"("bookmark_id"),
+  FOREIGN KEY("bookmark_id") REFERENCES "bookmarks"("bookmark_id") ON DELETE CASCADE,
   FOREIGN KEY("tag_id") REFERENCES "tags"("tag_id")
 ) STRICT;
 
@@ -63,6 +63,6 @@ CREATE TABLE "bookmark_associations" (
   "context" TEXT,
 
   PRIMARY KEY ("bookmark_id","url_id"),
-  FOREIGN KEY ("bookmark_id") REFERENCES "bookmarks"("bookmark_id")
+  FOREIGN KEY ("bookmark_id") REFERENCES "bookmarks"("bookmark_id") ON DELETE CASCADE,
   FOREIGN KEY ("url_id") REFERENCES "urls"("url_id")
 ) STRICT;

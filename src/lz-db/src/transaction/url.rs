@@ -26,6 +26,7 @@ use crate::{BookmarkId, IdType, ReadWrite, Transaction, TransactionMode};
     sqlx::Type,
     ToSchema,
     ToResponse,
+    delegate_display::DelegateDisplay,
 )]
 #[sqlx(transparent)]
 pub struct StoredUrlId(i64);

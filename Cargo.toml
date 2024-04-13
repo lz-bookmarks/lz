@@ -57,20 +57,11 @@ utoipa-redoc = "3.0.0"
 utoipa-swagger-ui = "6.0.0"
 validator = "=0.16.1"
 bytes = "1.4.0"
-console_error_panic_hook = "0.1.7"
-dioxus = "0.5"
-dioxus-logger = "0.4.1"
 futures-core = "0.3.28"
-log = "0.4.19"
 percent-encoding = "2.3.0"
 serde_urlencoded = "0.7.1"
-tracing-wasm = "0.2.1"
 axum-extra = "0.9.3"
-web-sys = "0.3.69"
 askama = "0.12.1"
 askama_axum = "0.4.0"
 axum-test = "14.8.0"
-
-# From https://djc.github.io/askama/performance.html:
-[profile.dev.package.askama_derive]
-opt-level = 3
+delegate-display = "2.1.1"

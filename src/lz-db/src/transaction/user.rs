@@ -25,6 +25,7 @@ use crate::{IdType, Transaction, TransactionMode};
     sqlx::Type,
     ToSchema,
     ToResponse,
+    delegate_display::DelegateDisplay,
 )]
 #[sqlx(transparent)]
 #[serde(transparent)]

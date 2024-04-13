@@ -1,14 +1,14 @@
 <html>
   <body>
     <form method="post"
-          id="bookmark-{{- item.bookmark.id.id() -}}"
-          action="#bookmark-{{- item.bookmark.id.id() -}}"
+          id="bookmark-{{- item.bookmark.id -}}"
+          action="#bookmark-{{- item.bookmark.id -}}"
           target="htmz">
       <section>
-        <input name="id" type="hidden" value="{{- item.bookmark.id.id() -}}">
+        <input name="id" type="hidden" value="{{- item.bookmark.id -}}">
         <input name="user_id"
                type="hidden"
-               value="{{- item.bookmark.user_id.id() -}}">
+               value="{{- item.bookmark.user_id -}}">
         <input name="created_at"
                type="hidden"
                value="{{- item.bookmark.created_at -}}">

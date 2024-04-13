@@ -1,4 +1,4 @@
-<article id="bookmark-{{ item.bookmark.id.id() }}">
+<article id="bookmark-{{ item.bookmark.id }}">
   <div>{{ item.bookmark.created_at }}</div>
   <a href="{{ item.bookmark.url }}">{{ item.bookmark.title }}</a>
   <section class="tags">
@@ -19,5 +19,5 @@
     {% when None %}
   {% endmatch %}
   <a target="htmz"
-     href="/edit?id={{- item.bookmark.id.id() -}}#bookmark-{{ item.bookmark.id.id() }}">edit</a>
+     href="/edit?id={{- item.bookmark.id -}}#bookmark-{{- item.bookmark.id -}}">edit</a>
 </article>

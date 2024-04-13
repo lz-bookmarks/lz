@@ -19,6 +19,7 @@ use crate::{IdType, NoId, ReadWrite, Transaction, TransactionMode, UserId};
     sqlx::Type,
     ToSchema,
     ToResponse,
+    delegate_display::DelegateDisplay,
 )]
 #[sqlx(transparent)]
 #[serde(transparent)]

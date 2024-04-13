@@ -1,4 +1,5 @@
 use serde::{Deserialize, Deserializer, Serialize};
+use std::fmt;
 use std::marker::PhantomData;
 
 use crate::Connection;
@@ -118,7 +119,7 @@ impl<M: TransactionMode> Transaction<M> {
     }
 }
 
-pub trait IdType<T>: Copy {
+pub trait IdType<T>: Copy + fmt::Display {
     type Id;
 
     /// Returns the inner ID.
@@ -163,6 +164,13 @@ impl<T> IdType<T> for NoId {
 
     fn id(self) -> Self::Id {
         unreachable!("You mustn't try to access non-IDs.");
+    }
+}
+
+/// The NoId type renders to strings as `"new"`.
+impl fmt::Display for NoId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "new")
     }
 }
 

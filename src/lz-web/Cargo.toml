@@ -36,14 +36,16 @@ opentelemetry-otlp = { workspace = true, features = ["trace", "logs", "metrics",
 url = { workspace = true, features = ["serde"] }
 tonic = { workspace = true }
 tonic-web = { workspace = true }
-
-# Deps for generating the rust client:
+reqwest = { workspace = true, features = ["default-tls"] }
+scraper = { workspace = true }
+chrono = { workspace = true }
 progenitor = { workspace = true, optional = true }
 syn = { workspace = true, optional = true }
 prettyplease = { workspace = true, optional = true }
 axum-extra = { workspace = true, features = ["query"] }
 askama_axum = { workspace = true }
 askama = { workspace = true, features = ["with-axum", "serde"] }
+lazy_static = "1.4.0"
 
 [dev-dependencies]
 axum-test = { workspace = true }

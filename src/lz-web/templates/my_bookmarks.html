@@ -1,4 +1,10 @@
-<div "">
+    <div id="add-new">
+      <form method="get" action="/new">
+        <label for="new-url-entry">Add URL:</label>
+        <input type="text" name="url" id="new-url-entry">
+      </form>
+    </div>
+<div id="my-bookmarks">
   {% for item in batch %}
     {% include "partials/bookmark_item.html" %}
   {% endfor %}

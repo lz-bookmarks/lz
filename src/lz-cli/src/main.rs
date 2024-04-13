@@ -4,10 +4,7 @@ use std::str::FromStr;
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Local, LocalResult, NaiveDateTime, TimeZone, Utc};
 use clap::{Parser, Subcommand};
-use lz_db::{
-    Bookmark, BookmarkId, BookmarkSearch, Connection, DateInput, NoId, ReadOnly, Transaction,
-};
-use scraper::{Html, Selector};
+use lz_db::{BookmarkId, BookmarkSearch, Connection, DateInput, ReadOnly, Transaction};
 use url::Url;
 
 // NB See https://rust-cli-recommendations.sunshowers.io/handling-arguments.html for
@@ -228,7 +225,8 @@ async fn add_link(
     notes: Option<&str>,
     title: Option<&str>,
 ) -> Result<BookmarkId> {
-    let mut bookmark = lookup_link_from_web(&link).await?;
+    let url = Url::parse(&link).with_context(|| format!("invalid url {:?}", link))?;
+    let mut bookmark = lz_web::http::lookup_link_from_web(&url).await?;
     if let Some(user_title) = title {
         bookmark.title = user_title.to_string();
     }
@@ -264,52 +262,4 @@ async fn add_link(
         }
         Err(err) => Err(err.into()),
     }
-}
-
-async fn lookup_link_from_web(link: &String) -> Result<Bookmark<NoId, NoId>> {
-    // This currently assumes all lookups are against HTML pages, which is a
-    // reasonable starting point but would prevent e.g. bookmarking images.
-    let now = Utc::now();
-    let url = Url::parse(link).context("Invalid link")?;
-    let response = reqwest::get(link).await?;
-    response.error_for_status_ref()?;
-    let body = response.text().await?;
-    let doc = Html::parse_document(&body);
-    let root_ref = doc.root_element();
-    let found_title = root_ref.select(&Selector::parse("title").unwrap()).next();
-    let title = match found_title {
-        Some(el) => el.inner_html(),
-        None => "".to_string(),
-    };
-    let found_description = root_ref
-        .select(&Selector::parse(r#"meta[name="description"]"#).unwrap())
-        .next();
-    let description = match found_description {
-        Some(el) => el
-            .value()
-            .attr("content")
-            .map(|meta_val| meta_val.to_string()),
-        None => None,
-    };
-    let to_add = Bookmark {
-        accessed_at: Some(now),
-        created_at: now,
-        description: description.clone(),
-        id: NoId,
-        import_properties: None,
-        modified_at: None,
-        notes: None,
-        shared: true,
-        title: title.clone(),
-        unread: true,
-        url,
-        user_id: NoId,
-        website_title: if title.as_str() == "" {
-            None
-        } else {
-            Some(title.clone())
-        },
-        website_description: description.clone(),
-    };
-    Ok(to_add)
 }

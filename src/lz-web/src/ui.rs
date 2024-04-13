@@ -54,6 +54,7 @@ async fn my_bookmarks(
 
 #[derive(Template)]
 #[template(path = "bookmark_edit_form.html", ext = "html")]
+#[allow(dead_code)] // TODO: show them for adding/editing
 struct BookmarkEditForm<ID: IdType<BookmarkId>, UID: IdType<UserId>> {
     bookmark: Bookmark<ID, UID>,
     tags: Vec<ExistingTag>,

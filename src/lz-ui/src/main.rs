@@ -99,7 +99,9 @@ struct BookmarkProps {
 #[function_component(Bookmark)]
 fn bookmark(BookmarkProps { bookmark }: &BookmarkProps) -> Html {
     html! {
-        <article><h2>{&bookmark.bookmark.title}</h2></article>
+        <article key={bookmark.bookmark.id.to_string()}>
+        <h2><a href={bookmark.bookmark.url.to_string()}>{&bookmark.bookmark.title}</a></h2>
+        </article>
     }
 }
 

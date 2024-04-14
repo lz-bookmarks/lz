@@ -270,8 +270,8 @@ mod tests {
     async fn roundtrip_bookmark(ctx: &mut Context) -> TestResult {
         let mut txn = ctx.begin().await?;
         let to_add = Bookmark {
-            id: (),
-            user_id: (),
+            id: NoId,
+            user_id: NoId,
             created_at: Default::default(),
             modified_at: Some(Default::default()),
             accessed_at: Some(Default::default()),

@@ -202,8 +202,8 @@ mod tests {
             .unwrap();
         for i in 0..bookmark_count - 1 {
             let bookmark = Bookmark {
-                id: (),
-                user_id: (),
+                id: NoId,
+                user_id: NoId,
                 created_at: reference_time,
                 modified_at: Some(Default::default()),
                 accessed_at: Some(Default::default()),
@@ -231,8 +231,8 @@ mod tests {
             .checked_sub_days(chrono::Days::new(bookmark_count * 2))
             .unwrap();
         let backdated = Bookmark {
-            id: (),
-            user_id: (),
+            id: NoId,
+            user_id: NoId,
             created_at: reference_time,
             modified_at: Some(Default::default()),
             accessed_at: Some(Default::default()),

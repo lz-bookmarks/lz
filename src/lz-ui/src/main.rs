@@ -6,7 +6,7 @@ use bounce::query::{use_query_value, Query, QueryResult};
 use bounce::{BounceRoot, BounceStates};
 use lz_openapi::types::builder::ListRequest;
 use lz_openapi::types::{
-    AnnotatedBookmark, BookmarkSearch, ListBookmarksMatchingResponse, Pagination,
+    AnnotatedBookmark, BookmarkId, BookmarkSearch, ListBookmarksMatchingResponse, Pagination,
 };
 use tracing_subscriber::fmt::format::Pretty;
 use tracing_subscriber::prelude::*;
@@ -37,12 +37,20 @@ impl GoddamnIt {
     }
 }
 
+impl BookmarksProps {
+    fn as_body(&self) -> ListRequest {
+        ListRequest::default()
+            .cursor(self.cursor)
+            .query(self.query.clone())
+    }
+}
+
 #[async_trait(?Send)]
 impl Query for BookmarkBatch {
-    type Input = Pagination;
+    type Input = BookmarksProps;
     type Error = GoddamnIt;
 
-    async fn query(_states: &BounceStates, input: Rc<Self::Input>) -> QueryResult<Self> {
+    async fn query(_states: &BounceStates, input: Rc<BookmarksProps>) -> QueryResult<Self> {
         let base_url = web_sys::window()
             .map(|w| w.location().href().unwrap() + "api/v1")
             .unwrap();
@@ -50,11 +58,7 @@ impl Query for BookmarkBatch {
         let client = lz_openapi::Client::new(&base_url);
         let response = client
             .list_bookmarks_matching()
-            .body(
-                ListRequest::default()
-                    .per_page(input.per_page)
-                    .cursor(input.cursor),
-            )
+            .body(input.as_body())
             .send()
             .await
             .map_err(GoddamnIt::new)?;
@@ -67,23 +71,53 @@ fn app() -> Html {
     html! {
         <BounceRoot>
         <h1>{ "Hello World" }</h1>
-        <Bookmarks/>
+        <Bookmarks cursor={None} query={vec![]}/>
         </BounceRoot>
     }
 }
 
+#[derive(Properties, Default, PartialEq, Clone, Eq, Hash, Debug)]
+struct BookmarksProps {
+    cursor: Option<BookmarkId>,
+    query: Vec<BookmarkSearch>,
+}
+
 #[function_component(Bookmarks)]
-fn bookmarks() -> Html {
-    let bookmarks = use_query_value::<BookmarkBatch>(Pagination::default().into());
+fn bookmarks(props: &BookmarksProps) -> Html {
+    let load_next = use_state(|| false);
+    let bookmarks = use_query_value::<BookmarkBatch>(Rc::new(props.clone()));
     match bookmarks.result() {
         None => html! {
-            <p>{"loading"}</p>
+            <p>{"loading..."}</p>
         },
         Some(Ok(b)) => {
-            b.0.bookmarks
-                .iter()
-                .map(|b| html! {<Bookmark bookmark={b.clone()} />})
-                .collect::<Html>()
+            let bookmark_items =
+                b.0.bookmarks
+                    .iter()
+                    .map(|b| html! {<Bookmark bookmark={b.clone()} />})
+                    .collect::<Html>();
+            html! {
+                <section>
+                <>{bookmark_items}
+                {if let Some(next) = b.next_cursor {
+                    if !*load_next {
+                        html!{
+                            <button onclick={move |_ev| {
+                                tracing::info!(?next, "hi");
+                                load_next.set(true);
+                            }}>{
+                                "Load more..."
+                            }</button>
+                        }
+                    } else {
+                        html!{
+                            <Bookmarks cursor={next} query={props.query.clone()}/>
+                        }
+                    }
+                } else { html!{} }}
+                </>
+                </section>
+            }
         }
         Some(Err(e)) => html! {
             <h1>{e.to_string()}</h1>

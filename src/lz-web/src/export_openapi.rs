@@ -48,7 +48,13 @@ fn generate_rust_client(crate_root: &Path, json: &str) -> anyhow::Result<()> {
             .with_patch("BookmarkId", TypePatch::default().with_derive("Copy"))
             .with_patch("UserId", TypePatch::default().with_derive("Copy"))
             // Patch required traits onto stuff bounce wants:
-            .with_patch("Pagination", TypePatch::default().with_derive("Default"))
+            .with_patch(
+                "Pagination",
+                TypePatch::default()
+                    .with_derive("Default")
+                    .with_derive("Eq")
+                    .with_derive("Hash"),
+            )
             .with_patch(
                 "ListBookmarksMatchingResponse",
                 TypePatch::default()

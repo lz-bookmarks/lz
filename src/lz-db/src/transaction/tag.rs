@@ -312,8 +312,8 @@ mod tests {
         let tags = txn.ensure_tags(["hi", "test"]).await?;
         let bookmark_id = txn
             .add_bookmark(Bookmark {
-                id: (),
-                user_id: (),
+                id: NoId,
+                user_id: NoId,
                 created_at: Default::default(),
                 modified_at: None,
                 accessed_at: None,
@@ -330,8 +330,8 @@ mod tests {
             .await?;
         let other_bookmark_id = txn
             .add_bookmark(Bookmark {
-                id: (),
-                user_id: (),
+                id: NoId,
+                user_id: NoId,
                 created_at: Default::default(),
                 modified_at: None,
                 accessed_at: None,

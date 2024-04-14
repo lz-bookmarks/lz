@@ -6,7 +6,7 @@ license.workspace = true
 
 [features]
 default = []
-dev = ["progenitor", "syn", "prettyplease"]
+dev = ["progenitor", "syn", "prettyplease", "syn/full"]
 
 [dependencies]
 lz-db = { path = "../lz-db" }
@@ -45,7 +45,7 @@ prettyplease = { workspace = true, optional = true }
 axum-extra = { workspace = true, features = ["query"] }
 askama_axum = { workspace = true }
 askama = { workspace = true, features = ["with-axum", "serde"] }
-lazy_static = "1.4.0"
+lazy_static = { workspace = true }
 
 [dev-dependencies]
 axum-test = { workspace = true }

@@ -10,6 +10,7 @@ members = [
   "src/lz-web",
   "src/lz-cli",
   "src/lz-openapi",
+  "src/lz-ui",
 ]
 
 [workspace.package]
@@ -39,7 +40,7 @@ serde = "1.0.197"
 serde_json = "1.0.115"
 sqlx = "0.7.4"
 static_assertions = "1.1.0"
-syn = "2.0"
+syn = "1.0" # syn 1.0 is required by progenitor, do not update with dependabot.
 test-context = "0.3.0"
 testresult = "0.4.0"
 thiserror = "1.0.58"
@@ -65,3 +66,5 @@ askama = "0.12.1"
 askama_axum = "0.4.0"
 axum-test = "14.8.0"
 delegate-display = "2.1.1"
+lazy_static = "1.4.0"
+yew = "0.21.0"

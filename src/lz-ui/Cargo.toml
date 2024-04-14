@@ -1,0 +1,12 @@
+[package]
+name = "lz-ui"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+yew = { workspace = true, features = ["csr"] }
+
+lz-openapi = {path = "../lz-openapi"}

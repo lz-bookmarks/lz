@@ -94,6 +94,15 @@
               pkgs.djlint
               pkgs.nodePackages.typescript-language-server
               fenix.packages.${system}.targets.wasm32-unknown-unknown.stable.rust-std
+              (pkgs.writeShellApplication {
+                name = "trunk";
+                text = ''
+                  unset RUSTFLAGS
+                  CARGO_TARGET_DIR=target/trunk-wasm
+                  export CARGO_TARGET_DIR
+                  ${pkgs.lib.getExe pkgs.trunk} "$@"
+                '';
+              })
             ];
             imports = [
               "${inputs.devshell}/extra/language/rust.nix"
@@ -176,6 +185,15 @@
                   cargo watch --why -L info -i src/lz-ui -i src/lz-openapi -i flake.nix -i flake.lock -- \
                      cargo run --features dev -- \
                      --db dev-db.sqlite web --authentication-header-name X-Tailscale-User-LoginName --default-user-name=developer --listen-on=127.0.0.1:3000
+                '';
+              });
+            };
+            frontend = {
+              command = pkgs.lib.getExe (pkgs.writeShellApplication {
+                name = "frontend";
+                text = ''
+                  cd src/lz-ui
+                  trunk serve --open
                 '';
               });
             };

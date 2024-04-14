@@ -3,16 +3,17 @@ use tracing_subscriber::fmt::format::Pretty;
 use tracing_subscriber::prelude::*;
 use tracing_web::{performance_layer, MakeWebConsoleWriter};
 use yew::prelude::*;
+use yew_router::prelude::*;
 
 mod components;
-use components::*;
+mod route;
+use route::*;
 
 #[function_component(App)]
 fn app() -> Html {
     html! {
         <BounceRoot>
-        <h1>{ "Hello World" }</h1>
-        <Bookmarks cursor={None} query={vec![]}/>
+        <BrowserRouter><Switch<Route> render={switch} /></BrowserRouter>
         </BounceRoot>
     }
 }

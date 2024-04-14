@@ -54,9 +54,12 @@ impl Query for BookmarkBatch {
     type Error = GoddamnIt;
 
     async fn query(_states: &BounceStates, input: Rc<BookmarksProps>) -> QueryResult<Self> {
-        let base_url = web_sys::window()
-            .map(|w| w.location().href().unwrap() + "api/v1")
-            .unwrap();
+        let loc = web_sys::window().unwrap().location();
+        let base_url = format!(
+            "{}//{}/api/v1",
+            loc.protocol().unwrap(),
+            loc.host().unwrap()
+        );
 
         let client = lz_openapi::Client::new(&base_url);
         let response = client

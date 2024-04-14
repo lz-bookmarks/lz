@@ -16,3 +16,5 @@ web-sys = { workspace = true, features = ["Window"] }
 anyhow = {workspace = true}
 thiserror.workspace = true
 tracing.workspace = true
+tracing-web = { workspace = true }
+tracing-subscriber.workspace = true

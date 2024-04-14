@@ -1,12 +1,16 @@
 use std::ops::Deref;
 use std::rc::Rc;
-use std::sync::Arc;
 
 use async_trait::async_trait;
 use bounce::query::{use_query_value, Query, QueryResult};
 use bounce::{BounceRoot, BounceStates};
 use lz_openapi::types::builder::ListRequest;
-use lz_openapi::types::{AnnotatedBookmark, ListBookmarksMatchingResponse, Pagination};
+use lz_openapi::types::{
+    AnnotatedBookmark, BookmarkSearch, ListBookmarksMatchingResponse, Pagination,
+};
+use tracing_subscriber::fmt::format::Pretty;
+use tracing_subscriber::prelude::*;
+use tracing_web::{performance_layer, MakeWebConsoleWriter};
 use yew::prelude::*;
 
 #[derive(PartialEq, Debug, Clone)]
@@ -100,5 +104,15 @@ fn bookmark(BookmarkProps { bookmark }: &BookmarkProps) -> Html {
 }
 
 fn main() {
+    let fmt_layer = tracing_subscriber::fmt::layer()
+        .with_ansi(false) // Only partially supported across browsers
+        .without_time() // std::time is not available in browsers, see note below
+        .with_writer(MakeWebConsoleWriter::new()); // write events to the console
+    let perf_layer = performance_layer().with_details_from_fields(Pretty::default());
+    tracing_subscriber::registry()
+        .with(fmt_layer)
+        .with(perf_layer)
+        .init(); // Install these as subscribers to tracing events
+
     yew::Renderer::<App>::new().render();
 }

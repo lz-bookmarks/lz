@@ -769,7 +769,7 @@ pub mod types {
     ///}
     /// ```
     /// </details>
-    #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
+    #[derive(Clone, Debug, Default, Deserialize, Eq, Hash, PartialEq, Serialize)]
     pub struct ListBookmarksMatchingResponse {
         pub bookmarks: Vec<AnnotatedBookmark>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -876,7 +876,7 @@ pub mod types {
     ///}
     /// ```
     /// </details>
-    #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
+    #[derive(Clone, Debug, Default, Deserialize, Eq, Hash, PartialEq, Serialize)]
     pub struct Pagination {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         pub cursor: Option<BookmarkId>,

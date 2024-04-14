@@ -10,3 +10,9 @@ license.workspace = true
 yew = { workspace = true, features = ["csr"] }
 
 lz-openapi = {path = "../lz-openapi"}
+bounce = { workspace = true, features = ["query", "helmet"] }
+async-trait.workspace = true
+web-sys = { workspace = true, features = ["Window"] }
+anyhow = {workspace = true}
+thiserror.workspace = true
+tracing.workspace = true

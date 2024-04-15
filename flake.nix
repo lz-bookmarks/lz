@@ -88,6 +88,7 @@
               pkgs.sqlx-cli
               pkgs.sqlite
               pkgs.cargo-watch
+              pkgs.cargo-nextest
               pkgs.cargo-udeps
               pkgs.nodejs_21
               pkgs.djlint

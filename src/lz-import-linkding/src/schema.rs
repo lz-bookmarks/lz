@@ -82,11 +82,11 @@ pub(crate) struct Bookmark {
 }
 
 impl Bookmark {
-    pub fn as_lz_bookmark(&self) -> lz_db::Bookmark<(), ()> {
+    pub fn as_lz_bookmark(&self) -> lz_db::Bookmark<lz_db::NoId, lz_db::NoId> {
         let url = self.url.clone();
         let mut other = lz_db::Bookmark {
-            id: (),
-            user_id: (),
+            id: lz_db::NoId,
+            user_id: lz_db::NoId,
             url,
             created_at: Default::default(),
             modified_at: Default::default(),

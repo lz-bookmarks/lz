@@ -77,6 +77,12 @@ struct CliAddArgs {
 }
 
 #[derive(Subcommand, Debug)]
+enum ImportCommands {
+    /// Import from linkding (https://github.com/sissbruecker/linkding)
+    Linkding(lz_import_linkding::Args),
+}
+
+#[derive(Subcommand, Debug)]
 enum Commands {
     /// Add a link to lz
     Add {
@@ -106,6 +112,10 @@ enum Commands {
     /// Run the lz web server
     #[clap(alias = "serve")]
     Web(lz_web::Args),
+
+    /// Import bookmarks from another system
+    #[clap(subcommand)]
+    Import(ImportCommands),
 
     /// Writes the contents of the openapi.json file to stdout
     #[clap(subcommand, alias = "generate-openapi-spec")]
@@ -139,6 +149,10 @@ async fn main() -> Result<()> {
         Commands::Web(args) => {
             let conn = Connection::from_path(&cli.db).await?;
             lz_web::run(conn, args).await?;
+        }
+        Commands::Import(ImportCommands::Linkding(args)) => {
+            let conn = Connection::from_path(&cli.db).await?;
+            lz_import_linkding::run(conn, args).await?;
         }
         Commands::GenerateOpenApiSpec(args) => lz_web::export_openapi::run(args)?,
     }

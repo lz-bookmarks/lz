@@ -14,8 +14,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        rust_toolchain: ["nightly","stable"]
-        cargo_test_args: [""]
+        rust_toolchain: ["nightly", "stable"]
+        cargo_test_args: ["--workspace"]
     with:
       rust_toolchain: ${{matrix.rust_toolchain}}
       cargo_test_args: ${{matrix.cargo_test_args}}

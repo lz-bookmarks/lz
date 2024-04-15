@@ -2,3 +2,4 @@ target/
 /*.sqlite*
 /.pre-commit-config.yaml
 src/lz-ui/dist
+node_modules/

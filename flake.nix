@@ -90,8 +90,8 @@
               pkgs.cargo-watch
               pkgs.cargo-nextest
               pkgs.cargo-udeps
-              pkgs.nodejs_21
-              pkgs.djlint
+              pkgs.tailwindcss
+              pkgs.yarn
               pkgs.nodePackages.typescript-language-server
               fenix.packages.${system}.targets.wasm32-unknown-unknown.stable.rust-std
               (pkgs.writeShellApplication {
@@ -193,6 +193,7 @@
                 name = "frontend";
                 text = ''
                   cd src/lz-ui
+                  yarn install
                   trunk serve --open
                 '';
               });

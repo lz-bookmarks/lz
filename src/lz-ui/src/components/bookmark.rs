@@ -43,7 +43,10 @@ pub fn bookmark(BookmarkProps { bookmark }: &BookmarkProps) -> Html {
         >
             <div class="card-body">
                 <h2 class="card-title">
-                    <a class="link link-neutral" href={bookmark.bookmark.url.to_string()}>
+                    <a
+                        class="link link-neutral truncate text-ellipsis"
+                        href={bookmark.bookmark.url.to_string()}
+                    >
                         { &bookmark.bookmark.title }
                     </a>
                 </h2>

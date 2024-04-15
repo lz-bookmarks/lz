@@ -5,15 +5,15 @@ use tracing_web::{performance_layer, MakeWebConsoleWriter};
 use yew::prelude::*;
 use yew_router::prelude::*;
 
-mod components;
-mod route;
-use route::*;
+use lz_ui::route::*;
 
 #[function_component(App)]
 fn app() -> Html {
     html! {
         <BounceRoot>
-        <BrowserRouter><Switch<Route> render={switch} /></BrowserRouter>
+            <BrowserRouter>
+                <Switch<Route> render={switch} />
+            </BrowserRouter>
         </BounceRoot>
     }
 }

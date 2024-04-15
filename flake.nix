@@ -76,6 +76,14 @@
             postFixup = "mv $out/bin/lz-cli $out/bin/lz";
             meta.mainProgram = "lz";
           };
+        packages.yew-fmt = rustPlatform.buildRustPackage {
+          pname = "yew-fmt";
+          version = (builtins.fromTOML (builtins.readFile "${inputs.yew-fmt}/Cargo.toml")).package.version;
+          src = inputs.yew-fmt;
+          cargoLock.lockFile = "${inputs.yew-fmt}/Cargo.lock";
+          nativeBuildInputs = [pkgs.rustfmt];
+          meta.mainProgram = "yew-fmt";
+        };
 
         apps = {
           default = config.apps.lz-web;
@@ -168,6 +176,10 @@
                 name = "DATABASE_URL";
                 eval = "sqlite:$PRJ_ROOT/dev-db.sqlite";
               }
+              {
+                name = "RUSTFMT";
+                value = pkgs.lib.getExe config.packages.yew-fmt;
+              }
             ];
 
             language.c.includes = cIncludes;
@@ -227,6 +239,10 @@
     };
     progenitor = {
       url = "github:oxidecomputer/progenitor/v0.6.0";
+      flake = false;
+    };
+    yew-fmt = {
+      url = "github:schvv31n/yew-fmt";
       flake = false;
     };
   };

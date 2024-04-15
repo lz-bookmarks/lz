@@ -308,7 +308,8 @@
         "nixpkgs": "nixpkgs_2",
         "pre-commit-hooks-nix": "pre-commit-hooks-nix",
         "proc-flake": "proc-flake",
-        "progenitor": "progenitor"
+        "progenitor": "progenitor",
+        "yew-fmt": "yew-fmt"
       }
     },
     "rust-analyzer-src": {
@@ -355,6 +356,22 @@
       "original": {
         "owner": "nix-systems",
         "repo": "default",
+        "type": "github"
+      }
+    },
+    "yew-fmt": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1708859488,
+        "narHash": "sha256-KDsmIs7KksNMINUJRpe9B5SNQShbrCLYMkTVH3PQYRE=",
+        "owner": "schvv31n",
+        "repo": "yew-fmt",
+        "rev": "4895cf091743665a70e078abbe9410cac2dcae63",
+        "type": "github"
+      },
+      "original": {
+        "owner": "schvv31n",
+        "repo": "yew-fmt",
         "type": "github"
       }
     }

@@ -3,3 +3,4 @@ target/
 /.pre-commit-config.yaml
 src/lz-ui/dist
 node_modules/
+result

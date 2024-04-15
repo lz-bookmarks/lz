@@ -88,23 +88,20 @@ pub fn bookmarks(props: &BookmarksProps) -> Html {
                 <section>
                     <>
                         { bookmark_items }
-                        { if let Some(next) = b.next_cursor {
-                    if !*load_next {
-                        html!{
-                            <button class="btn btn-block"
+                        if let Some(next) = b.next_cursor {
+                            if !*load_next {
+                                <button
+                                    class="btn btn-block"
                                     onclick={move |_ev| {
-                                        load_next.set(true);
+                                      load_next.set(true);
                                     }}
-                            >{
-                                "Load more..."
-                            }</button>
+                                >
+                                    { "Load more..." }
+                                </button>
+                            } else {
+                                <Bookmarks cursor={next} query={props.query.clone()} />
+                            }
                         }
-                    } else {
-                        html!{
-                            <Bookmarks cursor={next} query={props.query.clone()}/>
-                        }
-                    }
-                } else { html!{} } }
                     </>
                 </section>
             }

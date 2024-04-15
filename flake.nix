@@ -120,7 +120,7 @@
                 category = "development";
                 help = "Run the sqlite-web DB browser on dev-db.sqlite";
                 name = "sqlite-web";
-                command = "${pkgs.sqlite-web}/bin/sqlite_web -r $PRJ_ROOT/dev-db.sqlite";
+                command = "${pkgs.sqlite-web}/bin/sqlite_web -p 8081 -r $PRJ_ROOT/dev-db.sqlite";
               }
               {
                 category = "development";

@@ -18,11 +18,21 @@ pub enum Route {
 }
 
 pub(super) fn switch(routes: Route) -> Html {
-    match routes {
-        Route::Home => html! { <Bookmarks cursor={None} query={vec![]}/> },
-        Route::SearchTag { tag } => {
-            html! { <Bookmarks cursor={None} query={vec![BookmarkSearch::Tag(tag.into())]}/> }
+    html! {
+        <>
+        <div class="flex">
+        <section class="container flex-auto mx-auto">
+        {
+            match routes {
+                Route::Home => html! { <Bookmarks cursor={None} query={vec![]}/> },
+                Route::SearchTag { tag } => {
+                    html! { <Bookmarks cursor={None} query={vec![BookmarkSearch::Tag(tag.into())]}/> }
+                }
+                Route::NotFound => html! { <h1>{ "404, not found" }</h1> },
+            }
         }
-        Route::NotFound => html! { <h1>{ "404, not found" }</h1> },
+        </section>
+        </div>
+        </>
     }
 }

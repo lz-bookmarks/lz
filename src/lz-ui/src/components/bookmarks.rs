@@ -77,25 +77,25 @@ pub fn bookmarks(props: &BookmarksProps) -> Html {
     let load_next = use_state(|| false);
     let bookmarks = use_query_value::<BookmarkBatch>(Rc::new(props.clone()));
     match bookmarks.result() {
-        None => html! {
-            <p>{"loading..."}</p>
-        },
+        None => html! { <span class="loading loading-dots" /> },
         Some(Ok(b)) => {
             let bookmark_items =
                 b.0.bookmarks
                     .iter()
-                    .map(|b| html! {<Bookmark bookmark={b.clone()} />})
+                    .map(|b| html! { <Bookmark bookmark={b.clone()} /> })
                     .collect::<Html>();
             html! {
                 <section>
-                <>{bookmark_items}
-                {if let Some(next) = b.next_cursor {
+                    <>
+                        { bookmark_items }
+                        { if let Some(next) = b.next_cursor {
                     if !*load_next {
                         html!{
-                            <button onclick={move |_ev| {
-                                tracing::info!(?next, "hi");
-                                load_next.set(true);
-                            }}>{
+                            <button class="btn btn-block"
+                                    onclick={move |_ev| {
+                                        load_next.set(true);
+                                    }}
+                            >{
                                 "Load more..."
                             }</button>
                         }
@@ -104,13 +104,11 @@ pub fn bookmarks(props: &BookmarksProps) -> Html {
                             <Bookmarks cursor={next} query={props.query.clone()}/>
                         }
                     }
-                } else { html!{} }}
-                </>
+                } else { html!{} } }
+                    </>
                 </section>
             }
         }
-        Some(Err(e)) => html! {
-            <h1>{e.to_string()}</h1>
-        },
+        Some(Err(e)) => html! { <h1>{ e.to_string() }</h1> },
     }
 }

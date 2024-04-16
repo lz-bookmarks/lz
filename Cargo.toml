@@ -22,7 +22,7 @@ anyhow = "1.0.82"
 async-trait = "0.1.80"
 axum = "0.7.5"
 axum-valid = "0.16.0"
-chrono = { version = "0.4.37", default-features = false }
+chrono = { version = "0.4.38", default-features = false }
 clap = "4.5.4"
 futures = "0.3.30"
 indoc = "2.0.5"

@@ -2101,6 +2101,7 @@ dependencies = [
  "progenitor-client",
  "reqwest",
  "serde",
+ "serde_json",
  "serde_urlencoded",
 ]
 

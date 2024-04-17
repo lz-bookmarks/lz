@@ -12,4 +12,5 @@ percent-encoding = { workspace = true }
 reqwest = { workspace = true, features = ["json", "stream"] }
 serde = { workspace = true, features = ["derive"] }
 serde_urlencoded = { workspace = true }
+serde_json = {workspace = true}
 progenitor-client = {workspace = true}

@@ -51,6 +51,7 @@ pub mod types {
     ///  ],
     ///  "properties": {
     ///    "associations": {
+    ///      "description": "Links associated with the bookmark",
     ///      "type": "array",
     ///      "items": {
     ///        "$ref": "#/components/schemas/AssociatedLink"
@@ -60,6 +61,7 @@ pub mod types {
     ///      "$ref": "#/components/schemas/ExistingBookmark"
     ///    },
     ///    "tags": {
+    ///      "description": "Tags associated with the bookmark",
     ///      "type": "array",
     ///      "items": {
     ///        "$ref": "#/components/schemas/ExistingTag"
@@ -69,10 +71,12 @@ pub mod types {
     ///}
     /// ```
     /// </details>
-    #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
+    #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
     pub struct AnnotatedBookmark {
+        ///Links associated with the bookmark
         pub associations: Vec<AssociatedLink>,
         pub bookmark: ExistingBookmark,
+        ///Tags associated with the bookmark
         pub tags: Vec<ExistingTag>,
     }
     impl From<&AnnotatedBookmark> for AnnotatedBookmark {
@@ -115,7 +119,7 @@ pub mod types {
     ///}
     /// ```
     /// </details>
-    #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
+    #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
     pub struct AssociatedLink {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         pub context: Option<String>,
@@ -128,6 +132,58 @@ pub mod types {
     }
     impl AssociatedLink {
         pub fn builder() -> builder::AssociatedLink {
+            Default::default()
+        }
+    }
+    ///BookmarkCreateRequest
+    ///
+    /// <details><summary>JSON schema</summary>
+    ///
+    /// ```json
+    ///{
+    ///  "type": "object",
+    ///  "required": [
+    ///    "bookmark"
+    ///  ],
+    ///  "properties": {
+    ///    "associations": {
+    ///      "description": "Links to associate with the bookmark",
+    ///      "type": "array",
+    ///      "items": {
+    ///        "$ref": "#/components/schemas/AssociatedLink"
+    ///      }
+    ///    },
+    ///    "bookmark": {
+    ///      "$ref": "#/components/schemas/NewBookmark"
+    ///    },
+    ///    "tag_names": {
+    ///      "description": "Tags to associate with the bookmark",
+    ///      "type": "array",
+    ///      "items": {
+    ///        "type": "string"
+    ///      }
+    ///    }
+    ///  }
+    ///}
+    /// ```
+    /// </details>
+    #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+    pub struct BookmarkCreateRequest {
+        ///Links to associate with the bookmark
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        pub associations: Vec<AssociatedLink>,
+        pub bookmark: NewBookmark,
+        ///Tags to associate with the bookmark
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        pub tag_names: Vec<String>,
+    }
+    impl From<&BookmarkCreateRequest> for BookmarkCreateRequest {
+        fn from(value: &BookmarkCreateRequest) -> Self {
+            value.clone()
+        }
+    }
+    impl BookmarkCreateRequest {
+        pub fn builder() -> builder::BookmarkCreateRequest {
             Default::default()
         }
     }
@@ -454,6 +510,59 @@ pub mod types {
             value.parse()
         }
     }
+    ///A bookmark, including tags and associations on it.
+    ///
+    /// <details><summary>JSON schema</summary>
+    ///
+    /// ```json
+    ///{
+    ///  "description": "A bookmark, including tags and associations on it.",
+    ///  "type": "object",
+    ///  "required": [
+    ///    "associations",
+    ///    "bookmark",
+    ///    "tags"
+    ///  ],
+    ///  "properties": {
+    ///    "associations": {
+    ///      "description": "Links associated with the bookmark",
+    ///      "type": "array",
+    ///      "items": {
+    ///        "$ref": "#/components/schemas/AssociatedLink"
+    ///      }
+    ///    },
+    ///    "bookmark": {
+    ///      "$ref": "#/components/schemas/ExistingBookmark"
+    ///    },
+    ///    "tags": {
+    ///      "description": "Tags associated with the bookmark",
+    ///      "type": "array",
+    ///      "items": {
+    ///        "$ref": "#/components/schemas/ExistingTag"
+    ///      }
+    ///    }
+    ///  }
+    ///}
+    /// ```
+    /// </details>
+    #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+    pub struct CreateBookmarkResponse {
+        ///Links associated with the bookmark
+        pub associations: Vec<AssociatedLink>,
+        pub bookmark: ExistingBookmark,
+        ///Tags associated with the bookmark
+        pub tags: Vec<ExistingTag>,
+    }
+    impl From<&CreateBookmarkResponse> for CreateBookmarkResponse {
+        fn from(value: &CreateBookmarkResponse) -> Self {
+            value.clone()
+        }
+    }
+    impl CreateBookmarkResponse {
+        pub fn builder() -> builder::CreateBookmarkResponse {
+            Default::default()
+        }
+    }
     ///DateInput
     ///
     /// <details><summary>JSON schema</summary>
@@ -670,7 +779,7 @@ pub mod types {
     ///}
     /// ```
     /// </details>
-    #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
+    #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
     pub struct ExistingTag {
         ///When the tag was first created.
         pub created_at: chrono::DateTime<chrono::offset::Utc>,
@@ -720,7 +829,7 @@ pub mod types {
     ///}
     /// ```
     /// </details>
-    #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
+    #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
     pub struct ListBookmarkResult {
         pub bookmarks: Vec<AnnotatedBookmark>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -769,7 +878,7 @@ pub mod types {
     ///}
     /// ```
     /// </details>
-    #[derive(Clone, Debug, Default, Deserialize, Eq, Hash, PartialEq, Serialize)]
+    #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
     pub struct ListBookmarksMatchingResponse {
         pub bookmarks: Vec<AnnotatedBookmark>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -816,7 +925,7 @@ pub mod types {
     ///}
     /// ```
     /// </details>
-    #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
+    #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
     pub struct ListRequest {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         pub cursor: Option<BookmarkId>,
@@ -837,6 +946,181 @@ pub mod types {
     impl ListRequest {
         pub fn builder() -> builder::ListRequest {
             Default::default()
+        }
+    }
+    /**A bookmark saved by a user.
+
+    See the section in [Transaction][Transaction#working-with-bookmarks]*/
+    ///
+    /// <details><summary>JSON schema</summary>
+    ///
+    /// ```json
+    ///{
+    ///  "description": "A bookmark saved by a user.\n\nSee the section in [Transaction][Transaction#working-with-bookmarks]",
+    ///  "type": "object",
+    ///  "required": [
+    ///    "created_at",
+    ///    "id",
+    ///    "title",
+    ///    "url",
+    ///    "user_id"
+    ///  ],
+    ///  "properties": {
+    ///    "accessed_at": {
+    ///      "description": "Last time the bookmark was accessed via the web",
+    ///      "type": [
+    ///        "string",
+    ///        "null"
+    ///      ],
+    ///      "format": "date-time"
+    ///    },
+    ///    "created_at": {
+    ///      "description": "Time at which the bookmark was created.\n\nThis time is assigned in code here, not in the database.",
+    ///      "type": "string",
+    ///      "format": "date-time"
+    ///    },
+    ///    "description": {
+    ///      "description": "Description of the bookmark, possibly extracted from the website.",
+    ///      "type": [
+    ///        "string",
+    ///        "null"
+    ///      ]
+    ///    },
+    ///    "id": {
+    ///      "$ref": "#/components/schemas/NoId"
+    ///    },
+    ///    "modified_at": {
+    ///      "description": "Last time the bookmark was modified.\n\nThis field indicates modifications to the bookmark data itself\nonly, not changes to tags or related models.",
+    ///      "type": [
+    ///        "string",
+    ///        "null"
+    ///      ],
+    ///      "format": "date-time"
+    ///    },
+    ///    "notes": {
+    ///      "description": "Private notes that the user attached to the bookmark.",
+    ///      "type": [
+    ///        "string",
+    ///        "null"
+    ///      ]
+    ///    },
+    ///    "shared": {
+    ///      "description": "Whether other users can see the bookmark.",
+    ///      "type": "boolean"
+    ///    },
+    ///    "title": {
+    ///      "description": "Title that the user gave the bookmark.",
+    ///      "type": "string"
+    ///    },
+    ///    "unread": {
+    ///      "description": "Whether the bookmark is \"to read\"",
+    ///      "type": "boolean"
+    ///    },
+    ///    "url": {
+    ///      "description": "URL that the bookmark points to.",
+    ///      "type": "string",
+    ///      "format": "uri"
+    ///    },
+    ///    "user_id": {
+    ///      "$ref": "#/components/schemas/NoId"
+    ///    },
+    ///    "website_description": {
+    ///      "description": "Original description extracted from the website.",
+    ///      "type": [
+    ///        "string",
+    ///        "null"
+    ///      ]
+    ///    },
+    ///    "website_title": {
+    ///      "description": "Original title extracted from the website.",
+    ///      "type": [
+    ///        "string",
+    ///        "null"
+    ///      ]
+    ///    }
+    ///  }
+    ///}
+    /// ```
+    /// </details>
+    #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+    pub struct NewBookmark {
+        ///Last time the bookmark was accessed via the web
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub accessed_at: Option<chrono::DateTime<chrono::offset::Utc>>,
+        /**Time at which the bookmark was created.
+
+        This time is assigned in code here, not in the database.*/
+        pub created_at: chrono::DateTime<chrono::offset::Utc>,
+        ///Description of the bookmark, possibly extracted from the website.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub description: Option<String>,
+        pub id: NoId,
+        /**Last time the bookmark was modified.
+
+        This field indicates modifications to the bookmark data itself
+        only, not changes to tags or related models.*/
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub modified_at: Option<chrono::DateTime<chrono::offset::Utc>>,
+        ///Private notes that the user attached to the bookmark.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub notes: Option<String>,
+        ///Whether other users can see the bookmark.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub shared: Option<bool>,
+        ///Title that the user gave the bookmark.
+        pub title: String,
+        ///Whether the bookmark is "to read"
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub unread: Option<bool>,
+        ///URL that the bookmark points to.
+        pub url: String,
+        pub user_id: NoId,
+        ///Original description extracted from the website.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub website_description: Option<String>,
+        ///Original title extracted from the website.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub website_title: Option<String>,
+    }
+    impl From<&NewBookmark> for NewBookmark {
+        fn from(value: &NewBookmark) -> Self {
+            value.clone()
+        }
+    }
+    impl NewBookmark {
+        pub fn builder() -> builder::NewBookmark {
+            Default::default()
+        }
+    }
+    ///NoId
+    ///
+    /// <details><summary>JSON schema</summary>
+    ///
+    /// ```json
+    ///{}
+    /// ```
+    /// </details>
+    #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+    pub struct NoId(pub serde_json::Value);
+    impl std::ops::Deref for NoId {
+        type Target = serde_json::Value;
+        fn deref(&self) -> &serde_json::Value {
+            &self.0
+        }
+    }
+    impl From<NoId> for serde_json::Value {
+        fn from(value: NoId) -> Self {
+            value.0
+        }
+    }
+    impl From<&NoId> for NoId {
+        fn from(value: &NoId) -> Self {
+            value.clone()
+        }
+    }
+    impl From<serde_json::Value> for NoId {
+        fn from(value: serde_json::Value) -> Self {
+            Self(value)
         }
     }
     /**Parameters that govern non-offset based pagination.
@@ -906,7 +1190,7 @@ pub mod types {
     ///}
     /// ```
     /// </details>
-    #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
+    #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
     pub struct TagId(pub i64);
     impl std::ops::Deref for TagId {
         type Target = i64;
@@ -1025,7 +1309,7 @@ pub mod types {
     ///}
     /// ```
     /// </details>
-    #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
+    #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
     pub struct TagQuery {
         ///Tags that all returned items should have.
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -1226,6 +1510,74 @@ pub mod types {
             }
         }
         #[derive(Clone, Debug)]
+        pub struct BookmarkCreateRequest {
+            associations: Result<Vec<super::AssociatedLink>, String>,
+            bookmark: Result<super::NewBookmark, String>,
+            tag_names: Result<Vec<String>, String>,
+        }
+        impl Default for BookmarkCreateRequest {
+            fn default() -> Self {
+                Self {
+                    associations: Ok(Default::default()),
+                    bookmark: Err("no value supplied for bookmark".to_string()),
+                    tag_names: Ok(Default::default()),
+                }
+            }
+        }
+        impl BookmarkCreateRequest {
+            pub fn associations<T>(mut self, value: T) -> Self
+            where
+                T: std::convert::TryInto<Vec<super::AssociatedLink>>,
+                T::Error: std::fmt::Display,
+            {
+                self.associations = value.try_into().map_err(|e| {
+                    format!("error converting supplied value for associations: {}", e)
+                });
+                self
+            }
+            pub fn bookmark<T>(mut self, value: T) -> Self
+            where
+                T: std::convert::TryInto<super::NewBookmark>,
+                T::Error: std::fmt::Display,
+            {
+                self.bookmark = value
+                    .try_into()
+                    .map_err(|e| format!("error converting supplied value for bookmark: {}", e));
+                self
+            }
+            pub fn tag_names<T>(mut self, value: T) -> Self
+            where
+                T: std::convert::TryInto<Vec<String>>,
+                T::Error: std::fmt::Display,
+            {
+                self.tag_names = value
+                    .try_into()
+                    .map_err(|e| format!("error converting supplied value for tag_names: {}", e));
+                self
+            }
+        }
+        impl std::convert::TryFrom<BookmarkCreateRequest> for super::BookmarkCreateRequest {
+            type Error = super::error::ConversionError;
+            fn try_from(
+                value: BookmarkCreateRequest,
+            ) -> Result<Self, super::error::ConversionError> {
+                Ok(Self {
+                    associations: value.associations?,
+                    bookmark: value.bookmark?,
+                    tag_names: value.tag_names?,
+                })
+            }
+        }
+        impl From<super::BookmarkCreateRequest> for BookmarkCreateRequest {
+            fn from(value: super::BookmarkCreateRequest) -> Self {
+                Self {
+                    associations: Ok(value.associations),
+                    bookmark: Ok(value.bookmark),
+                    tag_names: Ok(value.tag_names),
+                }
+            }
+        }
+        #[derive(Clone, Debug)]
         pub struct BookmarkSearchDateParams {
             date: Result<super::DateInput, String>,
             field: Result<super::BookmarkSearchDatetimeField, String>,
@@ -1290,6 +1642,74 @@ pub mod types {
                     date: Ok(value.date),
                     field: Ok(value.field),
                     orientation: Ok(value.orientation),
+                }
+            }
+        }
+        #[derive(Clone, Debug)]
+        pub struct CreateBookmarkResponse {
+            associations: Result<Vec<super::AssociatedLink>, String>,
+            bookmark: Result<super::ExistingBookmark, String>,
+            tags: Result<Vec<super::ExistingTag>, String>,
+        }
+        impl Default for CreateBookmarkResponse {
+            fn default() -> Self {
+                Self {
+                    associations: Err("no value supplied for associations".to_string()),
+                    bookmark: Err("no value supplied for bookmark".to_string()),
+                    tags: Err("no value supplied for tags".to_string()),
+                }
+            }
+        }
+        impl CreateBookmarkResponse {
+            pub fn associations<T>(mut self, value: T) -> Self
+            where
+                T: std::convert::TryInto<Vec<super::AssociatedLink>>,
+                T::Error: std::fmt::Display,
+            {
+                self.associations = value.try_into().map_err(|e| {
+                    format!("error converting supplied value for associations: {}", e)
+                });
+                self
+            }
+            pub fn bookmark<T>(mut self, value: T) -> Self
+            where
+                T: std::convert::TryInto<super::ExistingBookmark>,
+                T::Error: std::fmt::Display,
+            {
+                self.bookmark = value
+                    .try_into()
+                    .map_err(|e| format!("error converting supplied value for bookmark: {}", e));
+                self
+            }
+            pub fn tags<T>(mut self, value: T) -> Self
+            where
+                T: std::convert::TryInto<Vec<super::ExistingTag>>,
+                T::Error: std::fmt::Display,
+            {
+                self.tags = value
+                    .try_into()
+                    .map_err(|e| format!("error converting supplied value for tags: {}", e));
+                self
+            }
+        }
+        impl std::convert::TryFrom<CreateBookmarkResponse> for super::CreateBookmarkResponse {
+            type Error = super::error::ConversionError;
+            fn try_from(
+                value: CreateBookmarkResponse,
+            ) -> Result<Self, super::error::ConversionError> {
+                Ok(Self {
+                    associations: value.associations?,
+                    bookmark: value.bookmark?,
+                    tags: value.tags?,
+                })
+            }
+        }
+        impl From<super::CreateBookmarkResponse> for CreateBookmarkResponse {
+            fn from(value: super::CreateBookmarkResponse) -> Self {
+                Self {
+                    associations: Ok(value.associations),
+                    bookmark: Ok(value.bookmark),
+                    tags: Ok(value.tags),
                 }
             }
         }
@@ -1727,6 +2147,215 @@ pub mod types {
             }
         }
         #[derive(Clone, Debug)]
+        pub struct NewBookmark {
+            accessed_at: Result<Option<chrono::DateTime<chrono::offset::Utc>>, String>,
+            created_at: Result<chrono::DateTime<chrono::offset::Utc>, String>,
+            description: Result<Option<String>, String>,
+            id: Result<super::NoId, String>,
+            modified_at: Result<Option<chrono::DateTime<chrono::offset::Utc>>, String>,
+            notes: Result<Option<String>, String>,
+            shared: Result<Option<bool>, String>,
+            title: Result<String, String>,
+            unread: Result<Option<bool>, String>,
+            url: Result<String, String>,
+            user_id: Result<super::NoId, String>,
+            website_description: Result<Option<String>, String>,
+            website_title: Result<Option<String>, String>,
+        }
+        impl Default for NewBookmark {
+            fn default() -> Self {
+                Self {
+                    accessed_at: Ok(Default::default()),
+                    created_at: Err("no value supplied for created_at".to_string()),
+                    description: Ok(Default::default()),
+                    id: Err("no value supplied for id".to_string()),
+                    modified_at: Ok(Default::default()),
+                    notes: Ok(Default::default()),
+                    shared: Ok(Default::default()),
+                    title: Err("no value supplied for title".to_string()),
+                    unread: Ok(Default::default()),
+                    url: Err("no value supplied for url".to_string()),
+                    user_id: Err("no value supplied for user_id".to_string()),
+                    website_description: Ok(Default::default()),
+                    website_title: Ok(Default::default()),
+                }
+            }
+        }
+        impl NewBookmark {
+            pub fn accessed_at<T>(mut self, value: T) -> Self
+            where
+                T: std::convert::TryInto<Option<chrono::DateTime<chrono::offset::Utc>>>,
+                T::Error: std::fmt::Display,
+            {
+                self.accessed_at = value
+                    .try_into()
+                    .map_err(|e| format!("error converting supplied value for accessed_at: {}", e));
+                self
+            }
+            pub fn created_at<T>(mut self, value: T) -> Self
+            where
+                T: std::convert::TryInto<chrono::DateTime<chrono::offset::Utc>>,
+                T::Error: std::fmt::Display,
+            {
+                self.created_at = value
+                    .try_into()
+                    .map_err(|e| format!("error converting supplied value for created_at: {}", e));
+                self
+            }
+            pub fn description<T>(mut self, value: T) -> Self
+            where
+                T: std::convert::TryInto<Option<String>>,
+                T::Error: std::fmt::Display,
+            {
+                self.description = value
+                    .try_into()
+                    .map_err(|e| format!("error converting supplied value for description: {}", e));
+                self
+            }
+            pub fn id<T>(mut self, value: T) -> Self
+            where
+                T: std::convert::TryInto<super::NoId>,
+                T::Error: std::fmt::Display,
+            {
+                self.id = value
+                    .try_into()
+                    .map_err(|e| format!("error converting supplied value for id: {}", e));
+                self
+            }
+            pub fn modified_at<T>(mut self, value: T) -> Self
+            where
+                T: std::convert::TryInto<Option<chrono::DateTime<chrono::offset::Utc>>>,
+                T::Error: std::fmt::Display,
+            {
+                self.modified_at = value
+                    .try_into()
+                    .map_err(|e| format!("error converting supplied value for modified_at: {}", e));
+                self
+            }
+            pub fn notes<T>(mut self, value: T) -> Self
+            where
+                T: std::convert::TryInto<Option<String>>,
+                T::Error: std::fmt::Display,
+            {
+                self.notes = value
+                    .try_into()
+                    .map_err(|e| format!("error converting supplied value for notes: {}", e));
+                self
+            }
+            pub fn shared<T>(mut self, value: T) -> Self
+            where
+                T: std::convert::TryInto<Option<bool>>,
+                T::Error: std::fmt::Display,
+            {
+                self.shared = value
+                    .try_into()
+                    .map_err(|e| format!("error converting supplied value for shared: {}", e));
+                self
+            }
+            pub fn title<T>(mut self, value: T) -> Self
+            where
+                T: std::convert::TryInto<String>,
+                T::Error: std::fmt::Display,
+            {
+                self.title = value
+                    .try_into()
+                    .map_err(|e| format!("error converting supplied value for title: {}", e));
+                self
+            }
+            pub fn unread<T>(mut self, value: T) -> Self
+            where
+                T: std::convert::TryInto<Option<bool>>,
+                T::Error: std::fmt::Display,
+            {
+                self.unread = value
+                    .try_into()
+                    .map_err(|e| format!("error converting supplied value for unread: {}", e));
+                self
+            }
+            pub fn url<T>(mut self, value: T) -> Self
+            where
+                T: std::convert::TryInto<String>,
+                T::Error: std::fmt::Display,
+            {
+                self.url = value
+                    .try_into()
+                    .map_err(|e| format!("error converting supplied value for url: {}", e));
+                self
+            }
+            pub fn user_id<T>(mut self, value: T) -> Self
+            where
+                T: std::convert::TryInto<super::NoId>,
+                T::Error: std::fmt::Display,
+            {
+                self.user_id = value
+                    .try_into()
+                    .map_err(|e| format!("error converting supplied value for user_id: {}", e));
+                self
+            }
+            pub fn website_description<T>(mut self, value: T) -> Self
+            where
+                T: std::convert::TryInto<Option<String>>,
+                T::Error: std::fmt::Display,
+            {
+                self.website_description = value.try_into().map_err(|e| {
+                    format!(
+                        "error converting supplied value for website_description: {}",
+                        e
+                    )
+                });
+                self
+            }
+            pub fn website_title<T>(mut self, value: T) -> Self
+            where
+                T: std::convert::TryInto<Option<String>>,
+                T::Error: std::fmt::Display,
+            {
+                self.website_title = value.try_into().map_err(|e| {
+                    format!("error converting supplied value for website_title: {}", e)
+                });
+                self
+            }
+        }
+        impl std::convert::TryFrom<NewBookmark> for super::NewBookmark {
+            type Error = super::error::ConversionError;
+            fn try_from(value: NewBookmark) -> Result<Self, super::error::ConversionError> {
+                Ok(Self {
+                    accessed_at: value.accessed_at?,
+                    created_at: value.created_at?,
+                    description: value.description?,
+                    id: value.id?,
+                    modified_at: value.modified_at?,
+                    notes: value.notes?,
+                    shared: value.shared?,
+                    title: value.title?,
+                    unread: value.unread?,
+                    url: value.url?,
+                    user_id: value.user_id?,
+                    website_description: value.website_description?,
+                    website_title: value.website_title?,
+                })
+            }
+        }
+        impl From<super::NewBookmark> for NewBookmark {
+            fn from(value: super::NewBookmark) -> Self {
+                Self {
+                    accessed_at: Ok(value.accessed_at),
+                    created_at: Ok(value.created_at),
+                    description: Ok(value.description),
+                    id: Ok(value.id),
+                    modified_at: Ok(value.modified_at),
+                    notes: Ok(value.notes),
+                    shared: Ok(value.shared),
+                    title: Ok(value.title),
+                    unread: Ok(value.unread),
+                    url: Ok(value.url),
+                    user_id: Ok(value.user_id),
+                    website_description: Ok(value.website_description),
+                    website_title: Ok(value.website_title),
+                }
+            }
+        }
+        #[derive(Clone, Debug)]
         pub struct Pagination {
             cursor: Result<Option<super::BookmarkId>, String>,
             per_page: Result<Option<i64>, String>,
@@ -1873,9 +2502,26 @@ impl Client {
     }
 }
 impl Client {
+    /**Create a new bookmark
+
+    Create a new bookmark
+
+    Sends a `POST` request to `/bookmark/create`
+
+    Arguments:
+    - `body`:
+    ```ignore
+    let response = client.create_bookmark()
+        .body(body)
+        .send()
+        .await;
+    ```*/
+    pub fn create_bookmark(&self) -> builder::CreateBookmark {
+        builder::CreateBookmark::new(self)
+    }
     /**List the user's bookmarks matching a query, newest to oldest
 
-    List the user's bookmarks matching a query, newest to oldest.
+    List the user's bookmarks matching a query, newest to oldest
 
     Sends a `POST` request to `/bookmarks`
 
@@ -1899,6 +2545,68 @@ pub mod builder {
     use super::{
         encode_path, ByteStream, Error, HeaderMap, HeaderValue, RequestBuilderExt, ResponseValue,
     };
+    /**Builder for [`Client::create_bookmark`]
+
+    [`Client::create_bookmark`]: super::Client::create_bookmark*/
+    #[derive(Debug, Clone)]
+    pub struct CreateBookmark<'a> {
+        client: &'a super::Client,
+        body: Result<types::builder::BookmarkCreateRequest, String>,
+    }
+    impl<'a> CreateBookmark<'a> {
+        pub fn new(client: &'a super::Client) -> Self {
+            Self {
+                client: client,
+                body: Ok(types::builder::BookmarkCreateRequest::default()),
+            }
+        }
+        pub fn body<V>(mut self, value: V) -> Self
+        where
+            V: std::convert::TryInto<types::BookmarkCreateRequest>,
+            <V as std::convert::TryInto<types::BookmarkCreateRequest>>::Error: std::fmt::Display,
+        {
+            self.body = value.try_into().map(From::from).map_err(|s| {
+                format!(
+                    "conversion to `BookmarkCreateRequest` for body failed: {}",
+                    s
+                )
+            });
+            self
+        }
+        pub fn body_map<F>(mut self, f: F) -> Self
+        where
+            F: std::ops::FnOnce(
+                types::builder::BookmarkCreateRequest,
+            ) -> types::builder::BookmarkCreateRequest,
+        {
+            self.body = self.body.map(f);
+            self
+        }
+        ///Sends a `POST` request to `/bookmark/create`
+        pub async fn send(self) -> Result<ResponseValue<types::CreateBookmarkResponse>, Error<()>> {
+            let Self { client, body } = self;
+            let body = body
+                .and_then(|v| types::BookmarkCreateRequest::try_from(v).map_err(|e| e.to_string()))
+                .map_err(Error::InvalidRequest)?;
+            let url = format!("{}/bookmark/create", client.baseurl,);
+            #[allow(unused_mut)]
+            let mut request = client
+                .client
+                .post(url)
+                .header(
+                    reqwest::header::ACCEPT,
+                    reqwest::header::HeaderValue::from_static("application/json"),
+                )
+                .json(&body)
+                .build()?;
+            let result = client.client.execute(request).await;
+            let response = result?;
+            match response.status().as_u16() {
+                200u16 => ResponseValue::from_response(response).await,
+                _ => Err(Error::UnexpectedResponse(response)),
+            }
+        }
+    }
     /**Builder for [`Client::list_bookmarks_matching`]
 
     [`Client::list_bookmarks_matching`]: super::Client::list_bookmarks_matching*/

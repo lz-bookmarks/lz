@@ -1,6 +1,7 @@
 use serde::{Deserialize, Deserializer, Serialize};
 use std::fmt;
 use std::marker::PhantomData;
+use utoipa::ToSchema;
 
 use crate::Connection;
 
@@ -141,7 +142,7 @@ pub trait IdType<T>: Copy + fmt::Display {
 ///   the structure being deserialized. This allows using the
 ///   structures using the [IdType] trait to be used for database row
 ///   creation operations.
-#[derive(PartialEq, Eq, Clone, Copy, Default, Serialize, Debug)]
+#[derive(PartialEq, Eq, Clone, Copy, Default, Serialize, ToSchema, Debug)]
 pub struct NoId;
 
 /// NoId can be deserialized from any source, even if the field is not

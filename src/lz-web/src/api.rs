@@ -7,8 +7,9 @@ mod searching;
 
 use std::sync::Arc;
 
+use axum::extract::Query;
 use axum::http::StatusCode;
-use axum::routing::post;
+use axum::routing::{get, post};
 use axum::{debug_handler, Json, Router};
 use lz_db::{
     AssociatedLink, BookmarkId, BookmarkSearch, BookmarkSearchDateParams,
@@ -27,7 +28,7 @@ use crate::db::{DbTransaction, GlobalWebAppState};
 #[derive(OpenApi)]
 #[openapi(
     tags((name = "Bookmarks", description = "Managing one's bookmarks")),
-    paths(list_bookmarks_matching, create_bookmark),
+    paths(list_bookmarks_matching, create_bookmark, complete_tag),
     security(),
     servers((url = "/api/v1/")),
     components(
@@ -41,6 +42,7 @@ pub fn router() -> Router<Arc<GlobalWebAppState>> {
     let router = Router::new()
         .route("/bookmarks", post(list_bookmarks_matching))
         .route("/bookmark/create", post(create_bookmark))
+        .route("/tag/complete", get(complete_tag))
         .layer(CorsLayer::permissive());
     observability::add_layers(router)
 }
@@ -180,4 +182,24 @@ async fn create_bookmark(
         tags,
         associations,
     }))
+}
+
+#[debug_handler(state = Arc<GlobalWebAppState>)]
+#[utoipa::path(post,
+    path = "/tag/complete",
+    params(("tag_fragment" = String, Query, description = "Substring of the tag name that must match")),
+    tag = "Tags",
+    responses(
+        (status = 200, body = inline(Vec<ExistingTag>), description = "Return tags for autocompletion"),
+    ),
+)]
+#[tracing::instrument(err(Debug, level = tracing::Level::WARN), skip(txn))]
+async fn complete_tag(
+    mut txn: DbTransaction,
+    Query(tag_fragment): Query<String>,
+) -> Result<Json<Vec<ExistingTag>>, (StatusCode, Json<ApiError>)> {
+    Ok(Json(txn.tags_matching(&tag_fragment).await.map_err(|e| {
+       tracing::error!(error=%e, error_debug=?e, ?tag_fragment, "could not query for tags matching the fragment");
+       (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiError::from(e)))
+    })?))
 }

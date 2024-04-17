@@ -510,6 +510,51 @@ pub mod types {
             value.parse()
         }
     }
+    /**A named tag, possibly assigned to multiple bookmarks.
+
+    See the section in [Transaction][Transaction#working-with-tags]*/
+    ///
+    /// <details><summary>JSON schema</summary>
+    ///
+    /// ```json
+    ///{
+    ///  "description": "A named tag, possibly assigned to multiple bookmarks.\n\nSee the section in [Transaction][Transaction#working-with-tags]",
+    ///  "type": "object",
+    ///  "required": [
+    ///    "created_at",
+    ///    "name"
+    ///  ],
+    ///  "properties": {
+    ///    "created_at": {
+    ///      "description": "When the tag was first created.",
+    ///      "type": "string",
+    ///      "format": "date-time"
+    ///    },
+    ///    "name": {
+    ///      "description": "Name of the tag.",
+    ///      "type": "string"
+    ///    }
+    ///  }
+    ///}
+    /// ```
+    /// </details>
+    #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+    pub struct CompleteTagResponseItem {
+        ///When the tag was first created.
+        pub created_at: chrono::DateTime<chrono::offset::Utc>,
+        ///Name of the tag.
+        pub name: String,
+    }
+    impl From<&CompleteTagResponseItem> for CompleteTagResponseItem {
+        fn from(value: &CompleteTagResponseItem) -> Self {
+            value.clone()
+        }
+    }
+    impl CompleteTagResponseItem {
+        pub fn builder() -> builder::CompleteTagResponseItem {
+            Default::default()
+        }
+    }
     ///A bookmark, including tags and associations on it.
     ///
     /// <details><summary>JSON schema</summary>
@@ -1646,6 +1691,60 @@ pub mod types {
             }
         }
         #[derive(Clone, Debug)]
+        pub struct CompleteTagResponseItem {
+            created_at: Result<chrono::DateTime<chrono::offset::Utc>, String>,
+            name: Result<String, String>,
+        }
+        impl Default for CompleteTagResponseItem {
+            fn default() -> Self {
+                Self {
+                    created_at: Err("no value supplied for created_at".to_string()),
+                    name: Err("no value supplied for name".to_string()),
+                }
+            }
+        }
+        impl CompleteTagResponseItem {
+            pub fn created_at<T>(mut self, value: T) -> Self
+            where
+                T: std::convert::TryInto<chrono::DateTime<chrono::offset::Utc>>,
+                T::Error: std::fmt::Display,
+            {
+                self.created_at = value
+                    .try_into()
+                    .map_err(|e| format!("error converting supplied value for created_at: {}", e));
+                self
+            }
+            pub fn name<T>(mut self, value: T) -> Self
+            where
+                T: std::convert::TryInto<String>,
+                T::Error: std::fmt::Display,
+            {
+                self.name = value
+                    .try_into()
+                    .map_err(|e| format!("error converting supplied value for name: {}", e));
+                self
+            }
+        }
+        impl std::convert::TryFrom<CompleteTagResponseItem> for super::CompleteTagResponseItem {
+            type Error = super::error::ConversionError;
+            fn try_from(
+                value: CompleteTagResponseItem,
+            ) -> Result<Self, super::error::ConversionError> {
+                Ok(Self {
+                    created_at: value.created_at?,
+                    name: value.name?,
+                })
+            }
+        }
+        impl From<super::CompleteTagResponseItem> for CompleteTagResponseItem {
+            fn from(value: super::CompleteTagResponseItem) -> Self {
+                Self {
+                    created_at: Ok(value.created_at),
+                    name: Ok(value.name),
+                }
+            }
+        }
+        #[derive(Clone, Debug)]
         pub struct CreateBookmarkResponse {
             associations: Result<Vec<super::AssociatedLink>, String>,
             bookmark: Result<super::ExistingBookmark, String>,
@@ -2536,6 +2635,19 @@ impl Client {
     pub fn list_bookmarks_matching(&self) -> builder::ListBookmarksMatching {
         builder::ListBookmarksMatching::new(self)
     }
+    /**Sends a `POST` request to `/tag/complete`
+
+    Arguments:
+    - `tag_fragment`: Substring of the tag name that must match
+    ```ignore
+    let response = client.complete_tag()
+        .tag_fragment(tag_fragment)
+        .send()
+        .await;
+    ```*/
+    pub fn complete_tag(&self) -> builder::CompleteTag {
+        builder::CompleteTag::new(self)
+    }
 }
 /// Types for composing operation parameters.
 #[allow(clippy::all)]
@@ -2658,6 +2770,60 @@ pub mod builder {
                     reqwest::header::HeaderValue::from_static("application/json"),
                 )
                 .json(&body)
+                .build()?;
+            let result = client.client.execute(request).await;
+            let response = result?;
+            match response.status().as_u16() {
+                200u16 => ResponseValue::from_response(response).await,
+                _ => Err(Error::UnexpectedResponse(response)),
+            }
+        }
+    }
+    /**Builder for [`Client::complete_tag`]
+
+    [`Client::complete_tag`]: super::Client::complete_tag*/
+    #[derive(Debug, Clone)]
+    pub struct CompleteTag<'a> {
+        client: &'a super::Client,
+        tag_fragment: Result<String, String>,
+    }
+    impl<'a> CompleteTag<'a> {
+        pub fn new(client: &'a super::Client) -> Self {
+            Self {
+                client: client,
+                tag_fragment: Err("tag_fragment was not initialized".to_string()),
+            }
+        }
+        pub fn tag_fragment<V>(mut self, value: V) -> Self
+        where
+            V: std::convert::TryInto<String>,
+        {
+            self.tag_fragment = value
+                .try_into()
+                .map_err(|_| "conversion to `String` for tag_fragment failed".to_string());
+            self
+        }
+        ///Sends a `POST` request to `/tag/complete`
+        pub async fn send(
+            self,
+        ) -> Result<ResponseValue<Vec<types::CompleteTagResponseItem>>, Error<()>> {
+            let Self {
+                client,
+                tag_fragment,
+            } = self;
+            let tag_fragment = tag_fragment.map_err(Error::InvalidRequest)?;
+            let url = format!("{}/tag/complete", client.baseurl,);
+            let mut query = Vec::with_capacity(1usize);
+            query.push(("tag_fragment", tag_fragment.to_string()));
+            #[allow(unused_mut)]
+            let mut request = client
+                .client
+                .post(url)
+                .header(
+                    reqwest::header::ACCEPT,
+                    reqwest::header::HeaderValue::from_static("application/json"),
+                )
+                .query(&query)
                 .build()?;
             let result = client.client.execute(request).await;
             let response = result?;

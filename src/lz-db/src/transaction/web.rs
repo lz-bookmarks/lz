@@ -123,6 +123,20 @@ impl<M: TransactionMode> Transaction<M> {
         }
         Ok(value)
     }
+
+    pub async fn tags_matching(
+        &mut self,
+        tag_fragment: &str,
+    ) -> Result<Vec<Tag<TagId>>, sqlx::Error> {
+        sqlx::query_as(
+            r#"
+          SELECT * from tags WHERE name LIKE ?
+        "#,
+        )
+        .bind(format!("%{tag_fragment}%"))
+        .fetch_all(&mut *self.txn)
+        .await
+    }
 }
 
 /// A link associated with a bookmark.

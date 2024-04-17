@@ -184,8 +184,13 @@ async fn create_bookmark(
     }))
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+struct CompleteQuery {
+    tag_fragment: String,
+}
+
 #[debug_handler(state = Arc<GlobalWebAppState>)]
-#[utoipa::path(post,
+#[utoipa::path(get,
     path = "/tag/complete",
     params(("tag_fragment" = String, Query, description = "Substring of the tag name that must match")),
     tag = "Tags",
@@ -196,7 +201,7 @@ async fn create_bookmark(
 #[tracing::instrument(err(Debug, level = tracing::Level::WARN), skip(txn))]
 async fn complete_tag(
     mut txn: DbTransaction,
-    Query(tag_fragment): Query<String>,
+    Query(CompleteQuery { tag_fragment }): Query<CompleteQuery>,
 ) -> Result<Json<Vec<ExistingTag>>, (StatusCode, Json<ApiError>)> {
     Ok(Json(txn.tags_matching(&tag_fragment).await.map_err(|e| {
        tracing::error!(error=%e, error_debug=?e, ?tag_fragment, "could not query for tags matching the fragment");

@@ -2635,7 +2635,7 @@ impl Client {
     pub fn list_bookmarks_matching(&self) -> builder::ListBookmarksMatching {
         builder::ListBookmarksMatching::new(self)
     }
-    /**Sends a `POST` request to `/tag/complete`
+    /**Sends a `GET` request to `/tag/complete`
 
     Arguments:
     - `tag_fragment`: Substring of the tag name that must match
@@ -2803,7 +2803,7 @@ pub mod builder {
                 .map_err(|_| "conversion to `String` for tag_fragment failed".to_string());
             self
         }
-        ///Sends a `POST` request to `/tag/complete`
+        ///Sends a `GET` request to `/tag/complete`
         pub async fn send(
             self,
         ) -> Result<ResponseValue<Vec<types::CompleteTagResponseItem>>, Error<()>> {
@@ -2818,7 +2818,7 @@ pub mod builder {
             #[allow(unused_mut)]
             let mut request = client
                 .client
-                .post(url)
+                .get(url)
                 .header(
                     reqwest::header::ACCEPT,
                     reqwest::header::HeaderValue::from_static("application/json"),

@@ -39,6 +39,7 @@ impl IdType<BookmarkId> for BookmarkId {
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone, FromRow, ToSchema, ToResponse)]
 #[aliases(
     ExistingBookmark = Bookmark<BookmarkId, UserId>,
+    NewBookmark = Bookmark<NoId, NoId>,
 )]
 pub struct Bookmark<ID: IdType<BookmarkId>, UID: IdType<UserId>> {
     /// Database identifier of the bookmark
@@ -107,6 +108,44 @@ impl<U: IdType<UserId>> From<Bookmark<BookmarkId, U>> for BookmarkId {
     }
 }
 
+impl Bookmark<NoId, NoId> {
+    /// Returns a Bookmark struct that has its IDs filled out.
+    fn with_filled_ids(self, id: BookmarkId, user_id: UserId) -> Bookmark<BookmarkId, UserId> {
+        let Bookmark {
+            id: _empty_id,
+            user_id: _empty_user_id,
+            created_at,
+            modified_at,
+            accessed_at,
+            url,
+            title,
+            description,
+            website_title,
+            website_description,
+            notes,
+            unread,
+            shared,
+            import_properties,
+        } = self;
+        Bookmark {
+            id,
+            user_id,
+            created_at,
+            modified_at,
+            accessed_at,
+            url,
+            title,
+            description,
+            website_title,
+            website_description,
+            notes,
+            unread,
+            shared,
+            import_properties,
+        }
+    }
+}
+
 /// # Working with Bookmarks
 impl Transaction<ReadWrite> {
     /// Store a new bookmark in the database.
@@ -114,7 +153,7 @@ impl Transaction<ReadWrite> {
     pub async fn add_bookmark(
         &mut self,
         bm: Bookmark<NoId, NoId>,
-    ) -> Result<BookmarkId, sqlx::Error> {
+    ) -> Result<Bookmark<BookmarkId, UserId>, sqlx::Error> {
         let user_id = self.user().id;
         let url_id = self.ensure_url(&bm.url).await?;
         let id = query_scalar!(
@@ -152,7 +191,7 @@ impl Transaction<ReadWrite> {
         )
         .fetch_one(&mut *self.txn)
         .await?;
-        Ok(BookmarkId(id))
+        Ok(bm.with_filled_ids(BookmarkId(id), self.user().id))
     }
 
     /// Update the values on a bookmark for a user.
@@ -288,28 +327,10 @@ mod tests {
             unread: true,
         };
         let added = txn.add_bookmark(to_add.clone()).await?;
-        let retrieved = txn.get_bookmark_by_id(added.id()).await?;
+        let retrieved = txn.get_bookmark_by_id(added.id.id()).await?;
 
-        assert_eq!(added, retrieved.id);
-        assert_eq!(
-            retrieved,
-            Bookmark {
-                id: added,
-                user_id: txn.user().id,
-                created_at: to_add.created_at,
-                modified_at: to_add.modified_at,
-                accessed_at: to_add.accessed_at,
-                url: to_add.url.clone(),
-                title: to_add.title,
-                description: to_add.description,
-                website_title: to_add.website_title,
-                website_description: to_add.website_description,
-                notes: to_add.notes,
-                import_properties: to_add.import_properties,
-                shared: to_add.shared,
-                unread: to_add.unread,
-            }
-        );
+        assert_eq!(added.id, retrieved.id);
+        assert_eq!(retrieved, added);
 
         let retrieved_by_url = txn.find_bookmark_with_url(&to_add.url).await?;
         assert_eq!(Some(retrieved), retrieved_by_url);

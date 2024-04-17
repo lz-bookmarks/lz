@@ -248,7 +248,7 @@ mod tests {
             shared: true,
             unread: true,
         };
-        let backdated_id = txn
+        let backdated = txn
             .add_bookmark(backdated.clone())
             .await
             .with_context(|| "adding backdated bookmark".to_string())?;
@@ -262,7 +262,7 @@ mod tests {
             .list_bookmarks_matching(&vec![], page_size, bookmarks_batch_1.last().map(|bm| bm.id))
             .await?;
         assert_eq!(bookmarks_batch_2.len(), 10);
-        assert_eq!(bookmarks_batch_2.last().map(|bm| bm.id), Some(backdated_id));
+        assert_eq!(bookmarks_batch_2.last().map(|bm| bm.id), Some(backdated.id));
         Ok(())
     }
 }

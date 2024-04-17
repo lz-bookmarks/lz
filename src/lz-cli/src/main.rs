@@ -4,7 +4,7 @@ use std::str::FromStr;
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Local, LocalResult, NaiveDateTime, TimeZone, Utc};
 use clap::{Parser, Subcommand};
-use lz_db::{BookmarkId, BookmarkSearch, Connection, DateInput, ReadOnly, Transaction};
+use lz_db::{BookmarkSearch, Connection, DateInput, ExistingBookmark, ReadOnly, Transaction};
 use url::Url;
 
 // NB See https://rust-cli-recommendations.sunshowers.io/handling-arguments.html for
@@ -189,7 +189,7 @@ async fn list_cmd(
 }
 
 async fn add_cmd(txn: &mut Transaction, args: &CliAddArgs) -> Result<()> {
-    let bookmark_id = add_link(
+    let bookmark = add_link(
         txn,
         args.link.to_string(),
         args.backdate.as_ref(),
@@ -201,7 +201,7 @@ async fn add_cmd(txn: &mut Transaction, args: &CliAddArgs) -> Result<()> {
     .await?;
     if !args.tag.is_empty() {
         let tags = txn.ensure_tags(&args.tag).await?;
-        txn.set_bookmark_tags(bookmark_id, tags).await?;
+        txn.set_bookmark_tags(bookmark.id, tags).await?;
     }
     if let Some(associate) = &args.associated_link {
         // Associations don't get user-configurable notes, description, etc.
@@ -209,7 +209,7 @@ async fn add_cmd(txn: &mut Transaction, args: &CliAddArgs) -> Result<()> {
         // link and then associate separately.
         let associated_url = Url::parse(associate)?;
         let url_id = txn.ensure_url(&associated_url).await?;
-        txn.associate_bookmark_link(&bookmark_id, &url_id, args.associated_context.as_deref())
+        txn.associate_bookmark_link(&bookmark.id, &url_id, args.associated_context.as_deref())
             .await?;
     }
     println!("Added bookmark for {}", args.link);
@@ -224,7 +224,7 @@ async fn add_link(
     force: bool,
     notes: Option<&str>,
     title: Option<&str>,
-) -> Result<BookmarkId> {
+) -> Result<ExistingBookmark> {
     let url = Url::parse(&link).with_context(|| format!("invalid url {:?}", link))?;
     let mut bookmark = lz_web::http::lookup_link_from_web(&url).await?;
     if let Some(user_title) = title {
@@ -250,7 +250,7 @@ async fn add_link(
                 existing_bookmark.website_description = bookmark.website_description;
                 existing_bookmark.website_title = bookmark.website_title;
                 match txn.update_bookmark(&existing_bookmark).await {
-                    Ok(_) => Ok(existing_bookmark.id),
+                    Ok(_) => Ok(existing_bookmark),
                     Err(err) => Err(err.into()),
                 }
             } else {

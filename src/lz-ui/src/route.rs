@@ -26,10 +26,10 @@ pub fn switch(routes: Route) -> Html {
         Route::NotFound => html! { <h1>{ "404, not found" }</h1> },
     };
     html! {
-        <>
+        <Layout>
             <div class="flex">
                 <section class="container flex-auto mx-auto">{ main }</section>
             </div>
-        </>
+        </Layout>
     }
 }

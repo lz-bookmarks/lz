@@ -2119,6 +2119,7 @@ dependencies = [
  "tracing-web",
  "web-sys",
  "yew",
+ "yew-autocomplete",
  "yew-router",
 ]
 
@@ -4651,6 +4652,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4be2531df63900aeb2bca0daaaddec08491ee64ceecbee5076636a3b026795a8"
 dependencies = [
  "cfg-if",
+ "serde",
+ "serde_json",
  "wasm-bindgen-macro",
 ]
 
@@ -4969,6 +4972,19 @@ dependencies = [
  "wasm-bindgen-futures",
  "web-sys",
  "yew-macro",
+]
+
+[[package]]
+name = "yew-autocomplete"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4ecc344f53b40e45495f4b6cd429349cc7fb73579b97bacca3e43ab01c6b2674"
+dependencies = [
+ "futures",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
+ "yew",
 ]
 
 [[package]]

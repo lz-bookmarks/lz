@@ -2112,6 +2112,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "bounce",
+ "itertools 0.12.1",
  "lz-openapi",
  "thiserror",
  "tracing",

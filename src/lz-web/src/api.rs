@@ -18,7 +18,6 @@ use lz_db::{
 };
 use searching::TagQuery;
 use serde::{Deserialize, Serialize};
-use thiserror::Error;
 use tower_http::cors::CorsLayer;
 use utoipa::{IntoParams, OpenApi, ToResponse, ToSchema};
 
@@ -47,16 +46,38 @@ pub fn router() -> Router<Arc<GlobalWebAppState>> {
     observability::add_layers(router)
 }
 
-#[derive(Serialize, Deserialize, Debug, ToSchema, Error)]
+#[derive(Serialize, Deserialize, Debug, ToSchema)]
 enum ApiError {
-    #[schema(example = "id = 1")]
-    #[error("not found")]
-    NotFound(String),
+    #[schema()]
+    NotFound,
 
     #[schema()]
-    #[error("error talking with the datastore")]
     #[serde(serialize_with = "serialize_db_error", skip_deserializing)]
-    DatastoreError(#[from] sqlx::Error),
+    DatastoreError(sqlx::Error),
+}
+
+impl axum::response::IntoResponse for ApiError {
+    fn into_response(self) -> axum::response::Response {
+        #[derive(Serialize)]
+        struct ErrorResponse<'a> {
+            error_message: &'a str,
+        }
+
+        let (status, error_message) = match &self {
+            ApiError::NotFound => (StatusCode::NOT_FOUND, "not found"),
+            ApiError::DatastoreError(inner) => {
+                tracing::error!(error=%inner, error_debug=?inner, "datastore error");
+                (StatusCode::INTERNAL_SERVER_ERROR, "datastore error")
+            }
+        };
+        (status, Json(ErrorResponse { error_message })).into_response()
+    }
+}
+
+impl From<sqlx::Error> for ApiError {
+    fn from(other: sqlx::Error) -> Self {
+        ApiError::DatastoreError(other)
+    }
 }
 
 fn serialize_db_error<S>(_err: &sqlx::Error, s: S) -> Result<S::Ok, S::Error>
@@ -103,17 +124,9 @@ pub struct ListRequest {
 async fn list_bookmarks_matching(
     mut txn: DbTransaction,
     Json(ListRequest { query, pagination }): Json<ListRequest>,
-) -> Result<Json<ListBookmarkResult>, (StatusCode, Json<ApiError>)> {
-    let ListResult { batch, next_cursor } = list_bookmarks(
-        &mut txn,
-        &query,
-        &pagination.unwrap_or_default(),
-    )
-    .await
-    .map_err(|e| {
-        tracing::error!(error=%e, error_debug=?e, "could not query for bookmark associations");
-        (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiError::from(e)))
-    })?;
+) -> Result<Json<ListBookmarkResult>, ApiError> {
+    let ListResult { batch, next_cursor } =
+        list_bookmarks(&mut txn, &query, &pagination.unwrap_or_default()).await?;
     Ok(Json(ListBookmarkResult {
         bookmarks: batch,
         next_cursor,
@@ -151,32 +164,16 @@ async fn create_bookmark(
         tag_names,
         associations,
     }): Json<BookmarkCreateRequest>,
-) -> Result<Json<AnnotatedBookmark>, (StatusCode, Json<ApiError>)> {
-    let tags = txn.ensure_tags(tag_names.as_slice()).await.map_err(|e| {
-        tracing::error!(error=%e, error_debug=?e, ?tag_names, "could not ensure tags exist");
-        (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiError::from(e)))
-    })?;
-    let bookmark = txn.add_bookmark(bookmark).await.map_err(|e| {
-        tracing::error!(error=%e, error_debug=?e, ?tag_names, "could not create bookmark");
-        (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiError::from(e)))
-    })?;
+) -> Result<Json<AnnotatedBookmark>, ApiError> {
+    let tags = txn.ensure_tags(tag_names.as_slice()).await?;
+    let bookmark = txn.add_bookmark(bookmark).await?;
     for a in &associations {
-        let url_id = txn.ensure_url(&a.link).await.map_err(|e| {
-            tracing::error!(error=%e, error_debug=?e, ?tag_names, link=?a.link, context=?a.context, "could not create associated link URL");
-            (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiError::from(e)))
-        })?;
-        txn
-            .associate_bookmark_link(&bookmark.id, &url_id, a.context.as_deref())
-            .await.map_err(|e| {
-                tracing::error!(error=%e, error_debug=?e, ?tag_names, ?url_id, link=?a.link, context=?a.context, "could not associate URL");
-                (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiError::from(e)))
-            })?;
+        let url_id = txn.ensure_url(&a.link).await?;
+        txn.associate_bookmark_link(&bookmark.id, &url_id, a.context.as_deref())
+            .await?;
     }
 
-    txn.commit().await.map_err(|e| {
-        tracing::error!(error=%e, error_debug=?e, ?tag_names, ?bookmark, "could not commit txn");
-        (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiError::from(e)))
-    })?;
+    txn.commit().await?;
     Ok(Json(AnnotatedBookmark {
         bookmark,
         tags,
@@ -202,9 +199,6 @@ struct CompleteQuery {
 async fn complete_tag(
     mut txn: DbTransaction,
     Query(CompleteQuery { tag_fragment }): Query<CompleteQuery>,
-) -> Result<Json<Vec<ExistingTag>>, (StatusCode, Json<ApiError>)> {
-    Ok(Json(txn.tags_matching(&tag_fragment).await.map_err(|e| {
-       tracing::error!(error=%e, error_debug=?e, ?tag_fragment, "could not query for tags matching the fragment");
-       (StatusCode::INTERNAL_SERVER_ERROR, Json(ApiError::from(e)))
-    })?))
+) -> Result<Json<Vec<ExistingTag>>, ApiError> {
+    Ok(Json(txn.tags_matching(&tag_fragment).await?))
 }

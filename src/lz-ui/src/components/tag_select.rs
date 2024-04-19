@@ -92,9 +92,14 @@ impl Component for TagSelect {
     }
 
     fn update(&mut self, _ctx: &yew::prelude::Context<Self>, msg: Self::Message) -> bool {
+        let started_empty = if let State::Active { initial, .. } = &self.state {
+            initial == ""
+        } else {
+            false
+        };
         match (msg, &self.state) {
             (Msg::Deleted, &State::Active { index, .. }) => {
-                tracing::trace!(?index, "deleted");
+                tracing::debug!(?index, "deleted");
                 self.tags.remove(index);
                 if index == 0 {
                     self.state = State::Inactive;
@@ -108,13 +113,15 @@ impl Component for TagSelect {
                 true
             }
             (Msg::Cancelled, &State::Active { index, .. }) => {
-                tracing::trace!(?index, "cancelled");
-                self.tags.remove(index);
+                tracing::debug!(?index, "cancelled");
                 self.state = State::Inactive;
+                if started_empty {
+                    self.tags.remove(index);
+                }
                 true
             }
             (Msg::Activated(index), State::Inactive) => {
-                tracing::trace!(?index, "activated!");
+                tracing::debug!(?index, "activated!");
                 if index >= self.tags.len() {
                     self.tags.push("".to_string());
                 }
@@ -128,7 +135,7 @@ impl Component for TagSelect {
                 self.tags[*index] = selection.remove(0);
                 self.input_field_ref = Default::default();
                 self.on_change.emit(self.tags.clone());
-                tracing::trace!(?selection, tags=?self.tags, "selected");
+                tracing::debug!(?selection, tags=?self.tags, "selected");
                 // Set up the next tag to select:
                 self.tags.push(Default::default());
                 self.state = State::Active {
@@ -150,6 +157,13 @@ impl Component for TagSelect {
         {
             let _ = input_field.focus();
             input_field.set_value(initial.as_str());
+            if initial != "" {
+                input_field
+                    .dispatch_event(
+                        &InputEvent::new("input").expect("should create an input event"),
+                    )
+                    .expect("dispatching the event");
+            }
         }
     }
 }
@@ -247,14 +261,13 @@ fn tailwind(
     let oncancel = oncancel.clone();
     let onkeydown = Callback::from(move |ev: KeyboardEvent| {
         let input = ev.target_dyn_into::<HtmlInputElement>().unwrap();
-        if input.value() != "" {
-            return;
-        }
         match ev.which() {
             8 => {
                 // backspace
-                ev.prevent_default();
-                ondelete.emit(());
+                if input.value() == "" {
+                    ev.prevent_default();
+                    ondelete.emit(());
+                }
             }
             27 => {
                 // escape
@@ -262,7 +275,7 @@ fn tailwind(
                 oncancel.emit(());
             }
             key => {
-                tracing::trace!(?key, "got key");
+                tracing::debug!(?key, "got key");
             }
         };
     });
@@ -270,7 +283,7 @@ fn tailwind(
     let oninput = move |e: InputEvent| {
         let input = e.target_dyn_into::<HtmlInputElement>().unwrap();
         let value = input.value();
-        tracing::trace!(key = ?e, "key pressed");
+        tracing::debug!(key = ?e, "key pressed");
         input_cb.emit(value);
     };
     let select_item = view_ctx.callbacks.select_item.clone();

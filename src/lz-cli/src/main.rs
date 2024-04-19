@@ -226,7 +226,7 @@ async fn add_link(
     title: Option<&str>,
 ) -> Result<ExistingBookmark> {
     let url = Url::parse(&link).with_context(|| format!("invalid url {:?}", link))?;
-    let mut bookmark = lz_web::http::lookup_link_from_web(&url).await?;
+    let mut bookmark = lz_web::http::lookup_bookmark_from_web(&url).await?;
     if let Some(user_title) = title {
         bookmark.title = user_title.to_string();
     }

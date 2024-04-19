@@ -136,7 +136,7 @@ async fn bookmark_create_form(
                 )),
         ))
     } else {
-        let new_bookmark = crate::http::lookup_link_from_web(&url)
+        let new_bookmark = crate::http::lookup_bookmark_from_web(&url)
             .await
             .map_err(|error| {
                 tracing::error!(?error, %error, %url, "could not retrieve url");

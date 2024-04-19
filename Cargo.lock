@@ -2073,6 +2073,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "lz-http"
+version = "0.1.0"
+dependencies = [
+ "reqwest",
+ "scraper",
+ "thiserror",
+ "url",
+]
+
+[[package]]
 name = "lz-import-linkding"
 version = "0.1.0"
 dependencies = [
@@ -2140,6 +2150,7 @@ dependencies = [
  "clap",
  "lazy_static",
  "lz-db",
+ "lz-http",
  "opentelemetry",
  "opentelemetry-otlp",
  "opentelemetry_sdk",

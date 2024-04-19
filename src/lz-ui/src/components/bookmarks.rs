@@ -8,20 +8,7 @@ use lz_openapi::types::builder::ListRequest;
 use lz_openapi::types::{BookmarkId, BookmarkSearch, ListBookmarksMatchingResponse};
 use yew::prelude::*;
 
-use crate::components::*;
-
-#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
-#[error("{}", .0)]
-struct GoddamnIt(String);
-
-impl GoddamnIt {
-    fn new<E>(error: E) -> Self
-    where
-        E: ToString,
-    {
-        GoddamnIt(error.to_string())
-    }
-}
+use crate::{components::*, GoddamnIt};
 
 #[derive(Properties, Default, PartialEq, Clone, Eq, Hash, Debug)]
 pub struct BookmarksProps {

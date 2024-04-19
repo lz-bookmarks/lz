@@ -2079,6 +2079,7 @@ dependencies = [
  "reqwest",
  "scraper",
  "thiserror",
+ "tracing",
  "url",
 ]
 
@@ -2123,11 +2124,13 @@ dependencies = [
  "async-trait",
  "bounce",
  "itertools 0.12.1",
+ "lz-http",
  "lz-openapi",
  "thiserror",
  "tracing",
  "tracing-subscriber",
  "tracing-web",
+ "url",
  "web-sys",
  "yew",
  "yew-autocomplete",

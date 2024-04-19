@@ -10,4 +10,5 @@ license.workspace = true
 reqwest.workspace = true
 scraper.workspace = true
 thiserror.workspace = true
+tracing.workspace = true
 url.workspace = true

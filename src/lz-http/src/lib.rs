@@ -22,6 +22,7 @@ thread_local! {
 }
 
 /// Metadata retrieved from a URL
+#[derive(PartialEq, Eq, Clone, Debug)]
 pub struct Metadata {
     /// The title of the document retrieved
     pub title: String,
@@ -32,7 +33,9 @@ pub struct Metadata {
 
 /// Retrieves metadata about a link on the web.
 pub async fn lookup_page_from_web(url: &Url) -> Result<Metadata, LookupError> {
-    let response = reqwest::get(url.clone()).await?;
+    tracing::trace!(?url, "retrieving page");
+    let client = reqwest::Client::new();
+    let response = client.get(url.clone()).send().await?;
     response.error_for_status_ref()?;
     let Ok(body) = response.text().await else {
         return Ok(Metadata {

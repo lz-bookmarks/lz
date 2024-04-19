@@ -255,6 +255,28 @@ impl<M: TransactionMode> Transaction<M> {
             .fetch_optional(&mut *self.txn)
             .await
     }
+
+    /// Delete a user's bookmark.
+    #[tracing::instrument(skip(self))]
+    pub async fn delete_bookmark(&mut self, bookmark_id: BookmarkId) -> Result<bool, sqlx::Error> {
+        let user_id = self.user().id;
+        // We need to delete bookmark_tags and bookmark_associations for which this
+        // is a foreign key (handled by a foreign key CASCADE in our schema
+        // definitions, but for the time being we're not going to delete any tags
+        // or URLs; they'll be plausibly interesting for checking historic usage patterns,
+        // moderation, etc. This decision may be revisited, or we may provide a manual
+        // "prune" mechanism to delete these orphaned records.
+        sqlx::query!(
+            r#"
+               DELETE FROM bookmarks WHERE bookmark_id = ? AND user_id = ?;
+            "#,
+            bookmark_id,
+            user_id,
+        )
+        .execute(&mut *self.txn)
+        .await?;
+        Ok(true)
+    }
 }
 
 #[cfg(test)]
@@ -275,7 +297,7 @@ mod tests {
             created_at: Default::default(),
             modified_at: Some(Default::default()),
             accessed_at: Some(Default::default()),
-            url: Url::parse("https://github.com/antifuchs/lz")?,
+            url: Url::parse("https://github.com/lz-bookmarks/lz")?,
             title: "The lz repo".to_string(),
             description: Some("This is a great repo with excellent code.".to_string()),
             website_title: Some("lz, the bookmarks manager".to_string()),
@@ -312,7 +334,33 @@ mod tests {
         );
 
         let retrieved_by_url = txn.find_bookmark_with_url(&to_add.url).await?;
+        let retrieved_id = retrieved.id.clone();
         assert_eq!(Some(retrieved), retrieved_by_url);
+
+        let second_add = Bookmark {
+            id: NoId,
+            user_id: NoId,
+            created_at: Default::default(),
+            modified_at: Some(Default::default()),
+            accessed_at: Some(Default::default()),
+            url: Url::parse("https://en.wikipedia.org/wiki/Bookmark")?,
+            title: "Bookmark - Wikipedia".to_string(),
+            description: None,
+            website_title: None,
+            website_description: None,
+            notes: None,
+            import_properties: None,
+            shared: true,
+            unread: true,
+        };
+        let _ = txn.add_bookmark(second_add.clone()).await?;
+        txn.delete_bookmark(retrieved_id).await?;
+        let retrieved_by_url_1 = txn.find_bookmark_with_url(&to_add.url).await?;
+        let remaining_url = Url::parse("https://en.wikipedia.org/wiki/Bookmark")?;
+        let retrieved_by_url_2 = txn.find_bookmark_with_url(&remaining_url).await?;
+        assert!(retrieved_by_url_1.is_none());
+        assert!(retrieved_by_url_2.is_some());
+
         txn.commit().await?;
         Ok(())
     }

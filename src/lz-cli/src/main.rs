@@ -91,6 +91,16 @@ enum Commands {
         #[clap(flatten)]
         add_args: CliAddArgs,
     },
+
+    /// Delete a link from lz
+    #[clap(alias = "rm")]
+    Remove {
+        #[clap(flatten)]
+        common_args: TuiArgs,
+        /// The URL to remove.
+        link: String,
+    },
+
     /// List bookmarks
     #[clap(alias = "ls")]
     List {
@@ -146,6 +156,12 @@ async fn main() -> Result<()> {
             let txn = conn.begin_ro_for_user(&common_args.user).await?;
             list_cmd(txn, created_after, created_before, tagged).await?;
         }
+        Commands::Remove { common_args, link } => {
+            let conn = Connection::from_path(&cli.db).await?;
+            let mut txn = conn.begin_for_user(&common_args.user).await?;
+            remove_cmd(&mut txn, link).await?;
+            txn.commit().await?;
+        }
         Commands::Web(args) => {
             let conn = Connection::from_path(&cli.db).await?;
             lz_web::run(conn, args).await?;
@@ -194,7 +210,7 @@ async fn list_cmd(
                 last_seen = Some(bm.id);
                 break;
             }
-            println!("{}: {}", bm.title, bm.url);
+            println!("{}: <{}>", bm.title, bm.url);
         }
         if bookmarks.len() < usize::from(page_size) + 1 {
             return Ok(());
@@ -226,7 +242,7 @@ async fn add_cmd(txn: &mut Transaction, args: &CliAddArgs) -> Result<()> {
         txn.associate_bookmark_link(&bookmark_id, &url_id, args.associated_context.as_deref())
             .await?;
     }
-    println!("Added bookmark for {}", args.link);
+    println!("Added bookmark for <{}>", args.link);
     Ok(())
 }
 
@@ -269,11 +285,27 @@ async fn add_link(
                 }
             } else {
                 Err(anyhow!(
-                    "`{}` is already bookmarked; use --force to override",
+                    "<{}> is already bookmarked; use --force to override",
                     &link
                 ))
             }
         }
         Err(err) => Err(err.into()),
     }
+}
+
+async fn remove_cmd(txn: &mut Transaction, link: &String) -> Result<()> {
+    let url = Url::parse(link).with_context(|| format!("invalid url {:?}", link))?;
+    let existing_bookmark = txn.find_bookmark_with_url(&url).await?;
+    if let Some(bookmark) = existing_bookmark {
+        let result = txn.delete_bookmark(bookmark.id).await?;
+        if result {
+            println!("Removed <{}>", link);
+        } else {
+            println!("Unable to remove <{}>", link);
+        }
+    } else {
+        println!("<{}> not found", link);
+    }
+    Ok(())
 }

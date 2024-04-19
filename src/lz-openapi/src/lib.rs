@@ -841,6 +841,51 @@ pub mod types {
             Default::default()
         }
     }
+    ///Metadata retrieved from a URL
+    ///
+    /// <details><summary>JSON schema</summary>
+    ///
+    /// ```json
+    ///{
+    ///  "description": "Metadata retrieved from a URL",
+    ///  "type": "object",
+    ///  "required": [
+    ///    "title"
+    ///  ],
+    ///  "properties": {
+    ///    "description": {
+    ///      "description": "A description (probably from a meta tag on HTML)",
+    ///      "type": [
+    ///        "string",
+    ///        "null"
+    ///      ]
+    ///    },
+    ///    "title": {
+    ///      "description": "The title of the document retrieved",
+    ///      "type": "string"
+    ///    }
+    ///  }
+    ///}
+    /// ```
+    /// </details>
+    #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+    pub struct FetchPageMetadataResponse {
+        ///A description (probably from a meta tag on HTML)
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub description: Option<String>,
+        ///The title of the document retrieved
+        pub title: String,
+    }
+    impl From<&FetchPageMetadataResponse> for FetchPageMetadataResponse {
+        fn from(value: &FetchPageMetadataResponse) -> Self {
+            value.clone()
+        }
+    }
+    impl FetchPageMetadataResponse {
+        pub fn builder() -> builder::FetchPageMetadataResponse {
+            Default::default()
+        }
+    }
     /**The response returned by the `list_bookmarks` API endpoint.
 
     This response contains pagination information; if `next_cursor` is
@@ -990,6 +1035,51 @@ pub mod types {
     }
     impl ListRequest {
         pub fn builder() -> builder::ListRequest {
+            Default::default()
+        }
+    }
+    ///Metadata retrieved from a URL
+    ///
+    /// <details><summary>JSON schema</summary>
+    ///
+    /// ```json
+    ///{
+    ///  "description": "Metadata retrieved from a URL",
+    ///  "type": "object",
+    ///  "required": [
+    ///    "title"
+    ///  ],
+    ///  "properties": {
+    ///    "description": {
+    ///      "description": "A description (probably from a meta tag on HTML)",
+    ///      "type": [
+    ///        "string",
+    ///        "null"
+    ///      ]
+    ///    },
+    ///    "title": {
+    ///      "description": "The title of the document retrieved",
+    ///      "type": "string"
+    ///    }
+    ///  }
+    ///}
+    /// ```
+    /// </details>
+    #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+    pub struct Metadata {
+        ///A description (probably from a meta tag on HTML)
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub description: Option<String>,
+        ///The title of the document retrieved
+        pub title: String,
+    }
+    impl From<&Metadata> for Metadata {
+        fn from(value: &Metadata) -> Self {
+            value.clone()
+        }
+    }
+    impl Metadata {
+        pub fn builder() -> builder::Metadata {
             Default::default()
         }
     }
@@ -2074,6 +2164,60 @@ pub mod types {
             }
         }
         #[derive(Clone, Debug)]
+        pub struct FetchPageMetadataResponse {
+            description: Result<Option<String>, String>,
+            title: Result<String, String>,
+        }
+        impl Default for FetchPageMetadataResponse {
+            fn default() -> Self {
+                Self {
+                    description: Ok(Default::default()),
+                    title: Err("no value supplied for title".to_string()),
+                }
+            }
+        }
+        impl FetchPageMetadataResponse {
+            pub fn description<T>(mut self, value: T) -> Self
+            where
+                T: std::convert::TryInto<Option<String>>,
+                T::Error: std::fmt::Display,
+            {
+                self.description = value
+                    .try_into()
+                    .map_err(|e| format!("error converting supplied value for description: {}", e));
+                self
+            }
+            pub fn title<T>(mut self, value: T) -> Self
+            where
+                T: std::convert::TryInto<String>,
+                T::Error: std::fmt::Display,
+            {
+                self.title = value
+                    .try_into()
+                    .map_err(|e| format!("error converting supplied value for title: {}", e));
+                self
+            }
+        }
+        impl std::convert::TryFrom<FetchPageMetadataResponse> for super::FetchPageMetadataResponse {
+            type Error = super::error::ConversionError;
+            fn try_from(
+                value: FetchPageMetadataResponse,
+            ) -> Result<Self, super::error::ConversionError> {
+                Ok(Self {
+                    description: value.description?,
+                    title: value.title?,
+                })
+            }
+        }
+        impl From<super::FetchPageMetadataResponse> for FetchPageMetadataResponse {
+            fn from(value: super::FetchPageMetadataResponse) -> Self {
+                Self {
+                    description: Ok(value.description),
+                    title: Ok(value.title),
+                }
+            }
+        }
+        #[derive(Clone, Debug)]
         pub struct ListBookmarkResult {
             bookmarks: Result<Vec<super::AnnotatedBookmark>, String>,
             next_cursor: Result<Option<super::BookmarkId>, String>,
@@ -2242,6 +2386,58 @@ pub mod types {
                     cursor: Ok(value.cursor),
                     per_page: Ok(value.per_page),
                     query: Ok(value.query),
+                }
+            }
+        }
+        #[derive(Clone, Debug)]
+        pub struct Metadata {
+            description: Result<Option<String>, String>,
+            title: Result<String, String>,
+        }
+        impl Default for Metadata {
+            fn default() -> Self {
+                Self {
+                    description: Ok(Default::default()),
+                    title: Err("no value supplied for title".to_string()),
+                }
+            }
+        }
+        impl Metadata {
+            pub fn description<T>(mut self, value: T) -> Self
+            where
+                T: std::convert::TryInto<Option<String>>,
+                T::Error: std::fmt::Display,
+            {
+                self.description = value
+                    .try_into()
+                    .map_err(|e| format!("error converting supplied value for description: {}", e));
+                self
+            }
+            pub fn title<T>(mut self, value: T) -> Self
+            where
+                T: std::convert::TryInto<String>,
+                T::Error: std::fmt::Display,
+            {
+                self.title = value
+                    .try_into()
+                    .map_err(|e| format!("error converting supplied value for title: {}", e));
+                self
+            }
+        }
+        impl std::convert::TryFrom<Metadata> for super::Metadata {
+            type Error = super::error::ConversionError;
+            fn try_from(value: Metadata) -> Result<Self, super::error::ConversionError> {
+                Ok(Self {
+                    description: value.description?,
+                    title: value.title?,
+                })
+            }
+        }
+        impl From<super::Metadata> for Metadata {
+            fn from(value: super::Metadata) -> Self {
+                Self {
+                    description: Ok(value.description),
+                    title: Ok(value.title),
                 }
             }
         }
@@ -2635,6 +2831,19 @@ impl Client {
     pub fn list_bookmarks_matching(&self) -> builder::ListBookmarksMatching {
         builder::ListBookmarksMatching::new(self)
     }
+    /**Sends a `GET` request to `/http/fetch_metadata`
+
+    Arguments:
+    - `url`: URL to retrieve and inspect for metadata
+    ```ignore
+    let response = client.fetch_page_metadata()
+        .url(url)
+        .send()
+        .await;
+    ```*/
+    pub fn fetch_page_metadata(&self) -> builder::FetchPageMetadata {
+        builder::FetchPageMetadata::new(self)
+    }
     /**Sends a `GET` request to `/tag/complete`
 
     Arguments:
@@ -2770,6 +2979,57 @@ pub mod builder {
                     reqwest::header::HeaderValue::from_static("application/json"),
                 )
                 .json(&body)
+                .build()?;
+            let result = client.client.execute(request).await;
+            let response = result?;
+            match response.status().as_u16() {
+                200u16 => ResponseValue::from_response(response).await,
+                _ => Err(Error::UnexpectedResponse(response)),
+            }
+        }
+    }
+    /**Builder for [`Client::fetch_page_metadata`]
+
+    [`Client::fetch_page_metadata`]: super::Client::fetch_page_metadata*/
+    #[derive(Debug, Clone)]
+    pub struct FetchPageMetadata<'a> {
+        client: &'a super::Client,
+        url: Result<String, String>,
+    }
+    impl<'a> FetchPageMetadata<'a> {
+        pub fn new(client: &'a super::Client) -> Self {
+            Self {
+                client: client,
+                url: Err("url was not initialized".to_string()),
+            }
+        }
+        pub fn url<V>(mut self, value: V) -> Self
+        where
+            V: std::convert::TryInto<String>,
+        {
+            self.url = value
+                .try_into()
+                .map_err(|_| "conversion to `String` for url failed".to_string());
+            self
+        }
+        ///Sends a `GET` request to `/http/fetch_metadata`
+        pub async fn send(
+            self,
+        ) -> Result<ResponseValue<types::FetchPageMetadataResponse>, Error<()>> {
+            let Self { client, url } = self;
+            let url = url.map_err(Error::InvalidRequest)?;
+            let _url = format!("{}/http/fetch_metadata", client.baseurl,);
+            let mut query = Vec::with_capacity(1usize);
+            query.push(("url", url.to_string()));
+            #[allow(unused_mut)]
+            let mut request = client
+                .client
+                .get(_url)
+                .header(
+                    reqwest::header::ACCEPT,
+                    reqwest::header::HeaderValue::from_static("application/json"),
+                )
+                .query(&query)
                 .build()?;
             let result = client.client.execute(request).await;
             let response = result?;

@@ -10,7 +10,6 @@ dev = ["progenitor", "syn", "prettyplease", "syn/full"]
 
 [dependencies]
 lz-db = { path = "../lz-db" }
-lz-http = { path = "../lz-http" }
 axum = { workspace = true, features = ["macros"] }
 serde = { workspace = true }
 serde_json = { workspace = true }

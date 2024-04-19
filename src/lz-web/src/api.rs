@@ -5,6 +5,7 @@
 mod observability;
 mod searching;
 
+use std::fmt;
 use std::sync::Arc;
 
 use axum::extract::Query;
@@ -19,19 +20,21 @@ use lz_db::{
 use searching::TagQuery;
 use serde::{Deserialize, Serialize};
 use tower_http::cors::CorsLayer;
+use url::Url;
 use utoipa::{IntoParams, OpenApi, ToResponse, ToSchema};
 
 use crate::db::queries::{list_bookmarks, AnnotatedBookmark, ListResult, Pagination};
 use crate::db::{DbTransaction, GlobalWebAppState};
+use crate::http::{lookup_page_from_web, LookupError, Metadata};
 
 #[derive(OpenApi)]
 #[openapi(
     tags((name = "Bookmarks", description = "Managing one's bookmarks")),
-    paths(list_bookmarks_matching, create_bookmark, complete_tag),
+    paths(list_bookmarks_matching, create_bookmark, complete_tag, fetch_page_metadata),
     security(),
     servers((url = "/api/v1/")),
     components(
-        schemas(ListBookmarkResult, AnnotatedBookmark, AssociatedLink, UserId, BookmarkId, ExistingBookmark, ExistingTag, Pagination, TagName, TagQuery, ListRequest, BookmarkSearch, BookmarkSearchDateParams, DateInput, BookmarkSearchDatetimeField, BookmarkSearchDatetimeOrientation, TagId, NoId, BookmarkCreateRequest),
+        schemas(ListBookmarkResult, AnnotatedBookmark, AssociatedLink, UserId, BookmarkId, ExistingBookmark, ExistingTag, Pagination, TagName, TagQuery, ListRequest, BookmarkSearch, BookmarkSearchDateParams, DateInput, BookmarkSearchDatetimeField, BookmarkSearchDatetimeOrientation, TagId, NoId, BookmarkCreateRequest, Metadata),
         responses(ListBookmarkResult, AnnotatedBookmark, AssociatedLink, UserId, ExistingBookmark, ExistingTag)
     )
 )]
@@ -41,6 +44,7 @@ pub fn router() -> Router<Arc<GlobalWebAppState>> {
     let router = Router::new()
         .route("/bookmarks", post(list_bookmarks_matching))
         .route("/bookmark/create", post(create_bookmark))
+        .route("/http/fetch_metadata", get(fetch_page_metadata))
         .route("/tag/complete", get(complete_tag))
         .layer(CorsLayer::permissive());
     observability::add_layers(router)
@@ -54,6 +58,20 @@ enum ApiError {
     #[schema()]
     #[serde(serialize_with = "serialize_db_error", skip_deserializing)]
     DatastoreError(sqlx::Error),
+
+    #[schema()]
+    #[serde(serialize_with = "serialize_lookup_error", skip_deserializing)]
+    Lookup(LookupError),
+}
+
+impl fmt::Display for ApiError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ApiError::NotFound => write!(f, "not found"),
+            ApiError::DatastoreError(_) => write!(f, "datastore error"),
+            ApiError::Lookup(e) => write!(f, "HTTP error {e}"),
+        }
+    }
 }
 
 impl axum::response::IntoResponse for ApiError {
@@ -63,11 +81,16 @@ impl axum::response::IntoResponse for ApiError {
             error_message: &'a str,
         }
 
+        let error_as_text = self.to_string();
         let (status, error_message) = match &self {
-            ApiError::NotFound => (StatusCode::NOT_FOUND, "not found"),
+            ApiError::NotFound => (StatusCode::NOT_FOUND, &error_as_text),
             ApiError::DatastoreError(inner) => {
                 tracing::error!(error=%inner, error_debug=?inner, "datastore error");
-                (StatusCode::INTERNAL_SERVER_ERROR, "datastore error")
+                (StatusCode::INTERNAL_SERVER_ERROR, &error_as_text)
+            }
+            ApiError::Lookup(error) => {
+                tracing::warn!(error_debug=?error, %error, "HTTP error");
+                (StatusCode::BAD_REQUEST, &error_as_text)
             }
         };
         (status, Json(ErrorResponse { error_message })).into_response()
@@ -79,12 +102,24 @@ impl From<sqlx::Error> for ApiError {
         ApiError::DatastoreError(other)
     }
 }
+impl From<LookupError> for ApiError {
+    fn from(other: LookupError) -> Self {
+        ApiError::Lookup(other)
+    }
+}
 
 fn serialize_db_error<S>(_err: &sqlx::Error, s: S) -> Result<S::Ok, S::Error>
 where
     S: serde::Serializer,
 {
     s.serialize_str("(nasty DB error omitted)")
+}
+
+fn serialize_lookup_error<S>(err: &LookupError, s: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    s.serialize_str(&format!("lookup error: {}", err))
 }
 
 /// The response returned by the `list_bookmarks` API endpoint.
@@ -201,4 +236,28 @@ async fn complete_tag(
     Query(CompleteQuery { tag_fragment }): Query<CompleteQuery>,
 ) -> Result<Json<Vec<ExistingTag>>, ApiError> {
     Ok(Json(txn.tags_matching(&tag_fragment).await?))
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+struct PageMetadataQuery {
+    url: Url,
+}
+
+#[debug_handler(state = Arc<GlobalWebAppState>)]
+#[utoipa::path(get,
+    path = "/http/fetch_metadata",
+    params(("url" = String, Query, description = "URL to retrieve and inspect for metadata")),
+    tag = "HTTP",
+    responses(
+        (status = 200, body = inline(Metadata), description = "Returns page metadata"),
+    ),
+)]
+#[tracing::instrument(err(Debug, level = tracing::Level::WARN), skip(txn))]
+async fn fetch_page_metadata(
+    mut txn: DbTransaction<ReadWrite>,
+    Query(PageMetadataQuery { url }): Query<PageMetadataQuery>,
+) -> Result<Json<Metadata>, ApiError> {
+    txn.ensure_url(&url).await?;
+    txn.commit().await?;
+    Ok(Json(lookup_page_from_web(&url).await?))
 }

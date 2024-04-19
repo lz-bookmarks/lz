@@ -3,7 +3,7 @@ use std::rc::Rc;
 use async_trait::async_trait;
 use bounce::query::{use_query_value, Query, QueryResult};
 use bounce::BounceStates;
-use lz_http::Metadata;
+use lz_openapi::types::Metadata;
 use url::Url;
 use web_sys::HtmlInputElement;
 use yew::prelude::*;
@@ -58,10 +58,26 @@ impl Query for SaveBookmarkQuery {
     type Error = GoddamnIt;
 
     async fn query(_states: &BounceStates, input: Rc<Url>) -> QueryResult<Self> {
-        let res = lz_http::lookup_page_from_web(&*input)
+        let loc = web_sys::window().unwrap().location();
+        let base_url = format!(
+            "{}//{}/api/v1",
+            loc.protocol().unwrap(),
+            loc.host().unwrap()
+        );
+
+        let client = lz_openapi::Client::new(&base_url);
+        let res = client
+            .fetch_page_metadata()
+            .url(input.to_string())
+            .send()
             .await
             .map_err(GoddamnIt::new)?;
-        Ok(SaveBookmarkQuery(res).into())
+        let md = res.into_inner();
+        Ok(SaveBookmarkQuery(Metadata {
+            title: md.title,
+            description: md.description,
+        })
+        .into())
     }
 }
 
@@ -72,31 +88,32 @@ fn visible_create_form(VisibleProps { onclose }: &VisibleProps) -> Html {
 
     let inner = match &*state {
         &State::EnteringUrl => {
-            let onclick = Callback::from(move |_e| {
+            let onsubmit = Callback::from(move |_e| {
                 state.set(State::EnteringData);
             });
             html! {
-                <div class="join">
-                    <input
-                        type="url"
-                        class={classes!("input", "input-bordered", "join-item", "invalid:border-red-600")}
-                        placeholder="URL"
-                        id="bookmark_url"
-                        oninput={let url = url.clone();
+                <div class="join place-self-center">
+                    <form {onsubmit}>
+                        <input
+                            type="url"
+                            class={classes!("input", "input-bordered", "join-item", "invalid:border-red-600")}
+                            placeholder="URL"
+                            id="bookmark_url"
+                            oninput={let url = url.clone();
                             move |e: InputEvent| {
                                 let input = e.target_dyn_into::<HtmlInputElement>().unwrap();
                                 if let Ok(u) = Url::parse(&input.value()) {
                                     url.set(Some(u));
                                 }
                             }}
-                    />
-                    <button
-                        class={classes!("btn", "join-item")}
-                        disabled={url.is_none()}
-                        {onclick}
-                    >
-                        { "Add" }
-                    </button>
+                        />
+                        <input
+                            type="submit"
+                            class={classes!("btn", "join-item")}
+                            disabled={url.is_none()}
+                            value="Add"
+                        />
+                    </form>
                 </div>
             }
         }
@@ -112,7 +129,7 @@ fn visible_create_form(VisibleProps { onclose }: &VisibleProps) -> Html {
         <>
             <input type="checkbox" id="create_modal_visibility" class="modal-toggle" checked=true />
             <div class="modal" role="dialog">
-                <div class="modal-box">
+                <div class={classes!("modal-box", "max-h-none")}>
                     <h3 class="font-bold text-lg">{ "Add bookmark" }</h3>
                     { inner }
                     <div class="modal-action">
@@ -142,27 +159,52 @@ fn fill_bookmark(FillBookmarkProps { url }: &FillBookmarkProps) -> Html {
     let metadata_query = use_query_value::<SaveBookmarkQuery>(Rc::new(url.clone()));
     {
         let res = metadata_query.result().map(|x| x.clone());
-        let title = title.clone();
+        let title_set = title.setter();
+        let description_set = description.setter();
         use_effect_with(res, move |res| {
             tracing::info!(?res, "effect");
             match res {
                 Some(Ok(metadata)) => {
                     let metadata = metadata.clone();
-                    title.set(metadata.0.title.to_string());
                     if let Some(desc) = &metadata.0.description {
-                        tracing::info!(?desc, "setting stuff");
-                        description.set(desc.to_string());
+                        description_set.set(desc.to_string());
                     }
+                    title_set.set(metadata.0.title.to_string());
                 }
                 _ => {}
             }
         });
     }
 
-    html! {
-        <>
-            <input type="text" value={(*title).clone()} />
-            <TagSelect on_change={Callback::from(move |new_tags| {tags.set(new_tags)})} />
-        </>
+    match metadata_query.result() {
+        Some(_) => html! {
+            <div
+                class={classes!("grid", "grid-cols-1", "gap-4", "place-content-start", "h-[600px]")}
+            >
+                <div class="grid grid-cols-1 gap-1">
+                    <label class="font-medium" for="bookmark_title">{ "Title" }</label>
+                    <input
+                        id="bookmark_title"
+                        class={classes!("input", "input-bordered", "w-full", "max-w-xs")}
+                        type="text"
+                        value={(*title).clone()}
+                    />
+                </div>
+                <div class="grid grid-cols-1 gap-1">
+                    <label class="font-medium" for="bookmark_description">{ "Description" }</label>
+                    <textarea
+                        id="bookmark_description"
+                        class={classes!("textarea", "textarea-bordered", "w-full", "max-w-xs")}
+                        placeholder="Description"
+                        value={(*description).clone()}
+                    />
+                </div>
+                <div class="grid grid-cols-1 gap-1">
+                    <label class="font-medium" for="bookmark_tags">{ "Tags" }</label>
+                    <TagSelect on_change={Callback::from(move |new_tags| {tags.set(new_tags)})} />
+                </div>
+            </div>
+        },
+        None => html! { <div class="skeleton w-full h-full" /> },
     }
 }

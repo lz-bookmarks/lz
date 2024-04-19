@@ -23,6 +23,3 @@ url.workspace = true
 
 [dependencies.lz-openapi]
 path = "../lz-openapi"
-
-[dependencies.lz-http]
-path = "../lz-http"

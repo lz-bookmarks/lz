@@ -20,6 +20,7 @@ pub enum Msg {
     Activated(usize),
     Selected(Vec<String>),
     Deleted,
+    Cancelled,
 }
 
 pub struct TagSelect {
@@ -69,7 +70,8 @@ impl Component for TagSelect {
                     state={pill_state}
                     {onclick}
                     {onchange}
-                    oncancel={ctx.link().callback(|_| Msg::Deleted)}
+                    ondelete={ctx.link().callback(|_| Msg::Deleted)}
+                    oncancel={ctx.link().callback(|_| Msg::Cancelled)}
                 />
             });
         }
@@ -91,9 +93,23 @@ impl Component for TagSelect {
 
     fn update(&mut self, _ctx: &yew::prelude::Context<Self>, msg: Self::Message) -> bool {
         match (msg, &self.state) {
-            (Msg::Deleted, State::Active { index, .. }) => {
+            (Msg::Deleted, &State::Active { index, .. }) => {
                 tracing::trace!(?index, "deleted");
-                self.tags.remove(*index);
+                self.tags.remove(index);
+                if index == 0 {
+                    self.state = State::Inactive;
+                } else {
+                    let index = index - 1;
+                    self.state = State::Active {
+                        initial: self.tags[index].clone(),
+                        index,
+                    };
+                }
+                true
+            }
+            (Msg::Cancelled, &State::Active { index, .. }) => {
+                tracing::trace!(?index, "cancelled");
+                self.tags.remove(index);
                 self.state = State::Inactive;
                 true
             }
@@ -110,10 +126,15 @@ impl Component for TagSelect {
             }
             (Msg::Selected(mut selection), State::Active { index, .. }) => {
                 self.tags[*index] = selection.remove(0);
-                self.state = State::Inactive;
                 self.input_field_ref = Default::default();
                 self.on_change.emit(self.tags.clone());
                 tracing::trace!(?selection, tags=?self.tags, "selected");
+                // Set up the next tag to select:
+                self.tags.push(Default::default());
+                self.state = State::Active {
+                    initial: String::default(),
+                    index: index + 1,
+                };
                 true
             }
             (x, y) => unreachable!(
@@ -138,6 +159,7 @@ struct SingleProps {
     pub state: SingleState,
     pub onclick: Callback<MouseEvent>,
     pub onchange: Callback<Vec<String>>,
+    pub ondelete: Callback<()>,
     pub oncancel: Callback<()>,
 }
 
@@ -153,6 +175,7 @@ fn tag_select_single_pill(
         state,
         onclick,
         onchange,
+        ondelete,
         oncancel,
     }: &SingleProps,
 ) -> Html {
@@ -196,7 +219,7 @@ fn tag_select_single_pill(
                         auto=true
                         show_selected=false
                     >
-                        <Tailwind {node} {oncancel} />
+                        <Tailwind {node} {ondelete} {oncancel} />
                     </Autocomplete<String>>
                 </span>
             }
@@ -207,18 +230,41 @@ fn tag_select_single_pill(
 #[derive(Properties, PartialEq)]
 struct TailwindProps {
     node: NodeRef,
+    ondelete: Callback<()>,
     oncancel: Callback<()>,
 }
 
 #[function_component(Tailwind)]
-fn tailwind(TailwindProps { node, oncancel }: &TailwindProps) -> Html {
+fn tailwind(
+    TailwindProps {
+        node,
+        ondelete,
+        oncancel,
+    }: &TailwindProps,
+) -> Html {
     let view_ctx = use_context::<Context<String>>().expect("view::Context wasn't provided");
+    let ondelete = ondelete.clone();
     let oncancel = oncancel.clone();
     let onkeydown = Callback::from(move |ev: KeyboardEvent| {
         let input = ev.target_dyn_into::<HtmlInputElement>().unwrap();
-        if input.value() == "" && ev.which() == 8 {
-            oncancel.emit(());
+        if input.value() != "" {
+            return;
         }
+        match ev.which() {
+            8 => {
+                // backspace
+                ev.prevent_default();
+                ondelete.emit(());
+            }
+            27 => {
+                // escape
+                ev.prevent_default();
+                oncancel.emit(());
+            }
+            key => {
+                tracing::trace!(?key, "got key");
+            }
+        };
     });
     let input_cb = view_ctx.callbacks.on_input.clone();
     let oninput = move |e: InputEvent| {

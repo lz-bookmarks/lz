@@ -298,9 +298,9 @@ fn tailwind(
                     <a
                         class={classes!("hover:bg-gray-300", (Some(index) == view_ctx.highlighted).then_some("bg-gray-300"))}
                         onclick={move |e: MouseEvent| {
-                    e.prevent_default();
-                    select_item.emit(index);
-                }}
+                            e.prevent_default();
+                            select_item.emit(index);
+                        }}
                     >
                         { item.render() }
                     </a>

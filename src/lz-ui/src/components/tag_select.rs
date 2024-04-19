@@ -83,7 +83,7 @@ impl Component for TagSelect {
         };
         html! {
             <div
-                class={classes!("flex", "flex-wrap", "w-full", "h-5", "justify-start", "border-2", "border-solid")}
+                class={classes!("flex", "flex-wrap", "w-full", "min-h-5", "justify-start", "border-2", "border-solid")}
             >
                 { tag_pills }
                 <button onclick={self_onclick} class={classes!("flex-1")}>{ " " }</button>
@@ -324,7 +324,7 @@ fn tailwind(
                 if !view_ctx.items.is_empty() {
                     <ul
                         tabindex="0"
-                        class="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52"
+                        class="dropdown-content z-50 menu p-2 shadow bg-base-100 rounded-box w-52 max-h-60 overflow-scroll grid grid-cols-1"
                     >
                         { options }
                     </ul>

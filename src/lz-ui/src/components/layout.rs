@@ -1,5 +1,4 @@
 use yew::prelude::*;
-use yew_router::prelude::*;
 
 use super::CreateForm;
 
@@ -13,15 +12,15 @@ pub enum ModalState {
 }
 
 #[derive(Properties, PartialEq)]
-pub struct Props {
+pub struct LayoutProps {
     pub children: Html, // the field name `children` is important!
 }
 
 #[function_component(Layout)]
-pub fn layout(Props { children }: &Props) -> Html {
+pub fn layout(LayoutProps { children }: &LayoutProps) -> Html {
     let ctx = use_state(|| ModalState::Normal);
     html! {
-        <ContextProvider<ModalState> context={(*ctx).clone()}>
+        <ContextProvider<ModalState> context={*ctx}>
             <CreateForm onclose={{let ctx = ctx.clone(); move |_ev| ctx.set(ModalState::Normal)}} />
             <button class="btn" onclick={{move |_ev| ctx.set(ModalState::CreateBookmark)}}>
                 { "add" }

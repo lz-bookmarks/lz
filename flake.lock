@@ -309,6 +309,7 @@
         "pre-commit-hooks-nix": "pre-commit-hooks-nix",
         "proc-flake": "proc-flake",
         "progenitor": "progenitor",
+        "trunk": "trunk",
         "yew-fmt": "yew-fmt"
       }
     },
@@ -356,6 +357,23 @@
       "original": {
         "owner": "nix-systems",
         "repo": "default",
+        "type": "github"
+      }
+    },
+    "trunk": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1712848872,
+        "narHash": "sha256-iVwnuTCOgUbmU0jdiWmtzgd4nulVY17IMqlh3bh3gqE=",
+        "owner": "trunk-rs",
+        "repo": "trunk",
+        "rev": "d264a099eff8570cabf6fcf72f841d48c6a43172",
+        "type": "github"
+      },
+      "original": {
+        "owner": "trunk-rs",
+        "ref": "v0.19.2",
+        "repo": "trunk",
         "type": "github"
       }
     },

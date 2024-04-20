@@ -84,6 +84,23 @@
           nativeBuildInputs = [pkgs.rustfmt];
           meta.mainProgram = "yew-fmt";
         };
+        packages.trunk = rustPlatform.buildRustPackage {
+          pname = "trunk";
+          version = (builtins.fromTOML (builtins.readFile "${inputs.trunk}/Cargo.toml")).package.version;
+          src = inputs.trunk;
+          nativeBuildInputs = [pkgs.pkg-config];
+          buildInputs =
+            if pkgs.stdenv.isDarwin
+            then
+              with pkgs.darwin.apple_sdk.frameworks; [
+                SystemConfiguration
+                CoreServices
+              ]
+            else [];
+          checkFlags = ["--skip=tools::tests::download_and_install_binaries"];
+          cargoLock.lockFile = "${inputs.trunk}/Cargo.lock";
+          meta.mainProgram = "trunk";
+        };
 
         apps = {
           default = config.apps.lz-web;
@@ -109,7 +126,7 @@
                   unset RUSTFLAGS
                   CARGO_TARGET_DIR=target/trunk-wasm
                   export CARGO_TARGET_DIR
-                  ${pkgs.lib.getExe pkgs.trunk} "$@"
+                  ${pkgs.lib.getExe config.packages.trunk} "$@"
                 '';
               })
             ];
@@ -244,6 +261,10 @@
     };
     yew-fmt = {
       url = "github:schvv31n/yew-fmt";
+      flake = false;
+    };
+    trunk = {
+      url = "github:trunk-rs/trunk/v0.19.2";
       flake = false;
     };
   };

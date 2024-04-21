@@ -1,16 +1,20 @@
 use std::rc::Rc;
 
 use async_trait::async_trait;
-use bounce::query::{use_query_value, Query, QueryResult};
+use bounce::query::{use_mutation, use_query_value, Mutation, MutationResult, Query, QueryResult};
 use bounce::BounceStates;
-use lz_openapi::types::Metadata;
+use chrono::Utc;
+use lz_openapi::types::{
+    BookmarkCreateRequest, CreateBookmarkResponse, Metadata, NewBookmark, NoId,
+};
 use url::Url;
 use web_sys::HtmlInputElement;
+use yew::platform::spawn_local;
 use yew::prelude::*;
 
 use crate::GoddamnIt;
 
-use super::{ModalState, TagSelect};
+use super::{BookmarkEditText, ModalState, TagSelect};
 
 #[derive(Properties, PartialEq)]
 pub struct Props {
@@ -78,6 +82,34 @@ impl Query for SaveBookmarkQuery {
             description: md.description,
         })
         .into())
+    }
+}
+
+/// Saves a new bookmark.
+#[derive(PartialEq, Clone, Debug)]
+struct SaveBookmarkMutation(CreateBookmarkResponse);
+
+#[async_trait(?Send)]
+impl Mutation for SaveBookmarkMutation {
+    type Input = BookmarkCreateRequest;
+    type Error = GoddamnIt;
+
+    async fn run(_states: &BounceStates, input: Rc<BookmarkCreateRequest>) -> MutationResult<Self> {
+        let loc = web_sys::window().unwrap().location();
+        let base_url = format!(
+            "{}//{}/api/v1",
+            loc.protocol().unwrap(),
+            loc.host().unwrap()
+        );
+
+        let client = lz_openapi::Client::new(&base_url);
+        let result = client
+            .create_bookmark()
+            .body(&*input)
+            .send()
+            .await
+            .map_err(GoddamnIt::new)?;
+        Ok(Rc::new(SaveBookmarkMutation(result.into_inner())))
     }
 }
 
@@ -155,7 +187,27 @@ struct FillBookmarkProps {
 fn fill_bookmark(FillBookmarkProps { url }: &FillBookmarkProps) -> Html {
     let tags = use_state(|| vec![]);
     let title = use_state(|| String::default());
+    let title_callback = {
+        let setter = title.setter();
+        Callback::from(move |x| {
+            setter.set(x);
+        })
+    };
     let description = use_state(|| String::default());
+    let description_callback = {
+        let setter = description.setter();
+        Callback::from(move |x| {
+            setter.set(x);
+        })
+    };
+    let notes = use_state(|| String::default());
+    let notes_callback = {
+        let setter = notes.setter();
+        Callback::from(move |x| {
+            tracing::info!(?x, "setting notes");
+            setter.set(x);
+        })
+    };
     let metadata_query = use_query_value::<SaveBookmarkQuery>(Rc::new(url.clone()));
     {
         let res = metadata_query.result().map(|x| x.clone());
@@ -175,35 +227,91 @@ fn fill_bookmark(FillBookmarkProps { url }: &FillBookmarkProps) -> Html {
             }
         });
     }
+    let save_bookmark = use_mutation::<SaveBookmarkMutation>();
+    let save = {
+        let save_bookmark = save_bookmark.clone();
+        let description = description.clone();
+        let notes = notes.clone();
+        let title = title.clone();
+        let url = url.clone();
+        let tags = tags.clone();
+        Callback::from(move |_| {
+            let save_bookmark = save_bookmark.clone();
+            let tags = tags.clone();
+            let description = description.clone();
+            let notes = notes.clone();
+            let title = title.clone();
+            let url = url.clone();
+            let created_at = Utc::now();
+            spawn_local(async move {
+                let notes = if *notes == "" {
+                    None
+                } else {
+                    Some(notes.to_string())
+                };
+                let _ = save_bookmark // TODO: error-handle
+                    .run(BookmarkCreateRequest {
+                        associations: vec![],
+                        tag_names: (*tags).clone(),
+                        bookmark: NewBookmark {
+                            id: NoId(serde_json::Value::Null),
+                            user_id: NoId(serde_json::Value::Null),
+                            accessed_at: None,
+                            created_at,
+                            description: Some((*description).to_string()),
+                            modified_at: None,
+                            notes,
+                            shared: None,
+                            title: (*title).to_string(),
+                            unread: None,
+                            url: url.to_string(),
+                            website_description: None, // TODO
+                            website_title: None,       // TODO
+                        },
+                    })
+                    .await;
+            })
+        })
+    };
 
     match metadata_query.result() {
         Some(_) => html! {
-            <div
-                class={classes!("grid", "grid-cols-1", "gap-4", "place-content-start", "h-[600px]")}
-            >
-                <div class="grid grid-cols-1 gap-1">
-                    <label class="font-medium" for="bookmark_title">{ "Title" }</label>
-                    <input
+            <>
+                <div
+                    class={classes!("grid", "grid-cols-1", "gap-4", "place-content-start", "h-[500px]")}
+                >
+                    <BookmarkEditText
+                        name="Title"
                         id="bookmark_title"
-                        class={classes!("input", "input-bordered", "w-full", "max-w-xs")}
-                        type="text"
+                        multiline=false
                         value={(*title).clone()}
+                        onchange={title_callback}
                     />
-                </div>
-                <div class="grid grid-cols-1 gap-1">
-                    <label class="font-medium" for="bookmark_description">{ "Description" }</label>
-                    <textarea
+                    <BookmarkEditText
+                        name="Description"
                         id="bookmark_description"
-                        class={classes!("textarea", "textarea-bordered", "w-full", "max-w-xs")}
-                        placeholder="Description"
+                        multiline=true
                         value={(*description).clone()}
+                        onchange={description_callback}
                     />
+                    <BookmarkEditText
+                        name="Notes"
+                        id="bookmark_notes"
+                        multiline=true
+                        value={(*notes).clone()}
+                        onchange={notes_callback}
+                    />
+                    <div class="grid grid-cols-1 gap-1">
+                        <label class="font-medium" for="bookmark_tags">{ "Tags" }</label>
+                        <TagSelect
+                            on_change={Callback::from(move |new_tags| {tags.set(new_tags)})}
+                        />
+                    </div>
                 </div>
-                <div class="grid grid-cols-1 gap-1">
-                    <label class="font-medium" for="bookmark_tags">{ "Tags" }</label>
-                    <TagSelect on_change={Callback::from(move |new_tags| {tags.set(new_tags)})} />
+                <div class="modal-action">
+                    <button class="btn" onclick={save}>{ "Save" }</button>
                 </div>
-            </div>
+            </>
         },
         None => html! { <div class="skeleton w-full h-full" /> },
     }

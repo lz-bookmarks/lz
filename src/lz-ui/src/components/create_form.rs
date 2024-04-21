@@ -18,7 +18,7 @@ use super::{BookmarkEditText, ModalState, TagSelect};
 
 #[derive(Properties, PartialEq)]
 pub struct Props {
-    pub onclose: Callback<MouseEvent>,
+    pub onclose: Callback<()>,
 }
 
 #[function_component(CreateForm)]
@@ -35,7 +35,7 @@ pub fn create_form(Props { onclose }: &Props) -> Html {
 
 #[derive(Properties, PartialEq)]
 struct VisibleProps {
-    onclose: Callback<MouseEvent>,
+    onclose: Callback<()>,
 }
 
 #[derive(Clone, PartialEq, Debug)]
@@ -151,7 +151,7 @@ fn visible_create_form(VisibleProps { onclose }: &VisibleProps) -> Html {
         }
         &State::EnteringData => html! {
             if let Some(url) = &*url {
-                <FillBookmark url={url.clone()} />
+                <FillBookmark onclose={onclose.clone()} url={url.clone()} />
             } else {
                 <p>{ "Error: URL is invalid" }</p>
             }
@@ -166,7 +166,7 @@ fn visible_create_form(VisibleProps { onclose }: &VisibleProps) -> Html {
                     { inner }
                     <div class="modal-action">
                         <button
-                            onclick={onclose}
+                            onclick={let onclose = onclose.clone(); {move |_ev| onclose.emit(())}}
                             class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2"
                         >
                             { "✕" }
@@ -181,10 +181,11 @@ fn visible_create_form(VisibleProps { onclose }: &VisibleProps) -> Html {
 #[derive(Properties, PartialEq, Debug)]
 struct FillBookmarkProps {
     url: Url,
+    onclose: Callback<()>,
 }
 
 #[function_component(FillBookmark)]
-fn fill_bookmark(FillBookmarkProps { url }: &FillBookmarkProps) -> Html {
+fn fill_bookmark(FillBookmarkProps { url, onclose }: &FillBookmarkProps) -> Html {
     let tags = use_state(|| vec![]);
     let title = use_state(|| String::default());
     let title_callback = {
@@ -235,6 +236,7 @@ fn fill_bookmark(FillBookmarkProps { url }: &FillBookmarkProps) -> Html {
         let title = title.clone();
         let url = url.clone();
         let tags = tags.clone();
+        let onclose = onclose.clone();
         Callback::from(move |_| {
             let save_bookmark = save_bookmark.clone();
             let tags = tags.clone();
@@ -243,6 +245,7 @@ fn fill_bookmark(FillBookmarkProps { url }: &FillBookmarkProps) -> Html {
             let title = title.clone();
             let url = url.clone();
             let created_at = Utc::now();
+            let onclose = onclose.clone();
             spawn_local(async move {
                 let notes = if *notes == "" {
                     None
@@ -270,6 +273,7 @@ fn fill_bookmark(FillBookmarkProps { url }: &FillBookmarkProps) -> Html {
                         },
                     })
                     .await;
+                onclose.emit(());
             })
         })
     };

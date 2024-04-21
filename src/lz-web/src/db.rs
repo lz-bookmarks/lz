@@ -174,7 +174,7 @@ mod test {
     use ::axum_test::TestServer;
     use axum::http::StatusCode;
     use axum::routing::post;
-    use axum::Router;
+    use axum::{Json, Router};
     use lz_db::{Bookmark, BookmarkId, IdType as _, NoId, UserId};
     use serde::Serialize;
     use testresult::TestResult;
@@ -184,7 +184,7 @@ mod test {
     async fn deserialize_bookmark_types() -> TestResult {
         #[axum::debug_handler]
         async fn refer_to_existing_bookmark(
-            axum::Form(bm): axum::Form<Bookmark<BookmarkId, UserId>>,
+            Json(bm): Json<Bookmark<BookmarkId, UserId>>,
         ) -> &'static str {
             assert_eq!(bm.id.id(), 1);
             assert_eq!(bm.user_id.id(), 666);
@@ -192,9 +192,7 @@ mod test {
             "ok"
         }
 
-        async fn refer_to_new_bookmark(
-            axum::Form(bm): axum::Form<Bookmark<NoId, NoId>>,
-        ) -> &'static str {
+        async fn refer_to_new_bookmark(Json(bm): Json<Bookmark<NoId, NoId>>) -> &'static str {
             assert_eq!(bm.id, NoId);
             assert_eq!(bm.user_id, NoId);
             assert_eq!(bm.url.to_string(), "https://example.com/");
@@ -208,18 +206,18 @@ mod test {
         #[derive(Serialize)]
         struct IncompleteBookmark {
             #[serde(skip_serializing_if = "Option::is_none")]
-            id: Option<u64>,
+            id: Option<serde_json::Value>,
             #[serde(skip_serializing_if = "Option::is_none")]
-            user_id: Option<u64>,
+            user_id: Option<serde_json::Value>,
             url: Url,
             title: &'static str,
             created_at: chrono::DateTime<chrono::Utc>,
         }
         let response = server
             .post("/existing")
-            .form(&IncompleteBookmark {
-                id: Some(1),
-                user_id: Some(666),
+            .json(&IncompleteBookmark {
+                id: Some(1.into()),
+                user_id: Some(666.into()),
                 url: Url::parse("https://example.com")?,
                 title: "example",
                 created_at: Default::default(),
@@ -231,8 +229,22 @@ mod test {
         );
         let response = server
             .post("/new")
-            .form(&IncompleteBookmark {
+            .json(&IncompleteBookmark {
                 id: None,
+                user_id: None,
+                url: Url::parse("https://example.com")?,
+                title: "example",
+                created_at: Default::default(),
+            })
+            .await;
+        assert_eq!(
+            (response.text().as_str(), response.status_code()),
+            ("ok", StatusCode::OK)
+        );
+        let response = server
+            .post("/new")
+            .json(&IncompleteBookmark {
+                id: Some(serde_json::Value::Null),
                 user_id: None,
                 url: Url::parse("https://example.com")?,
                 title: "example",

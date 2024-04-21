@@ -1,3 +1,4 @@
+use serde::de::Visitor;
 use serde::{Deserialize, Deserializer, Serialize};
 use std::fmt;
 use std::marker::PhantomData;
@@ -145,14 +146,27 @@ pub trait IdType<T>: Copy + fmt::Display {
 #[derive(PartialEq, Eq, Clone, Copy, Default, Serialize, ToSchema, ToResponse, Debug)]
 pub struct NoId;
 
+struct NoIdVisitor;
+impl<'de> Visitor<'de> for NoIdVisitor {
+    type Value = NoId;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        formatter.write_str("null")
+    }
+
+    fn visit_none<E>(self) -> Result<Self::Value, E> {
+        Ok(NoId)
+    }
+}
+
 /// NoId can be deserialized from any source, even if the field is not
 /// present.
 impl<'de> Deserialize<'de> for NoId {
-    fn deserialize<D>(_deserializer: D) -> Result<Self, D::Error>
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
-        Ok(NoId)
+        deserializer.deserialize_option(NoIdVisitor)
     }
 }
 

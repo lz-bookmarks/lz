@@ -136,6 +136,7 @@ async fn create_bookmark(
         txn.associate_bookmark_link(&bookmark.id, &url_id, a.context.as_deref())
             .await?;
     }
+    txn.set_bookmark_tags(bookmark.id, &tags).await?;
 
     txn.commit().await?;
     Ok(Json(AnnotatedBookmark {

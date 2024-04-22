@@ -43,10 +43,39 @@ fn generate_rust_client(crate_root: &Path, json: &str) -> anyhow::Result<()> {
             .with_derive("PartialEq")
             // required for hashability:
             .with_derive("Eq")
-            .with_derive("Hash")
             // Patch Copy onto all ID types:
-            .with_patch("BookmarkId", TypePatch::default().with_derive("Copy"))
-            .with_patch("UserId", TypePatch::default().with_derive("Copy")),
+            .with_patch("BookmarkSearch", TypePatch::default().with_derive("Hash"))
+            .with_patch("ExistingBookmark", TypePatch::default().with_derive("Hash"))
+            .with_patch(
+                "BookmarkId",
+                TypePatch::default().with_derive("Copy").with_derive("Hash"),
+            )
+            .with_patch(
+                "TagId",
+                TypePatch::default().with_derive("Copy").with_derive("Hash"),
+            )
+            .with_patch(
+                "UserId",
+                TypePatch::default().with_derive("Copy").with_derive("Hash"),
+            )
+            .with_patch(
+                "BookmarkSearchDateParams",
+                TypePatch::default().with_derive("Hash"),
+            )
+            // Patch required traits onto stuff bounce wants:
+            .with_patch(
+                "Pagination",
+                TypePatch::default()
+                    .with_derive("Default")
+                    .with_derive("Eq")
+                    .with_derive("Hash"),
+            )
+            .with_patch(
+                "ListBookmarksMatchingResponse",
+                TypePatch::default()
+                    .with_derive("PartialEq")
+                    .with_derive("Default"),
+            ),
     );
 
     let tokens = generator.generate_tokens(&spec).unwrap();

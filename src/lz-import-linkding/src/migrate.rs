@@ -107,12 +107,12 @@ impl<'c> Migration<'c> {
                 continue;
             }
             let to_add = bookmark.as_lz_bookmark();
-            let added_id = self.db.add_bookmark(to_add.clone()).await.map_err(|e| {
+            let added = self.db.add_bookmark(to_add.clone()).await.map_err(|e| {
                 tracing::error!(url=%bookmark.url, error=%e, error_debug=?e, "Could not add bookmark");
                 e
             })?;
-            self.bookmark_ids.insert(bookmark.id, added_id);
-            tracing::debug!(url=%to_add.url, ?added_id, "added bookmark");
+            self.bookmark_ids.insert(bookmark.id, added.id);
+            tracing::debug!(url=%to_add.url, ?added.id, "added bookmark");
         }
         Ok(())
     }

@@ -76,6 +76,31 @@
             postFixup = "mv $out/bin/lz-cli $out/bin/lz";
             meta.mainProgram = "lz";
           };
+        packages.yew-fmt = rustPlatform.buildRustPackage {
+          pname = "yew-fmt";
+          version = (builtins.fromTOML (builtins.readFile "${inputs.yew-fmt}/Cargo.toml")).package.version;
+          src = inputs.yew-fmt;
+          cargoLock.lockFile = "${inputs.yew-fmt}/Cargo.lock";
+          nativeBuildInputs = [pkgs.rustfmt];
+          meta.mainProgram = "yew-fmt";
+        };
+        packages.trunk = rustPlatform.buildRustPackage {
+          pname = "trunk";
+          version = (builtins.fromTOML (builtins.readFile "${inputs.trunk}/Cargo.toml")).package.version;
+          src = inputs.trunk;
+          nativeBuildInputs = [pkgs.pkg-config];
+          buildInputs =
+            if pkgs.stdenv.isDarwin
+            then
+              with pkgs.darwin.apple_sdk.frameworks; [
+                SystemConfiguration
+                CoreServices
+              ]
+            else [];
+          checkFlags = ["--skip=tools::tests::download_and_install_binaries"];
+          cargoLock.lockFile = "${inputs.trunk}/Cargo.lock";
+          meta.mainProgram = "trunk";
+        };
 
         apps = {
           default = config.apps.lz-web;
@@ -90,10 +115,20 @@
               pkgs.cargo-watch
               pkgs.cargo-nextest
               pkgs.cargo-udeps
-              pkgs.nodejs_21
-              pkgs.djlint
+              pkgs.tailwindcss
+              config.packages.yew-fmt
+              pkgs.yarn
               pkgs.nodePackages.typescript-language-server
               fenix.packages.${system}.targets.wasm32-unknown-unknown.stable.rust-std
+              (pkgs.writeShellApplication {
+                name = "trunk";
+                text = ''
+                  unset RUSTFLAGS
+                  CARGO_TARGET_DIR=target/trunk-wasm
+                  export CARGO_TARGET_DIR
+                  ${pkgs.lib.getExe config.packages.trunk} "$@"
+                '';
+              })
             ];
             imports = [
               "${inputs.devshell}/extra/language/rust.nix"
@@ -111,7 +146,7 @@
                 category = "development";
                 help = "Run the sqlite-web DB browser on dev-db.sqlite";
                 name = "sqlite-web";
-                command = "${pkgs.sqlite-web}/bin/sqlite_web -r $PRJ_ROOT/dev-db.sqlite";
+                command = "${pkgs.sqlite-web}/bin/sqlite_web -p 8081 -r $PRJ_ROOT/dev-db.sqlite";
               }
               {
                 category = "development";
@@ -159,6 +194,10 @@
                 name = "DATABASE_URL";
                 eval = "sqlite:$PRJ_ROOT/dev-db.sqlite";
               }
+              {
+                name = "RUSTFMT";
+                value = pkgs.lib.getExe config.packages.yew-fmt;
+              }
             ];
 
             language.c.includes = cIncludes;
@@ -176,6 +215,16 @@
                   cargo watch --why -L info -i src/lz-ui -i src/lz-openapi -i flake.nix -i flake.lock -- \
                      cargo run --features dev -- \
                      --db dev-db.sqlite web --authentication-header-name X-Tailscale-User-LoginName --default-user-name=developer --listen-on=127.0.0.1:3000
+                '';
+              });
+            };
+            frontend = {
+              command = pkgs.lib.getExe (pkgs.writeShellApplication {
+                name = "frontend";
+                text = ''
+                  cd src/lz-ui
+                  yarn install
+                  trunk serve --open
                 '';
               });
             };
@@ -208,6 +257,14 @@
     };
     progenitor = {
       url = "github:oxidecomputer/progenitor/v0.6.0";
+      flake = false;
+    };
+    yew-fmt = {
+      url = "github:schvv31n/yew-fmt";
+      flake = false;
+    };
+    trunk = {
+      url = "github:trunk-rs/trunk/v0.19.2";
       flake = false;
     };
   };

@@ -310,7 +310,7 @@ mod tests {
     async fn bookmark_tags(ctx: &mut Context) -> TestResult {
         let mut txn = ctx.begin().await?;
         let tags = txn.ensure_tags(["hi", "test"]).await?;
-        let bookmark_id = txn
+        let bookmark = txn
             .add_bookmark(Bookmark {
                 id: NoId,
                 user_id: NoId,
@@ -328,7 +328,7 @@ mod tests {
                 unread: false,
             })
             .await?;
-        let other_bookmark_id = txn
+        let other_bookmark = txn
             .add_bookmark(Bookmark {
                 id: NoId,
                 user_id: NoId,
@@ -348,11 +348,11 @@ mod tests {
             .await?;
         let other_tags = txn.ensure_tags(["welp", "not-this"]).await?;
 
-        txn.set_bookmark_tags(bookmark_id, tags).await?;
-        txn.set_bookmark_tags(other_bookmark_id, other_tags).await?;
+        txn.set_bookmark_tags(bookmark.id, tags).await?;
+        txn.set_bookmark_tags(other_bookmark.id, other_tags).await?;
 
-        let existing_tags = txn.get_bookmark_tags(bookmark_id).await?;
-        let existing_other_tags = txn.get_bookmark_tags(other_bookmark_id).await?;
+        let existing_tags = txn.get_bookmark_tags(bookmark.id).await?;
+        let existing_other_tags = txn.get_bookmark_tags(other_bookmark.id).await?;
         assert_eq!(
             existing_tags
                 .iter()

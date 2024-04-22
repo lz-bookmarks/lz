@@ -198,7 +198,6 @@ impl BookmarkSearchCriteria for TagName {
         sep.push("1 = 1");
         sep
     }
-
 }
 
 /// Constricts a bookmark query to only return bookmarks having a tag with the given ID.

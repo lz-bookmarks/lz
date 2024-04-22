@@ -5,6 +5,7 @@ use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Local, LocalResult, NaiveDateTime, TimeZone, Utc};
 use clap::{Parser, Subcommand};
 use lz_db::{BookmarkId, BookmarkSearch, Connection, DateInput, ReadOnly, Transaction};
+use std::collections::HashSet;
 use url::Url;
 
 // NB See https://rust-cli-recommendations.sunshowers.io/handling-arguments.html for
@@ -119,6 +120,20 @@ enum Commands {
         tagged: Option<Vec<String>>,
     },
 
+    /// Add or remove tags from existing bookmarks
+    Tag {
+        #[clap(flatten)]
+        common_args: TuiArgs,
+        /// Bookmark for which the tags should be updated
+        link: String,
+        /// Tag (or tags as a comma-delineated list) for the link
+        #[arg(short, long, value_delimiter = ',', num_args = 1..)]
+        tag: Vec<String>,
+        /// Delete, rather than add, these tags
+        #[arg(action, long, short)]
+        delete: bool,
+    },
+
     /// Run the lz web server
     #[clap(alias = "serve")]
     Web(lz_web::Args),
@@ -160,6 +175,17 @@ async fn main() -> Result<()> {
             let conn = Connection::from_path(&cli.db).await?;
             let mut txn = conn.begin_for_user(&common_args.user).await?;
             remove_cmd(&mut txn, link).await?;
+            txn.commit().await?;
+        }
+        Commands::Tag {
+            common_args,
+            link,
+            delete,
+            tag,
+        } => {
+            let conn = Connection::from_path(&cli.db).await?;
+            let mut txn = conn.begin_for_user(&common_args.user).await?;
+            tag_cmd(&mut txn, link, tag, delete).await?;
             txn.commit().await?;
         }
         Commands::Web(args) => {
@@ -230,7 +256,10 @@ async fn add_cmd(txn: &mut Transaction, args: &CliAddArgs) -> Result<()> {
     )
     .await?;
     if !args.tag.is_empty() {
-        let tags = txn.ensure_tags(&args.tag).await?;
+        let mut deduped = args.tag.clone();
+        deduped.sort_unstable();
+        deduped.dedup();
+        let tags = txn.ensure_tags(&deduped).await?;
         txn.set_bookmark_tags(bookmark_id, tags).await?;
     }
     if let Some(associate) = &args.associated_link {
@@ -306,6 +335,44 @@ async fn remove_cmd(txn: &mut Transaction, link: &String) -> Result<()> {
         }
     } else {
         println!("<{}> not found", link);
+    }
+    Ok(())
+}
+
+async fn tag_cmd(
+    txn: &mut Transaction,
+    link: &String,
+    tag: &Vec<String>,
+    delete: &bool,
+) -> Result<()> {
+    if tag.is_empty() {
+        println!("Tag or tags required");
+        return Ok(());
+    } else {
+        let url = Url::parse(link).with_context(|| format!("invalid url {:?}", link))?;
+        let existing_bookmark = txn.find_bookmark_with_url(&url).await?;
+        if let Some(bookmark) = existing_bookmark {
+            let existing_tags = txn.get_bookmark_tags(bookmark.id).await?;
+            if *delete {
+                let deletable: Vec<_> = tag.iter().map(lz_db::normalize_tag).collect();
+                let mut new_tags: Vec<_> = existing_tags;
+                new_tags.retain(|t| !deletable.contains(&t.name));
+                txn.set_bookmark_tags(bookmark.id, new_tags).await?;
+            } else {
+                let mut new_tags = txn.ensure_tags(tag).await?;
+                new_tags.extend(existing_tags);
+                let mut seen = HashSet::new();
+                new_tags.retain(|t| {
+                    let unique = !seen.contains(&t.id);
+                    seen.insert(t.id);
+                    unique
+                });
+                txn.set_bookmark_tags(bookmark.id, new_tags).await?;
+            }
+            println!("<{}> tags updated", link);
+        } else {
+            println!("<{}> not found", link);
+        }
     }
     Ok(())
 }

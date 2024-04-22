@@ -118,6 +118,7 @@
               pkgs.tailwindcss
               config.packages.yew-fmt
               pkgs.yarn
+              pkgs.nodejs
               pkgs.nodePackages.typescript-language-server
               fenix.packages.${system}.targets.wasm32-unknown-unknown.stable.rust-std
               (pkgs.writeShellApplication {

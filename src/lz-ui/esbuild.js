@@ -5,7 +5,7 @@ esbuild
   .build({
     entryPoints: ["js/package.js"],
     bundle: true,
-    outfile: "dist/package.js",
+    outfile: "./package.js",
     format: "esm",
     minify: true,
     define: {

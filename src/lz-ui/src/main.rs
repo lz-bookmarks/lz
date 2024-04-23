@@ -8,7 +8,7 @@ use yew_router::prelude::*;
 
 use lz_ui::route::*;
 
-#[wasm_bindgen(module = "/dist/package.js")]
+#[wasm_bindgen(module = "/package.js")]
 extern "C" {
     fn setup_sentry();
 }

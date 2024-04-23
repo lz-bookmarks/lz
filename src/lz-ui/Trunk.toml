@@ -10,8 +10,3 @@
   stage = "pre_build"
   command = "yarn"
   command_arguments = ["install"]
-
-[[hooks]]
-  stage = "build"
-  command = "node"
-  command_arguments = ["esbuild.js"]

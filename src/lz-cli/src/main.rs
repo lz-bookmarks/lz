@@ -1,3 +1,4 @@
+use std::env::{self, VarError};
 use std::path::PathBuf;
 use std::str::FromStr;
 
@@ -5,6 +6,7 @@ use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Local, LocalResult, NaiveDateTime, TimeZone, Utc};
 use clap::{Parser, Subcommand};
 use lz_db::{BookmarkSearch, Connection, DateInput, ExistingBookmark, ReadOnly, Transaction};
+use sentry::types::Dsn;
 use url::Url;
 
 // NB See https://rust-cli-recommendations.sunshowers.io/handling-arguments.html for
@@ -135,6 +137,24 @@ enum Commands {
 #[tokio::main]
 async fn main() -> Result<()> {
     let cli = Cli::parse();
+    let dsn = match env::var("SENTRY_DSN").map(|url| Dsn::from_str(&url)) {
+        Err(VarError::NotPresent) => None,
+        Ok(Ok(dsn)) => Some(dsn),
+        Ok(Err(e)) => {
+            eprintln!("Sentry URL $SENTRY_DSN doesn't parse: {:?}", e);
+            None
+        }
+        Err(e) => {
+            eprintln!("Env variable $SENTRY_URL has invalid characters: {:?}", e);
+            None
+        }
+    };
+    let _sentry_guard = sentry::init(sentry::ClientOptions {
+        dsn,
+        traces_sample_rate: 1.0, // TODO: set lower in production
+        release: sentry::release_name!(),
+        ..sentry::ClientOptions::default()
+    });
 
     match &cli.command {
         Commands::Add {

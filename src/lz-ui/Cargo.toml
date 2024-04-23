@@ -22,6 +22,7 @@ itertools = { workspace = true }
 url.workspace = true
 chrono = { workspace = true, features = ["wasmbind", "serde", "clock"] }
 serde_json.workspace = true
+wasm-bindgen = { workspace = true }
 
 [dependencies.lz-openapi]
 path = "../lz-openapi"

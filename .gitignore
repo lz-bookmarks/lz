@@ -4,3 +4,4 @@ target/
 src/lz-ui/dist
 node_modules/
 result
+/.envrc

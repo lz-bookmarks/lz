@@ -29,10 +29,6 @@ utoipa-redoc = { workspace = true, features = ["axum"] }
 utoipa-swagger-ui = { workspace = true, features = ["axum"] }
 tower = { workspace = true, features = ["tracing"] }
 tower-http = { workspace = true, features = ["tracing", "full"] }
-opentelemetry = { workspace = true }
-opentelemetry_sdk = { workspace = true, features = ["tokio", "trace", "logs", "url", "rt-tokio"] }
-tracing-opentelemetry = { workspace = true }
-opentelemetry-otlp = { workspace = true, features = ["trace", "logs", "metrics", "serde", "tonic"] }
 url = { workspace = true, features = ["serde"] }
 tonic = { workspace = true }
 tonic-web = { workspace = true }
@@ -46,6 +42,9 @@ axum-extra = { workspace = true, features = ["query"] }
 askama_axum = { workspace = true }
 askama = { workspace = true, features = ["with-axum", "serde"] }
 lazy_static = { workspace = true }
+sentry = { workspace = true }
+sentry-tracing = { workspace = true, features = ["backtrace"] }
+sentry-tower = { workspace = true, features = ["axum", "url", "http", "axum-matched-path"] }
 
 [dev-dependencies]
 axum-test = { workspace = true }

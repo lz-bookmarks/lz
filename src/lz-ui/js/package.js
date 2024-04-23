@@ -7,3 +7,6 @@ export function setup_sentry() {
     integrations: [wasmIntegration()],
   });
 }
+
+import { createAutocomplete } from "@algolia/autocomplete-core";
+export { createAutocomplete };

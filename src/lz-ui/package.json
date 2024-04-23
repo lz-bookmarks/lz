@@ -6,6 +6,7 @@
     "tailwindcss": "^3.4.3"
   },
   "dependencies": {
+    "@algolia/autocomplete-core": "^1.17.0",
     "@sentry/browser": "^7.111.0",
     "@sentry/wasm": "^7.111.0"
   }

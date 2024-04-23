@@ -6,7 +6,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("cargo::rerun-if-changed=yarn.lock");
     println!("cargo::rerun-if-changed=js/");
 
-    Command::new("yarn").args(&["install"]).status()?;
-    Command::new("node").args(&["esbuild.js"]).status()?;
+    Command::new("yarn").args(&["install"]).status().unwrap();
+    Command::new("node").args(&["esbuild.js"]).status().unwrap();
     Ok(())
 }

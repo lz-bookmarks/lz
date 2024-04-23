@@ -205,7 +205,6 @@ fn fill_bookmark(FillBookmarkProps { url, onclose }: &FillBookmarkProps) -> Html
     let notes_callback = {
         let setter = notes.setter();
         Callback::from(move |x| {
-            tracing::info!(?x, "setting notes");
             setter.set(x);
         })
     };
@@ -214,18 +213,15 @@ fn fill_bookmark(FillBookmarkProps { url, onclose }: &FillBookmarkProps) -> Html
         let res = metadata_query.result().map(|x| x.clone());
         let title_set = title.setter();
         let description_set = description.setter();
-        use_effect_with(res, move |res| {
-            tracing::info!(?res, "effect");
-            match res {
-                Some(Ok(metadata)) => {
-                    let metadata = metadata.clone();
-                    if let Some(desc) = &metadata.0.description {
-                        description_set.set(desc.to_string());
-                    }
-                    title_set.set(metadata.0.title.to_string());
+        use_effect_with(res, move |res| match res {
+            Some(Ok(metadata)) => {
+                let metadata = metadata.clone();
+                if let Some(desc) = &metadata.0.description {
+                    description_set.set(desc.to_string());
                 }
-                _ => {}
+                title_set.set(metadata.0.title.to_string());
             }
+            _ => {}
         });
     }
     let save_bookmark = use_mutation::<SaveBookmarkMutation>();

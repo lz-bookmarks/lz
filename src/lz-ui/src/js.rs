@@ -12,7 +12,8 @@ extern "C" {
     /// drive various component states.
     pub type Autocomplete;
 
-    #[wasm_bindgen(structural)]
+    /// Returns the properties that the <input> field should set.
+    #[wasm_bindgen(structural, method)]
     pub fn getInputProps(this: &Autocomplete) -> js_sys::Map;
 
     /// Constructor for an [`Autocomplete`].

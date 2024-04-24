@@ -8,10 +8,13 @@ use lz_openapi::types::{
     BookmarkCreateRequest, CreateBookmarkResponse, Metadata, NewBookmark, NoId,
 };
 use url::Url;
+use wasm_bindgen::closure::Closure;
+use wasm_bindgen::JsValue;
 use web_sys::HtmlInputElement;
 use yew::platform::spawn_local;
 use yew::prelude::*;
 
+use crate::js::AutocompleteBuilder;
 use crate::GoddamnIt;
 
 use super::{BookmarkEditText, ModalState, TagSelect};
@@ -117,6 +120,15 @@ impl Mutation for SaveBookmarkMutation {
 fn visible_create_form(VisibleProps { onclose }: &VisibleProps) -> Html {
     let state = use_state(|| State::EnteringUrl);
     let url = use_state(|| Url::parse("").ok());
+    let get_sources = Closure::new(|s| {
+        tracing::info!(?s, "got query");
+        JsValue::NULL
+    });
+    let autocomplete = use_memo((), |_| AutocompleteBuilder::new(&get_sources).build());
+    use_effect(move || {
+        let props = (&*autocomplete).getInputProps();
+        tracing::info!(?props, "autocomplete props");
+    });
 
     let inner = match &*state {
         &State::EnteringUrl => {

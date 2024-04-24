@@ -23,6 +23,8 @@ url.workspace = true
 chrono = { workspace = true, features = ["wasmbind", "serde", "clock"] }
 serde_json.workspace = true
 wasm-bindgen = { workspace = true }
+serde = {workspace = true, features=["derive"]}
+js-sys = { workspace = true }
 
 [dependencies.lz-openapi]
 path = "../lz-openapi"

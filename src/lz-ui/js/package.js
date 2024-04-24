@@ -9,4 +9,13 @@ export function setup_sentry() {
 }
 
 import { createAutocomplete } from "@algolia/autocomplete-core";
-export { createAutocomplete };
+
+export class Autocomplete {
+  constructor(getSources) {
+    this.getSources = getSources;
+  }
+
+  build() {
+    return createAutocomplete(this);
+  }
+}

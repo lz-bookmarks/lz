@@ -1,4 +1,5 @@
 pub mod components;
+pub mod js;
 pub mod route;
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]

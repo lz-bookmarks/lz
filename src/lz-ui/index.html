@@ -1,14 +1,27 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+      <!-- patternfly & style assets: -->
+    <link data-trunk rel="scss" href="assets/style.scss">
+      <!-- This path needs to be here, otherwise icons won't render correctly -->
+    <link data-trunk rel="copy-dir" href="node_modules/@patternfly/patternfly/assets" data-target-path="assets/">
+
+      <!-- also requires includes in the assets/styles.scss file -->
+    <link data-trunk rel="copy-dir" href="node_modules/@fortawesome/fontawesome-free/webfonts">
+
+      <!-- finally, the rust wasm webapp: It uses a custom initializer to show a loading bar. -->
     <link data-trunk rel="rust"
                      href="./"
                      data-type="main"
                      data-keep-debug="true"
                      data-wasm-opt="0"
                      data-reference-types="true"
+                     data-initializer="assets/initializer.mjs"
     >
-    <link data-trunk rel="tailwind-css" href="src/tailwind.css">
+
   </head>
   <body></body>
 </html>

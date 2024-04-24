@@ -1,3 +1,4 @@
+use patternfly_yew::prelude::*;
 use yew::prelude::*;
 
 use super::CreateForm;
@@ -22,15 +23,12 @@ pub fn layout(LayoutProps { children }: &LayoutProps) -> Html {
     html! {
         <ContextProvider<ModalState> context={*ctx}>
             <CreateForm onclose={{let ctx = ctx.clone(); move |_ev| ctx.set(ModalState::Normal)}} />
-            <div class={classes!("navbar", "bg-base-100")}>
-                <div class="navbar-start" />
-                <div class="navbar-end">
-                    <button class="btn" onclick={{move |_ev| ctx.set(ModalState::CreateBookmark)}}>
-                        { "add" }
-                    </button>
-                </div>
-            </div>
-            { children.clone() }
+            <Grid gutter=true>
+                <GridItem cols={[6]}>{ children.clone() }</GridItem>
+                <GridItem cols={[2]}>
+                    <Button label="Add" onclick={move |_ev| ctx.set(ModalState::CreateBookmark)} />
+                </GridItem>
+            </Grid>
         </ContextProvider<ModalState>>
     }
 }

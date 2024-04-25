@@ -14,9 +14,9 @@ use url::Url;
 use yew::platform::spawn_local;
 use yew::prelude::*;
 
-use crate::GoddamnIt;
+use crate::{dispatch_callback, GoddamnIt};
 
-use super::{ModalState, TagSelect};
+use super::{CloseModal, ModalState, TagSelect};
 
 #[derive(Properties, PartialEq)]
 pub struct Props {
@@ -25,9 +25,9 @@ pub struct Props {
 
 #[function_component(CreateForm)]
 pub fn create_form(Props { onclose }: &Props) -> Html {
-    let state = use_context::<ModalState>().expect("context needs to be provided");
+    let state = use_slice::<ModalState>();
     html! {
-        if state == ModalState::CreateBookmark {
+        if *state == ModalState::CreateBookmark {
             <VisibleCreateForm {onclose} />
         } else {
             <></>
@@ -41,6 +41,7 @@ struct VisibleProps {
 }
 
 #[derive(Clone, Default, PartialEq, Debug, Slice)]
+#[bounce(with_notion(CloseModal))]
 struct BookmarkData {
     url: String,
     title: String,
@@ -62,7 +63,6 @@ enum BookmarkAction {
     SetNotes(String),
     SetTags(Vec<String>),
     FromMetadata(Metadata),
-    Reset,
 }
 
 impl Reducible for BookmarkData {
@@ -102,8 +102,13 @@ impl Reducible for BookmarkData {
                 ..(*self).clone()
             }
             .into(),
-            BookmarkAction::Reset => Default::default(),
         }
+    }
+}
+
+impl WithNotion<CloseModal> for BookmarkData {
+    fn apply(self: std::rc::Rc<Self>, _notion: std::rc::Rc<CloseModal>) -> std::rc::Rc<Self> {
+        Default::default()
     }
 }
 
@@ -198,32 +203,12 @@ impl Mutation for SaveBookmarkMutation {
     }
 }
 
-fn dispatch_callback<
-    T: Slice + Reducible + 'static,
-    U,
-    F: Fn(U) -> <T as Slice>::Action + 'static,
->(
-    handle: &UseSliceHandle<T>,
-    actor: F,
-) -> Callback<U> {
-    let handle = handle.clone();
-    Callback::from(move |new_value| handle.dispatch(actor(new_value)))
-}
-
 #[function_component(VisibleCreateForm)]
 fn visible_create_form(VisibleProps { onclose }: &VisibleProps) -> Html {
     let state = use_state(|| State::EnteringUrl);
     let bookmark_data = use_slice::<BookmarkData>();
     let onchange = dispatch_callback(&bookmark_data, BookmarkAction::SetUrl);
     let valid = use_state(|| true);
-    let onclose = Callback::from({
-        let onclose_inner = onclose.clone();
-        let bookmark_data = bookmark_data.clone();
-        move |ev| {
-            bookmark_data.dispatch(BookmarkAction::Reset);
-            onclose_inner.emit(ev);
-        }
-    });
     let onvalidated = use_callback(valid.clone(), |state, valid| {
         valid.set(match state {
             InputState::Default | InputState::Success => true,

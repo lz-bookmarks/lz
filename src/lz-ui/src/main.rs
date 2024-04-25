@@ -2,10 +2,16 @@ use bounce::BounceRoot;
 use tracing_subscriber::fmt::format::Pretty;
 use tracing_subscriber::prelude::*;
 use tracing_web::{performance_layer, MakeWebConsoleWriter};
+use wasm_bindgen::prelude::*;
 use yew::prelude::*;
 use yew_router::prelude::*;
 
 use lz_ui::route::*;
+
+#[wasm_bindgen(module = "/package.js")]
+extern "C" {
+    fn setup_sentry();
+}
 
 #[function_component(App)]
 fn app() -> Html {
@@ -19,6 +25,7 @@ fn app() -> Html {
 }
 
 fn main() {
+    setup_sentry();
     let fmt_layer = tracing_subscriber::fmt::layer()
         .with_ansi(false) // Only partially supported across browsers
         .without_time() // std::time is not available in browsers, see note below

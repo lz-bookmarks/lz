@@ -16,6 +16,7 @@ chrono = { workspace = true }
 sqlx = { workspace = true }
 tokio = { workspace = true }
 url = { workspace = true }
+sentry = { workspace = true }
 
 [dependencies.lz-db]
 path = "../lz-db"

@@ -259,6 +259,7 @@ fn tailwind(
     let view_ctx = use_context::<Context<String>>().expect("view::Context wasn't provided");
     let ondelete = ondelete.clone();
     let oncancel = oncancel.clone();
+    let onkeydown_cb = view_ctx.callbacks.on_keydown.clone();
     let onkeydown = Callback::from(move |ev: KeyboardEvent| {
         let input = ev.target_dyn_into::<HtmlInputElement>().unwrap();
         match ev.which() {
@@ -274,8 +275,17 @@ fn tailwind(
                 ev.prevent_default();
                 oncancel.emit(());
             }
+            13 => {
+                // return, workaround for https://github.com/voidcontext/yew-components/issues/2:
+                if input.value().len() <= 2 {
+                    ev.prevent_default();
+                } else {
+                    onkeydown_cb.emit(ev);
+                }
+            }
             key => {
                 tracing::debug!(?key, "got key");
+                onkeydown_cb.emit(ev);
             }
         };
     });
@@ -319,7 +329,6 @@ fn tailwind(
                     value={view_ctx.value.clone()}
                     {oninput}
                     {onkeydown}
-                    onkeydown={view_ctx.callbacks.on_keydown.clone()}
                 />
                 if !view_ctx.items.is_empty() {
                     <ul

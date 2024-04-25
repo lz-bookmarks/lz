@@ -5,3 +5,8 @@
 [[proxy]]
   rewrite = "/docs/"
   backend = "http://localhost:3000/docs/"
+
+[[hooks]]
+  stage = "pre_build"
+  command = "yarn"
+  command_arguments = ["install"]

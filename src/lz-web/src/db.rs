@@ -10,7 +10,8 @@ use axum::http::header::ToStrError;
 use axum::http::request::Parts;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use lz_db::ReadWrite;
+use lz_db::{IdType, ReadWrite};
+use sentry::User;
 
 pub(crate) mod queries;
 
@@ -131,7 +132,15 @@ impl FromRequestParts<Arc<GlobalWebAppState>> for DbTransaction<lz_db::ReadOnly>
             .map_err(|e| {
                 tracing::error!(error=%e, "failed to begin txn for user");
                 DbTransactionRejection
-            })?;
+})?;
+        let user = txn.user();
+        sentry::configure_scope(|scope| {
+            scope.set_user(Some(User {
+                id: Some(user.id.id().to_string()),
+                username: Some(user.name.to_owned()),
+                ..Default::default()
+            }));
+        });
         Ok(DbTransaction { txn })
     }
 }
@@ -165,6 +174,14 @@ impl FromRequestParts<Arc<GlobalWebAppState>> for DbTransaction<lz_db::ReadWrite
                 tracing::error!(error=%e, "failed to begin txn for user");
                 DbTransactionRejection
             })?;
+        let user = txn.user();
+        sentry::configure_scope(|scope| {
+            scope.set_user(Some(User {
+                id: Some(user.id.id().to_string()),
+                username: Some(user.name.to_owned()),
+                ..Default::default()
+            }));
+        });
         Ok(DbTransaction { txn })
     }
 }

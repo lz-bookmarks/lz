@@ -1,20 +1,22 @@
 use std::rc::Rc;
 
 use async_trait::async_trait;
-use bounce::query::{use_mutation, use_query_value, Mutation, MutationResult, Query, QueryResult};
+use bounce::query::{
+    use_mutation, use_query_value, Mutation, MutationResult, MutationState, Query, QueryResult,
+};
 use bounce::BounceStates;
 use chrono::Utc;
 use lz_openapi::types::{
     BookmarkCreateRequest, CreateBookmarkResponse, Metadata, NewBookmark, NoId,
 };
+use patternfly_yew::prelude::*;
 use url::Url;
-use web_sys::HtmlInputElement;
 use yew::platform::spawn_local;
 use yew::prelude::*;
 
 use crate::GoddamnIt;
 
-use super::{BookmarkEditText, ModalState, TagSelect};
+use super::{ModalState, TagSelect};
 
 #[derive(Properties, PartialEq)]
 pub struct Props {
@@ -116,64 +118,68 @@ impl Mutation for SaveBookmarkMutation {
 #[function_component(VisibleCreateForm)]
 fn visible_create_form(VisibleProps { onclose }: &VisibleProps) -> Html {
     let state = use_state(|| State::EnteringUrl);
-    let url = use_state(|| Url::parse("").ok());
+    let url = use_state_eq(|| String::new());
+    let onchange = use_callback(url.clone(), |new_value, url| url.set(new_value));
+    let valid = use_state(|| true);
+    let onvalidated = use_callback(valid.clone(), |state, valid| {
+        valid.set(match state {
+            InputState::Default | InputState::Success => true,
+            _ => false,
+        })
+    });
 
     let inner = match &*state {
         &State::EnteringUrl => {
-            let onsubmit = Callback::from(move |_e| {
-                state.set(State::EnteringData);
+            let onsubmit = Callback::from(move |ev: SubmitEvent| {
+                ev.prevent_default();
+                if *valid {
+                    state.set(State::EnteringData);
+                }
+            });
+            let validator = Validator::from(|ctx: ValidationContext<String>| {
+                if ctx.initial {
+                    ValidationResult::default()
+                } else if ctx.value.is_empty() {
+                    ValidationResult::error("URL is required")
+                } else if let Err(e) = Url::parse(&ctx.value) {
+                    ValidationResult::error(format!("URL is invalid: {}", e))
+                } else {
+                    ValidationResult::default()
+                }
             });
             html! {
-                <div class="join place-self-center">
-                    <form {onsubmit}>
-                        <input
-                            type="url"
-                            class={classes!("input", "input-bordered", "join-item", "invalid:border-red-600")}
+                <Form {onvalidated} {onsubmit}>
+                    <FormGroupValidated<TextInput> required=true label="URL" {validator}>
+                        <TextInput
+                            autocomplete={Some("false")}
+                            autofocus=true
+                            required=true
                             placeholder="URL"
                             id="bookmark_url"
-                            oninput={let url = url.clone();
-                            move |e: InputEvent| {
-                                let input = e.target_dyn_into::<HtmlInputElement>().unwrap();
-                                if let Ok(u) = Url::parse(&input.value()) {
-                                    url.set(Some(u));
-                                }
-                            }}
+                            value={url.to_string()}
+                            {onchange}
                         />
-                        <input
-                            type="submit"
-                            class={classes!("btn", "join-item")}
-                            disabled={url.is_none()}
-                            value="Add"
-                        />
-                    </form>
-                </div>
+                    </FormGroupValidated<TextInput>>
+                </Form>
             }
         }
         &State::EnteringData => html! {
-            if let Some(url) = &*url {
-                <FillBookmark onclose={onclose.clone()} url={url.clone()} />
-            } else {
-                <p>{ "Error: URL is invalid" }</p>
-            }
+            <FillBookmark onclose={onclose.clone()} url={Url::parse(&*url).unwrap()} />
         },
     };
     html! {
         <>
-            <input type="checkbox" id="create_modal_visibility" class="modal-toggle" checked=true />
-            <div class="modal" role="dialog">
-                <div class={classes!("modal-box", "max-h-none")}>
-                    <h3 class="font-bold text-lg">{ "Add bookmark" }</h3>
+            <Bullseye plain=true>
+                <Modal
+                    disable_close_click_outside=true
+                    disable_close_escape=true
+                    title="Add bookmark"
+                    variant={ModalVariant::Medium}
+                    onclose={let onclose = onclose.clone(); move |_ev| onclose.emit(())}
+                >
                     { inner }
-                    <div class="modal-action">
-                        <button
-                            onclick={let onclose = onclose.clone(); {move |_ev| onclose.emit(())}}
-                            class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2"
-                        >
-                            { "✕" }
-                        </button>
-                    </div>
-                </div>
-            </div>
+                </Modal>
+            </Bullseye>
         </>
     }
 }
@@ -186,33 +192,26 @@ struct FillBookmarkProps {
 
 #[function_component(FillBookmark)]
 fn fill_bookmark(FillBookmarkProps { url, onclose }: &FillBookmarkProps) -> Html {
+    let valid = use_state(|| false);
+    let onvalidated = use_callback(valid.clone(), move |state, valid| {
+        valid.set(match state {
+            InputState::Default | InputState::Success => true,
+            _ => false,
+        })
+    });
     let tags = use_state(|| vec![]);
-    let title = use_state(|| String::default());
-    let title_callback = {
-        let setter = title.setter();
-        Callback::from(move |x| {
-            setter.set(x);
-        })
-    };
-    let description = use_state(|| String::default());
-    let description_callback = {
-        let setter = description.setter();
-        Callback::from(move |x| {
-            setter.set(x);
-        })
-    };
-    let notes = use_state(|| String::default());
-    let notes_callback = {
-        let setter = notes.setter();
-        Callback::from(move |x| {
-            setter.set(x);
-        })
-    };
+    let title = use_state_eq(|| String::default());
+    let set_title = use_callback(title.clone(), |new_title, title| title.set(new_title));
+    let description = use_state_eq(|| String::default());
+    let set_description = use_callback(description.clone(), |new_desc, desc| desc.set(new_desc));
+    let notes = use_state_eq(|| String::default());
+    let set_notes = use_callback(notes.clone(), |new_notes, notes| notes.set(new_notes));
     let metadata_query = use_query_value::<SaveBookmarkQuery>(Rc::new(url.clone()));
     {
         let res = metadata_query.result().map(|x| x.clone());
         let title_set = title.setter();
         let description_set = description.setter();
+        let valid_set = valid.setter();
         use_effect_with(res, move |res| match res {
             Some(Ok(metadata)) => {
                 let metadata = metadata.clone();
@@ -220,6 +219,9 @@ fn fill_bookmark(FillBookmarkProps { url, onclose }: &FillBookmarkProps) -> Html
                     description_set.set(desc.to_string());
                 }
                 title_set.set(metadata.0.title.to_string());
+                if !metadata.0.title.is_empty() {
+                    valid_set.set(true);
+                }
             }
             _ => {}
         });
@@ -233,7 +235,8 @@ fn fill_bookmark(FillBookmarkProps { url, onclose }: &FillBookmarkProps) -> Html
         let url = url.clone();
         let tags = tags.clone();
         let onclose = onclose.clone();
-        Callback::from(move |_| {
+        let valid = valid.clone();
+        Callback::from(move |ev: SubmitEvent| {
             let save_bookmark = save_bookmark.clone();
             let tags = tags.clone();
             let description = description.clone();
@@ -242,6 +245,11 @@ fn fill_bookmark(FillBookmarkProps { url, onclose }: &FillBookmarkProps) -> Html
             let url = url.clone();
             let created_at = Utc::now();
             let onclose = onclose.clone();
+
+            ev.prevent_default();
+            if !*valid {
+                return;
+            }
             spawn_local(async move {
                 let notes = if *notes == "" {
                     None
@@ -269,6 +277,7 @@ fn fill_bookmark(FillBookmarkProps { url, onclose }: &FillBookmarkProps) -> Html
                         },
                     })
                     .await;
+                // TODO: error-handle & close only when creation went through.
                 onclose.emit(());
             })
         })
@@ -276,43 +285,54 @@ fn fill_bookmark(FillBookmarkProps { url, onclose }: &FillBookmarkProps) -> Html
 
     match metadata_query.result() {
         Some(_) => html! {
-            <>
-                <div
-                    class={classes!("grid", "grid-cols-1", "gap-4", "place-content-start", "h-[500px]")}
-                >
-                    <BookmarkEditText
-                        name="Title"
-                        id="bookmark_title"
-                        multiline=false
-                        value={(*title).clone()}
-                        onchange={title_callback}
-                    />
-                    <BookmarkEditText
-                        name="Description"
-                        id="bookmark_description"
-                        multiline=true
-                        value={(*description).clone()}
-                        onchange={description_callback}
-                    />
-                    <BookmarkEditText
-                        name="Notes"
-                        id="bookmark_notes"
-                        multiline=true
-                        value={(*notes).clone()}
-                        onchange={notes_callback}
-                    />
-                    <div class="grid grid-cols-1 gap-1">
-                        <label class="font-medium" for="bookmark_tags">{ "Tags" }</label>
-                        <TagSelect
-                            on_change={Callback::from(move |new_tags| {tags.set(new_tags)})}
-                        />
-                    </div>
+            <Form {onvalidated} onsubmit={save}>
+                <TitleInput onchange={set_title} value={(*title).clone()} />
+                <FormGroup label="Description">
+                    <TextArea onchange={set_description} value={(*description).clone()} />
+                </FormGroup>
+                <FormGroup label="Notes">
+                    <TextArea onchange={set_notes} value={(*notes).clone()} />
+                </FormGroup>
+                <div class="grid grid-cols-1 gap-1">
+                    <label class="font-medium" for="bookmark_tags">{ "Tags" }</label>
+                    <TagSelect on_change={Callback::from(move |new_tags| {tags.set(new_tags)})} />
                 </div>
-                <div class="modal-action">
-                    <button class="btn" onclick={save}>{ "Save" }</button>
-                </div>
-            </>
+                <ActionGroup>
+                    <Button
+                        loading={save_bookmark.state() == MutationState::Loading}
+                        variant={ButtonVariant::Primary}
+                        r#type={ButtonType::Submit}
+                        disabled={!*valid}
+                        label="Save"
+                    />
+                </ActionGroup>
+            </Form>
         },
         None => html! { <div class="skeleton w-full h-full" /> },
+    }
+}
+
+#[derive(Properties, PartialEq)]
+struct TitleInputProps {
+    onchange: Callback<String>,
+    value: String,
+}
+
+// Workaround for https://github.com/patternfly-yew/patternfly-yew/issues/145:
+#[function_component(TitleInput)]
+fn title_input(TitleInputProps { onchange, value }: &TitleInputProps) -> Html {
+    let validator = Validator::from(|ctx: ValidationContext<String>| {
+        if ctx.initial {
+            ValidationResult::ok()
+        } else if ctx.value.is_empty() {
+            ValidationResult::error("Title is required")
+        } else {
+            ValidationResult::ok()
+        }
+    });
+    html! {
+        <FormGroupValidated<TextInput> required=true label="Title" {validator}>
+            <TextInput required=true autofocus=true {onchange} value={value.clone()} />
+        </FormGroupValidated<TextInput>>
     }
 }

@@ -16,28 +16,11 @@ use yew::prelude::*;
 
 use crate::{dispatch_callback, GoddamnIt};
 
-use super::{CloseModal, ModalState, TagSelect};
+use super::{CloseModal, TagSelect};
 
 #[derive(Properties, PartialEq)]
-pub struct Props {
+pub struct VisibleProps {
     pub onclose: Callback<()>,
-}
-
-#[function_component(CreateForm)]
-pub fn create_form(Props { onclose }: &Props) -> Html {
-    let state = use_slice::<ModalState>();
-    html! {
-        if *state == ModalState::CreateBookmark {
-            <VisibleCreateForm {onclose} />
-        } else {
-            <></>
-        }
-    }
-}
-
-#[derive(Properties, PartialEq)]
-struct VisibleProps {
-    onclose: Callback<()>,
 }
 
 #[derive(Clone, Default, PartialEq, Debug, Slice)]
@@ -203,8 +186,8 @@ impl Mutation for SaveBookmarkMutation {
     }
 }
 
-#[function_component(VisibleCreateForm)]
-fn visible_create_form(VisibleProps { onclose }: &VisibleProps) -> Html {
+#[function_component(CreateForm)]
+pub fn create_form(VisibleProps { onclose }: &VisibleProps) -> Html {
     let state = use_state(|| State::EnteringUrl);
     let bookmark_data = use_slice::<BookmarkData>();
     let onchange = dispatch_callback(&bookmark_data, BookmarkAction::SetUrl);

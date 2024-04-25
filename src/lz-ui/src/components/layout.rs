@@ -55,15 +55,17 @@ pub fn layout(LayoutProps { children }: &LayoutProps) -> Html {
     let state = use_slice::<ModalState>();
     let open_create = dispatch_callback(&state, |_| ModalAction::OpenCreateBookmark);
     let onclose = use_notion_applier::<CloseModal>();
-    html! {
-        <>
-            <CreateForm onclose={move |_| onclose(CloseModal)} />
+    match *state {
+        ModalState::Normal => html! {
             <Grid gutter=true>
                 <GridItem cols={[6]}>{ children.clone() }</GridItem>
                 <GridItem cols={[2]}>
                     <Button label="Add" onclick={open_create} />
                 </GridItem>
             </Grid>
-        </>
+        },
+        ModalState::CreateBookmark => {
+            html! { <CreateForm onclose={move |_| onclose(CloseModal)} /> }
+        }
     }
 }

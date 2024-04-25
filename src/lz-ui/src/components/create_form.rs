@@ -1,10 +1,10 @@
 use std::rc::Rc;
 
 use async_trait::async_trait;
+use bounce::prelude::*;
 use bounce::query::{
     use_mutation, use_query_value, Mutation, MutationResult, MutationState, Query, QueryResult,
 };
-use bounce::BounceStates;
 use chrono::Utc;
 use lz_openapi::types::{
     BookmarkCreateRequest, CreateBookmarkResponse, Metadata, NewBookmark, NoId,
@@ -40,11 +40,12 @@ struct VisibleProps {
     onclose: Callback<()>,
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, Default, PartialEq, Debug, Slice)]
 struct BookmarkData {
     url: String,
     title: String,
     description: String,
+    notes: String,
     tags: Vec<String>,
 }
 
@@ -52,6 +53,87 @@ struct BookmarkData {
 enum State {
     EnteringUrl,
     EnteringData,
+}
+
+enum BookmarkAction {
+    SetUrl(String),
+    SetTitle(String),
+    SetDescription(String),
+    SetNotes(String),
+    SetTags(Vec<String>),
+    FromMetadata(Metadata),
+    Reset,
+}
+
+impl Reducible for BookmarkData {
+    type Action = BookmarkAction;
+
+    fn reduce(self: Rc<Self>, action: Self::Action) -> Rc<Self> {
+        match action {
+            BookmarkAction::SetUrl(url) => Self {
+                url,
+                ..(*self).clone()
+            }
+            .into(),
+            BookmarkAction::SetTitle(title) => Self {
+                title,
+                ..(*self).clone()
+            }
+            .into(),
+            BookmarkAction::SetDescription(description) => Self {
+                description,
+                ..(*self).clone()
+            }
+            .into(),
+            BookmarkAction::SetNotes(notes) => Self {
+                notes,
+                ..(*self).clone()
+            }
+            .into(),
+
+            BookmarkAction::SetTags(tags) => Self {
+                tags,
+                ..(*self).clone()
+            }
+            .into(),
+            BookmarkAction::FromMetadata(Metadata { title, description }) => Self {
+                title,
+                description: description.unwrap_or("".to_string()),
+                ..(*self).clone()
+            }
+            .into(),
+            BookmarkAction::Reset => Default::default(),
+        }
+    }
+}
+
+impl BookmarkData {
+    fn to_create_request(&self) -> BookmarkCreateRequest {
+        let created_at = Utc::now();
+        BookmarkCreateRequest {
+            associations: vec![],
+            bookmark: NewBookmark {
+                id: NoId(serde_json::Value::Null),
+                user_id: NoId(serde_json::Value::Null),
+                accessed_at: None,
+                created_at,
+                description: Some(self.description.to_string()),
+                modified_at: None,
+                notes: if self.notes.is_empty() {
+                    None
+                } else {
+                    Some(self.notes.to_string())
+                },
+                shared: None,
+                title: self.title.to_string(),
+                unread: None,
+                url: self.url.to_string(),
+                website_description: None, // TODO
+                website_title: None,       // TODO
+            },
+            tag_names: self.tags.clone(),
+        }
+    }
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -93,10 +175,11 @@ struct SaveBookmarkMutation(CreateBookmarkResponse);
 
 #[async_trait(?Send)]
 impl Mutation for SaveBookmarkMutation {
-    type Input = BookmarkCreateRequest;
+    type Input = ();
     type Error = GoddamnIt;
 
-    async fn run(_states: &BounceStates, input: Rc<BookmarkCreateRequest>) -> MutationResult<Self> {
+    async fn run(states: &BounceStates, _input: Rc<()>) -> MutationResult<Self> {
+        let bookmark_data = states.get_slice_value::<BookmarkData>();
         let loc = web_sys::window().unwrap().location();
         let base_url = format!(
             "{}//{}/api/v1",
@@ -107,7 +190,7 @@ impl Mutation for SaveBookmarkMutation {
         let client = lz_openapi::Client::new(&base_url);
         let result = client
             .create_bookmark()
-            .body(&*input)
+            .body(bookmark_data.to_create_request())
             .send()
             .await
             .map_err(GoddamnIt::new)?;
@@ -115,12 +198,32 @@ impl Mutation for SaveBookmarkMutation {
     }
 }
 
+fn dispatch_callback<
+    T: Slice + Reducible + 'static,
+    U,
+    F: Fn(U) -> <T as Slice>::Action + 'static,
+>(
+    handle: &UseSliceHandle<T>,
+    actor: F,
+) -> Callback<U> {
+    let handle = handle.clone();
+    Callback::from(move |new_value| handle.dispatch(actor(new_value)))
+}
+
 #[function_component(VisibleCreateForm)]
 fn visible_create_form(VisibleProps { onclose }: &VisibleProps) -> Html {
     let state = use_state(|| State::EnteringUrl);
-    let url = use_state_eq(|| String::new());
-    let onchange = use_callback(url.clone(), |new_value, url| url.set(new_value));
+    let bookmark_data = use_slice::<BookmarkData>();
+    let onchange = dispatch_callback(&bookmark_data, BookmarkAction::SetUrl);
     let valid = use_state(|| true);
+    let onclose = Callback::from({
+        let onclose_inner = onclose.clone();
+        let bookmark_data = bookmark_data.clone();
+        move |ev| {
+            bookmark_data.dispatch(BookmarkAction::Reset);
+            onclose_inner.emit(ev);
+        }
+    });
     let onvalidated = use_callback(valid.clone(), |state, valid| {
         valid.set(match state {
             InputState::Default | InputState::Success => true,
@@ -156,7 +259,7 @@ fn visible_create_form(VisibleProps { onclose }: &VisibleProps) -> Html {
                             required=true
                             placeholder="URL"
                             id="bookmark_url"
-                            value={url.to_string()}
+                            value={bookmark_data.url.to_string()}
                             {onchange}
                         />
                     </FormGroupValidated<TextInput>>
@@ -164,7 +267,7 @@ fn visible_create_form(VisibleProps { onclose }: &VisibleProps) -> Html {
             }
         }
         &State::EnteringData => html! {
-            <FillBookmark onclose={onclose.clone()} url={Url::parse(&*url).unwrap()} />
+            <FillBookmark onclose={onclose.clone()} url={Url::parse(&bookmark_data.url).unwrap()} />
         },
     };
     html! {
@@ -199,84 +302,40 @@ fn fill_bookmark(FillBookmarkProps { url, onclose }: &FillBookmarkProps) -> Html
             _ => false,
         })
     });
-    let tags = use_state(|| vec![]);
-    let title = use_state_eq(|| String::default());
-    let set_title = use_callback(title.clone(), |new_title, title| title.set(new_title));
-    let description = use_state_eq(|| String::default());
-    let set_description = use_callback(description.clone(), |new_desc, desc| desc.set(new_desc));
-    let notes = use_state_eq(|| String::default());
-    let set_notes = use_callback(notes.clone(), |new_notes, notes| notes.set(new_notes));
+    let bookmark_data = use_slice::<BookmarkData>();
+    let set_title = dispatch_callback(&bookmark_data, BookmarkAction::SetTitle);
+    let set_description = dispatch_callback(&bookmark_data, BookmarkAction::SetDescription);
+    let set_tags = dispatch_callback(&bookmark_data, BookmarkAction::SetTags);
+    let set_notes = dispatch_callback(&bookmark_data, BookmarkAction::SetNotes);
     let metadata_query = use_query_value::<SaveBookmarkQuery>(Rc::new(url.clone()));
     {
         let res = metadata_query.result().map(|x| x.clone());
-        let title_set = title.setter();
-        let description_set = description.setter();
         let valid_set = valid.setter();
+        let bookmark_data = bookmark_data.clone();
         use_effect_with(res, move |res| match res {
             Some(Ok(metadata)) => {
-                let metadata = metadata.clone();
-                if let Some(desc) = &metadata.0.description {
-                    description_set.set(desc.to_string());
-                }
-                title_set.set(metadata.0.title.to_string());
                 if !metadata.0.title.is_empty() {
                     valid_set.set(true);
                 }
+                bookmark_data.dispatch(BookmarkAction::FromMetadata(metadata.0.clone()));
             }
-            _ => {}
+            _ => valid_set.set(false),
         });
     }
     let save_bookmark = use_mutation::<SaveBookmarkMutation>();
     let save = {
         let save_bookmark = save_bookmark.clone();
-        let description = description.clone();
-        let notes = notes.clone();
-        let title = title.clone();
-        let url = url.clone();
-        let tags = tags.clone();
         let onclose = onclose.clone();
         let valid = valid.clone();
         Callback::from(move |ev: SubmitEvent| {
-            let save_bookmark = save_bookmark.clone();
-            let tags = tags.clone();
-            let description = description.clone();
-            let notes = notes.clone();
-            let title = title.clone();
-            let url = url.clone();
-            let created_at = Utc::now();
-            let onclose = onclose.clone();
-
             ev.prevent_default();
             if !*valid {
                 return;
             }
+            let onclose = onclose.clone();
+            let save_bookmark = save_bookmark.clone();
             spawn_local(async move {
-                let notes = if *notes == "" {
-                    None
-                } else {
-                    Some(notes.to_string())
-                };
-                let _ = save_bookmark // TODO: error-handle
-                    .run(BookmarkCreateRequest {
-                        associations: vec![],
-                        tag_names: (*tags).clone(),
-                        bookmark: NewBookmark {
-                            id: NoId(serde_json::Value::Null),
-                            user_id: NoId(serde_json::Value::Null),
-                            accessed_at: None,
-                            created_at,
-                            description: Some((*description).to_string()),
-                            modified_at: None,
-                            notes,
-                            shared: None,
-                            title: (*title).to_string(),
-                            unread: None,
-                            url: url.to_string(),
-                            website_description: None, // TODO
-                            website_title: None,       // TODO
-                        },
-                    })
-                    .await;
+                let _ = save_bookmark.run(()).await;
                 // TODO: error-handle & close only when creation went through.
                 onclose.emit(());
             })
@@ -286,16 +345,16 @@ fn fill_bookmark(FillBookmarkProps { url, onclose }: &FillBookmarkProps) -> Html
     match metadata_query.result() {
         Some(_) => html! {
             <Form {onvalidated} onsubmit={save}>
-                <TitleInput onchange={set_title} value={(*title).clone()} />
+                <TitleInput onchange={set_title} value={bookmark_data.title.clone()} />
                 <FormGroup label="Description">
-                    <TextArea onchange={set_description} value={(*description).clone()} />
+                    <TextArea onchange={set_description} value={bookmark_data.description.clone()} />
                 </FormGroup>
                 <FormGroup label="Notes">
-                    <TextArea onchange={set_notes} value={(*notes).clone()} />
+                    <TextArea onchange={set_notes} value={bookmark_data.notes.clone()} />
                 </FormGroup>
                 <div class="grid grid-cols-1 gap-1">
                     <label class="font-medium" for="bookmark_tags">{ "Tags" }</label>
-                    <TagSelect on_change={Callback::from(move |new_tags| {tags.set(new_tags)})} />
+                    <TagSelect on_change={set_tags} />
                 </div>
                 <ActionGroup>
                     <Button
@@ -332,7 +391,7 @@ fn title_input(TitleInputProps { onchange, value }: &TitleInputProps) -> Html {
     });
     html! {
         <FormGroupValidated<TextInput> required=true label="Title" {validator}>
-            <TextInput required=true autofocus=true {onchange} value={value.clone()} />
+            <TextInput required=true {onchange} value={value.clone()} />
         </FormGroupValidated<TextInput>>
     }
 }

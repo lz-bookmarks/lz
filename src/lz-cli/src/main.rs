@@ -6,8 +6,8 @@ use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Local, LocalResult, NaiveDateTime, TimeZone, Utc};
 use clap::{Parser, Subcommand};
 use lz_db::{BookmarkSearch, Connection, DateInput, ExistingBookmark, ReadOnly, Transaction};
-use std::collections::HashSet;
 use sentry::types::Dsn;
+use std::collections::HashSet;
 use url::Url;
 
 // NB See https://rust-cli-recommendations.sunshowers.io/handling-arguments.html for

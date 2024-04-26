@@ -23,7 +23,10 @@ url.workspace = true
 chrono = { workspace = true, features = ["wasmbind", "serde", "clock"] }
 serde_json.workspace = true
 wasm-bindgen = { workspace = true }
-patternfly-yew = { version = "0.6.0", features = ["icons-far", "icons-fab"] }
+patternfly-yew = { workspace = true, features = ["icons-far", "icons-fab"] }
+popper-rs = { workspace = true, features = ["yew"] }
+yew-hooks = { workspace = true }
+gloo-utils = { workspace = true }
 
 [dependencies.lz-openapi]
 path = "../lz-openapi"

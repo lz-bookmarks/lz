@@ -2198,9 +2198,11 @@ dependencies = [
  "async-trait",
  "bounce",
  "chrono",
+ "gloo-utils 0.2.0",
  "itertools",
  "lz-openapi",
  "patternfly-yew",
+ "popper-rs",
  "serde_json",
  "thiserror",
  "tracing",
@@ -2211,6 +2213,7 @@ dependencies = [
  "web-sys",
  "yew",
  "yew-autocomplete",
+ "yew-hooks",
  "yew-router",
 ]
 

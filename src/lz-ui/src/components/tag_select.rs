@@ -51,10 +51,6 @@ pub(self) struct TagSelectState {
 
     /// If only one option remains, an entirely auto-completable hint.
     hint: Option<String>,
-
-    /// Whether to suppress opening the box, even if there are new options available.
-    // TODO: remove this, it won't be useful when we have better incomplete() handling.
-    suppress_opening: bool,
 }
 
 impl Reducible for TagSelectState {
@@ -63,23 +59,27 @@ impl Reducible for TagSelectState {
     #[tracing::instrument(level = "DEBUG")]
     fn reduce(self: std::rc::Rc<Self>, action: Self::Action) -> std::rc::Rc<Self> {
         match &action {
-            TagSelectAction::SelectItem(item) => Self {
-                input_value: self.complete_selections() + item.as_str() + " ",
-                suppress_opening: true,
-                ..Default::default()
+            TagSelectAction::SelectItem(item) => {
+                let input_value = self.input_with_suggestion(item.as_str());
+                Self {
+                    position: input_value.len(),
+                    input_value,
+                    ..Default::default()
+                }
+                .into()
             }
-            .into(),
             TagSelectAction::FillAutocomplete { possibilities } => {
                 let hint = match possibilities.as_slice() {
                     [hintable]
-                        if !self.suppress_opening && hintable.starts_with(self.incomplete()) =>
+                        if self.is_completing_last_word()
+                            && hintable.starts_with(self.incomplete()) =>
                     {
-                        Some(self.complete_selections() + hintable)
+                        Some(self.input_with_suggestion(hintable))
                     }
                     _ => None,
                 };
                 Self {
-                    autocomplete_open: !self.suppress_opening && possibilities.len() > 0,
+                    autocomplete_open: possibilities.len() > 0,
                     hint,
                     possibilities: possibilities.clone(),
                     ..(*self).clone()
@@ -94,10 +94,10 @@ impl Reducible for TagSelectState {
             TagSelectAction::Reset => Default::default(),
             TagSelectAction::TextChange {
                 input_value,
-                position: _,
+                position,
             } => Self {
                 input_value: input_value.clone(),
-                suppress_opening: false,
+                position: *position,
                 ..Default::default()
             }
             .into(),
@@ -106,7 +106,6 @@ impl Reducible for TagSelectState {
                 Self {
                     position: input_value.len(),
                     input_value,
-                    suppress_opening: true,
                     ..Default::default()
                 }
                 .into()
@@ -116,11 +115,13 @@ impl Reducible for TagSelectState {
 }
 
 impl TagSelectState {
-    fn incomplete(&self) -> &str {
-        // Seek for the whitespace-separated word around the insertion point:
-        let (before, after) = self.input_value.split_at(self.position);
-        tracing::info!(?before, ?after);
-        let whitespace_after = self.position
+    fn current_word_positions(input_value: &str, position: usize) -> (usize, usize) {
+        if position > input_value.len() {
+            tracing::error!(?position, actual_len=?input_value.len(), ?input_value, "Position past end");
+            return (0, 0);
+        }
+        let (before, after) = input_value.split_at(position);
+        let end_position = position
             + after
                 .chars()
                 .position(char::is_whitespace)
@@ -129,19 +130,31 @@ impl TagSelectState {
         let start_position = if let Some(whitespace_before) =
             before_chars.into_iter().rposition(char::is_whitespace)
         {
-            (whitespace_before + 1).min(whitespace_after)
+            (whitespace_before + 1).min(end_position)
         } else {
             0
         };
-
-        tracing::info!(?start_position, insertion_point=?self.position, ?whitespace_after);
-        &self.input_value[start_position..whitespace_after]
+        (start_position, end_position)
     }
 
-    fn complete_selections(&self) -> String {
-        let incomplete = self.incomplete();
-        let len = self.input_value.len();
-        self.input_value[0..len - (incomplete.len())].to_string()
+    fn is_completing_last_word(&self) -> bool {
+        let (_, end_position) = Self::current_word_positions(&self.input_value, self.position);
+        end_position == self.input_value.len()
+    }
+
+    fn incomplete(&self) -> &str {
+        let (start_position, end_position) =
+            Self::current_word_positions(&self.input_value, self.position);
+        &self.input_value[start_position..end_position]
+    }
+
+    /// Return the input field value if the suggested completion has been accepted.
+    fn input_with_suggestion(&self, suggestion: &str) -> String {
+        let (start_position, end_position) =
+            Self::current_word_positions(&self.input_value, self.position);
+        let before = &self.input_value[0..start_position];
+        let after = &self.input_value[end_position..];
+        format!("{before}{suggestion}{after}")
     }
 
     fn tags(&self) -> Vec<String> {
@@ -149,6 +162,16 @@ impl TagSelectState {
             .split_whitespace()
             .map(String::from)
             .collect()
+    }
+}
+
+#[derive(PartialEq, Debug)]
+struct SelectedTags(Vec<String>);
+
+impl Selector for SelectedTags {
+    fn select(states: &BounceStates) -> std::rc::Rc<Self> {
+        let state = states.get_slice_value::<TagSelectState>();
+        SelectedTags(state.tags()).into()
     }
 }
 
@@ -160,6 +183,7 @@ pub struct TagSelectProps {
 #[function_component(TagSelect)]
 pub fn tag_auto_complete(TagSelectProps { on_change }: &TagSelectProps) -> Html {
     let state = use_slice::<TagSelectState>();
+    let tags = use_selector_value::<SelectedTags>();
     // the user provided value
     // clear the value
     let onclear = dispatch_callback(&state, |_| TagSelectAction::Reset);
@@ -203,7 +227,6 @@ pub fn tag_auto_complete(TagSelectProps { on_change }: &TagSelectProps) -> Html 
 
     // acting on change of the search term data
     let onchange = use_callback((), {
-        let on_change = on_change.clone();
         let state = state.clone();
         let input_ref = input_ref.clone();
         move |input_value: String, ()| {
@@ -220,26 +243,29 @@ pub fn tag_auto_complete(TagSelectProps { on_change }: &TagSelectProps) -> Html 
                 input_value,
                 position,
             });
-            on_change.emit(state.tags());
         }
     });
-    // Restart the search if tags input changed:
-    {
-        let incomplete = state.incomplete().to_string();
+    // Bubble the entered tags up:
+    use_effect_with(tags.clone(), {
+        let on_change = on_change.clone();
+        move |tags| on_change.emit(tags.0.to_owned())
+    });
+
+    // Kick off a search for potential choices:
+    use_effect_with(state.incomplete().to_string(), {
         let choices = choices.clone();
-        use_effect_with(incomplete, move |incomplete| {
+        move |incomplete| {
             if incomplete.len() > 2 {
                 choices.run();
             }
-        })
-    };
+        }
+    });
 
     // keyboard handling, on top of the menu
     {
         let state = state.clone();
         let input_ref = input_ref.clone();
         let menu_ref = menu_ref.clone();
-        let on_change = on_change.clone();
         use_event_with_window("keydown", move |e: KeyboardEvent| {
             let in_input = input_ref.get().as_deref() == e.target().as_ref();
 
@@ -252,7 +278,6 @@ pub fn tag_auto_complete(TagSelectProps { on_change }: &TagSelectProps) -> Html 
                         }
                         // set the value
                         state.dispatch(TagSelectAction::AcceptHint);
-                        on_change.emit(state.tags());
                         // focus back on the input
                         input_ref.focus();
                     }
@@ -299,13 +324,11 @@ pub fn tag_auto_complete(TagSelectProps { on_change }: &TagSelectProps) -> Html 
                 >
                     { for state.possibilities.iter().map(|value| {
                         let onclick = {
-                            let on_change = on_change.clone();
                             let state = state.clone();
                             let value = value.to_string();
                             let input_ref = input_ref.clone();
                             Callback::from(move |_| {
                                 state.dispatch(TagSelectAction::SelectItem(value.clone()));
-                                on_change.emit(state.tags());
                                 input_ref.focus();
                             })
                         };
@@ -377,5 +400,22 @@ mod test {
         };
         assert_eq!(state.incomplete(), incomplete, "incomplete string");
         assert_eq!(state.tags(), tags, "tags");
+    }
+
+    #[traced_test]
+    #[test_case("", "", "", ""; "no entry")]
+    #[test_case("foo bar", "", "barium", "foo barium"; "at the end of a word")]
+    #[test_case("foo bar ", "", "test", "foo bar test"; "at the end, new word")]
+    #[test_case("foo", " bar", "foo-fighters", "foo-fighters bar"; "in the middle")]
+    #[test_case("foo ", "bar", "foo-fighters", "foo foo-fighters"; "middle of second word")]
+    #[test_case("foo ", " bar", "night", "foo night bar"; "between words")]
+    fn acceptance_at_positions(before: &str, after: &str, suggestion: &str, result: &str) {
+        let input_value = format!("{before}{after}");
+        let state = TagSelectState {
+            input_value,
+            position: before.len(),
+            ..Default::default()
+        };
+        assert_eq!(state.input_with_suggestion(suggestion), result,);
     }
 }

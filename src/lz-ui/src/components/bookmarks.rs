@@ -6,6 +6,7 @@ use bounce::query::{use_query_value, Query, QueryResult};
 use bounce::BounceStates;
 use lz_openapi::types::builder::ListRequest;
 use lz_openapi::types::{BookmarkId, BookmarkSearch, ListBookmarksMatchingResponse};
+use patternfly_yew::prelude::*;
 use yew::prelude::*;
 
 use crate::{components::*, GoddamnIt};
@@ -64,7 +65,7 @@ pub fn bookmarks(props: &BookmarksProps) -> Html {
     let load_next = use_state(|| false);
     let bookmarks = use_query_value::<BookmarkBatch>(Rc::new(props.clone()));
     match bookmarks.result() {
-        None => html! { <span class="loading loading-dots" /> },
+        None => html! { <Spinner size={SpinnerSize::Lg} /> },
         Some(Ok(b)) => {
             let bookmark_items =
                 b.0.bookmarks
@@ -77,14 +78,14 @@ pub fn bookmarks(props: &BookmarksProps) -> Html {
                         { bookmark_items }
                         if let Some(next) = b.next_cursor {
                             if !*load_next {
-                                <button
-                                    class="btn btn-block"
+                                <Button
                                     onclick={move |_ev| {
                                       load_next.set(true);
                                     }}
-                                >
-                                    { "Load more..." }
-                                </button>
+                                    block=true
+                                    label="Load more..."
+                                    variant={ButtonVariant::Control}
+                                />
                             } else {
                                 <Bookmarks cursor={next} query={props.query.clone()} />
                             }

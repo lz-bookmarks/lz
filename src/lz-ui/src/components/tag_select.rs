@@ -2,6 +2,7 @@ use bounce::prelude::*;
 use patternfly_yew::prelude::*;
 use popper_rs::prelude::*;
 use wasm_bindgen::JsCast;
+use web_sys::HtmlInputElement;
 use yew::prelude::*;
 use yew_hooks::prelude::use_async;
 use yew_hooks::{use_click_away, use_event_with_window};
@@ -27,16 +28,32 @@ enum TagSelectAction {
     Reset,
 
     /// Entered text changed.
-    TextChange(String),
+    TextChange {
+        input_value: String,
+        position: usize,
+    },
     AcceptHint,
 }
 
 #[derive(PartialEq, Default, Slice, Clone, Debug)]
-struct TagSelectState {
+pub(self) struct TagSelectState {
+    /// The verbatim text field value
     input_value: String,
+
+    /// The position of the insertion point in the verbatim text field
+    position: usize,
+
+    /// Possible completions for the field value at the insertion point.
     possibilities: Vec<String>,
+
+    /// Whether to open the autocomplete possibilities box.
     autocomplete_open: bool,
+
+    /// If only one option remains, an entirely auto-completable hint.
     hint: Option<String>,
+
+    /// Whether to suppress opening the box, even if there are new options available.
+    // TODO: remove this, it won't be useful when we have better incomplete() handling.
     suppress_opening: bool,
 }
 
@@ -75,18 +92,25 @@ impl Reducible for TagSelectState {
             }
             .into(),
             TagSelectAction::Reset => Default::default(),
-            TagSelectAction::TextChange(input_value) => Self {
+            TagSelectAction::TextChange {
+                input_value,
+                position: _,
+            } => Self {
                 input_value: input_value.clone(),
                 suppress_opening: false,
                 ..Default::default()
             }
             .into(),
-            TagSelectAction::AcceptHint => Self {
-                input_value: self.hint.as_deref().unwrap_or_default().to_string() + " ",
-                suppress_opening: true,
-                ..Default::default()
+            TagSelectAction::AcceptHint => {
+                let input_value = self.hint.as_deref().unwrap_or_default().to_string() + " ";
+                Self {
+                    position: input_value.len(),
+                    input_value,
+                    suppress_opening: true,
+                    ..Default::default()
+                }
+                .into()
             }
-            .into(),
         }
     }
 }
@@ -104,6 +128,13 @@ impl TagSelectState {
         let incomplete = self.incomplete();
         let len = self.input_value.len();
         self.input_value[0..len - (incomplete.len())].to_string()
+    }
+
+    fn tags(&self) -> Vec<String> {
+        self.input_value
+            .split_whitespace()
+            .map(String::from)
+            .collect()
     }
 }
 
@@ -158,9 +189,24 @@ pub fn tag_auto_complete(TagSelectProps { on_change }: &TagSelectProps) -> Html 
 
     // acting on change of the search term data
     let onchange = use_callback((), {
+        let on_change = on_change.clone();
         let state = state.clone();
-        move |new: String, ()| {
-            state.dispatch(TagSelectAction::TextChange(new));
+        let input_ref = input_ref.clone();
+        move |input_value: String, ()| {
+            let position = input_ref
+                .cast::<HtmlInputElement>()
+                .map(|elt| {
+                    elt.selection_start()
+                        .unwrap_or(None)
+                        .map(|sel| sel as usize)
+                })
+                .flatten()
+                .unwrap_or_else(|| input_value.len());
+            state.dispatch(TagSelectAction::TextChange {
+                input_value,
+                position,
+            });
+            on_change.emit(state.tags());
         }
     });
     // Restart the search if tags input changed:
@@ -179,6 +225,7 @@ pub fn tag_auto_complete(TagSelectProps { on_change }: &TagSelectProps) -> Html 
         let state = state.clone();
         let input_ref = input_ref.clone();
         let menu_ref = menu_ref.clone();
+        let on_change = on_change.clone();
         use_event_with_window("keydown", move |e: KeyboardEvent| {
             let in_input = input_ref.get().as_deref() == e.target().as_ref();
 
@@ -191,6 +238,7 @@ pub fn tag_auto_complete(TagSelectProps { on_change }: &TagSelectProps) -> Html 
                         }
                         // set the value
                         state.dispatch(TagSelectAction::AcceptHint);
+                        on_change.emit(state.tags());
                         // focus back on the input
                         input_ref.focus();
                     }
@@ -236,19 +284,21 @@ pub fn tag_auto_complete(TagSelectProps { on_change }: &TagSelectProps) -> Html 
                     .extend_with("z-index", "1000")}
                 >
                     { for state.possibilities.iter().map(|value| {
-                    let onclick = {
-                        let state = state.clone();
-                        let value = value.to_string();
-                        let input_ref = input_ref.clone();
-                        Callback::from(move |_| {
-                            state.dispatch(TagSelectAction::SelectItem(value.clone()));
-                            input_ref.focus();
-                        })
-                    };
-                    html_nested!(
-                        <MenuAction {onclick}>{ value }</MenuAction>
-                    )
-                }) }
+                        let onclick = {
+                            let on_change = on_change.clone();
+                            let state = state.clone();
+                            let value = value.to_string();
+                            let input_ref = input_ref.clone();
+                            Callback::from(move |_| {
+                                state.dispatch(TagSelectAction::SelectItem(value.clone()));
+                                on_change.emit(state.tags());
+                                input_ref.focus();
+                            })
+                        };
+                        html_nested!(
+                            <MenuAction {onclick}>{ value }</MenuAction>
+                        )
+                    }) }
                 </Menu>
             }
         )
@@ -289,5 +339,25 @@ pub fn tag_auto_complete(TagSelectProps { on_change }: &TagSelectProps) -> Html 
                 </PortalToPopper>
             </div>
         </>
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("foo bar", "", "bar", "foo "; "at the end of a word")]
+    #[test_case("foo bar ", "", "", "foo bar"; "at the end, no new word")]
+    #[test_case("", "", "", ""; "no entry")]
+    fn incompleteness_at_positions(before: &str, after: &str, incomplete: &str, completed: &str) {
+        let input_value = format!("{before}{after}");
+        let state = TagSelectState {
+            input_value,
+            position: before.len(),
+            ..Default::default()
+        };
+        assert_eq!(state.incomplete(), incomplete);
+        assert_eq!(state.complete_selections(), completed);
     }
 }

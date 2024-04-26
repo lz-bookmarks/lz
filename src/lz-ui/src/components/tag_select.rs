@@ -116,12 +116,26 @@ impl Reducible for TagSelectState {
 }
 
 impl TagSelectState {
-    // TODO: allow editing any "middle" tag by using .selectionStart on the input element.
     fn incomplete(&self) -> &str {
-        self.input_value
-            .split_whitespace()
-            .last()
-            .unwrap_or_default()
+        // Seek for the whitespace-separated word around the insertion point:
+        let (before, after) = self.input_value.split_at(self.position);
+        tracing::info!(?before, ?after);
+        let whitespace_after = self.position
+            + after
+                .chars()
+                .position(char::is_whitespace)
+                .unwrap_or_else(|| after.len());
+        let before_chars = before.chars().collect::<Vec<char>>();
+        let start_position = if let Some(whitespace_before) =
+            before_chars.into_iter().rposition(char::is_whitespace)
+        {
+            (whitespace_before + 1).min(whitespace_after)
+        } else {
+            0
+        };
+
+        tracing::info!(?start_position, insertion_point=?self.position, ?whitespace_after);
+        &self.input_value[start_position..whitespace_after]
     }
 
     fn complete_selections(&self) -> String {
@@ -346,18 +360,22 @@ pub fn tag_auto_complete(TagSelectProps { on_change }: &TagSelectProps) -> Html 
 mod test {
     use super::*;
     use test_case::test_case;
+    use tracing_test::traced_test;
 
-    #[test_case("foo bar", "", "bar", "foo "; "at the end of a word")]
-    #[test_case("foo bar ", "", "", "foo bar"; "at the end, no new word")]
-    #[test_case("", "", "", ""; "no entry")]
-    fn incompleteness_at_positions(before: &str, after: &str, incomplete: &str, completed: &str) {
+    #[traced_test]
+    #[test_case("", "", "", &[]; "no entry")]
+    #[test_case("foo bar", "", "bar", &["foo", "bar"]; "at the end of a word")]
+    #[test_case("foo bar ", "", "", &["foo", "bar"]; "at the end, no new word")]
+    #[test_case("foo", " bar", "foo", &["foo", "bar"]; "in the middle")]
+    #[test_case("foo ", " bar", "", &["foo", "bar"]; "between words")]
+    fn incompleteness_at_positions(before: &str, after: &str, incomplete: &str, tags: &[&str]) {
         let input_value = format!("{before}{after}");
         let state = TagSelectState {
             input_value,
             position: before.len(),
             ..Default::default()
         };
-        assert_eq!(state.incomplete(), incomplete);
-        assert_eq!(state.complete_selections(), completed);
+        assert_eq!(state.incomplete(), incomplete, "incomplete string");
+        assert_eq!(state.tags(), tags, "tags");
     }
 }

@@ -32,4 +32,5 @@ gloo-utils = { workspace = true }
 path = "../lz-openapi"
 
 [dev-dependencies]
-test-case = "3.3.1"
+test-case = { workspace = true }
+tracing-test = { workspace = true }

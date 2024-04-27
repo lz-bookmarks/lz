@@ -2,7 +2,7 @@ use std::collections::BTreeSet;
 
 use deunicode::deunicode;
 use once_cell::sync::Lazy;
-use regex::Regex;
+use regex::{Captures, Regex, Replacer};
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::*;
 use sqlx::query;
@@ -177,8 +177,17 @@ impl Transaction<ReadWrite> {
     }
 }
 
+struct SlugDeduper;
+
+impl Replacer for SlugDeduper {
+    fn replace_append(&mut self, caps: &Captures<'_>, dst: &mut String) {
+        let val = &caps.get(0).unwrap().as_str().chars().nth(0).unwrap();
+        dst.push_str(&val.to_string());
+    }
+}
+
 /// "Slugify" our tags, turning them into 7-bit alphanumeric ASCII (as well
-/// as the colon and dash).
+/// as the colon and hyphen).
 /// ```
 /// use lz_db;
 /// assert_eq!(lz_db::normalize_tag(&"Gödel's Incompleteness Theorem"), "godels-incompleteness-theorem");
@@ -189,14 +198,12 @@ pub fn normalize_tag<T: AsRef<str>>(tag: T) -> String {
     // TODO: We should return Option<String> instead, allowing us to block degenerate
     // tags such as "foo:-:bar".
     static HYPHENIZE_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"[^a-z0-9:-]").unwrap());
-    static DEDUPE_HYPHEN_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"--+").unwrap());
-    static DEDUPE_COLON_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"::+").unwrap());
+    static DEDUPE_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"(::+|--+)").unwrap());
     let normal_tag = deunicode(tag.as_ref())
         .to_lowercase()
         .replace(['\'', '\"'], "");
     let normal_tag = HYPHENIZE_RE.replace_all(&normal_tag, "-");
-    let normal_tag = DEDUPE_HYPHEN_RE.replace_all(&normal_tag, "-");
-    let normal_tag = DEDUPE_COLON_RE.replace_all(&normal_tag, ":");
+    let normal_tag = DEDUPE_RE.replace_all(&normal_tag, SlugDeduper);
     normal_tag.trim_matches('-').trim_matches(':').to_string()
 }
 

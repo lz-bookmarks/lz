@@ -151,12 +151,12 @@ impl Transaction<ReadWrite> {
     pub async fn ensure_tags<
         T: std::fmt::Debug + IntoIterator<Item = S, IntoIter = C>,
         C: std::fmt::Debug + Clone + std::iter::Iterator<Item = S>,
-        S: AsRef<str>,
+        S: std::fmt::Display + AsRef<str>,
     >(
         &mut self,
         tags: T,
     ) -> Result<Vec<Tag<TagId>>, sqlx::Error> {
-        let tag_iter = tags.into_iter().map(|t| normalize_tag(t));
+        let tag_iter = tags.into_iter().map(|t| t.to_string());
         let existing_tags = self.get_tags_with_names(tag_iter.clone()).await?;
         let existing_slugs: BTreeSet<_> = existing_tags.iter().map(|t| &t.slug).collect();
         let mut missing_tags = BTreeMap::new();
@@ -341,10 +341,19 @@ mod tests {
         let existing = txn
             .get_tags_with_names(["wElP", "new", "foo", "new"])
             .await?;
+        // And "Welp!" is preserved as a display name.
+        assert_eq!(
+            existing
+                .clone()
+                .into_iter()
+                .map(|t| t.name)
+                .collect::<BTreeSet<String>>(),
+            BTreeSet::from(["Welp!".to_string(), "new".to_string()])
+        );
         assert_eq!(
             existing
                 .into_iter()
-                .map(|t| t.name)
+                .map(|t| t.slug)
                 .collect::<BTreeSet<String>>(),
             BTreeSet::from(["welp".to_string(), "new".to_string()])
         );

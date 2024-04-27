@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use deunicode::deunicode;
 use once_cell::sync::Lazy;
@@ -53,6 +53,8 @@ pub struct Tag<ID: IdType<TagId>> {
 
     /// Name of the tag.
     pub name: String,
+    /// Normalized name of tag, as for URLs.
+    pub slug: String,
 
     /// When the tag was first created.
     pub created_at: chrono::DateTime<chrono::Utc>,
@@ -109,7 +111,7 @@ impl<M: TransactionMode> Transaction<M> {
         &mut self,
         tags: T,
     ) -> Result<Vec<Tag<TagId>>, sqlx::Error> {
-        let tag_iter = tags.into_iter().map(|t| normalize_tag(t));
+        let slug_iter = tags.into_iter().map(|t| normalize_tag(t));
         // Hyper-yikes: sqlx with sqlite does not support WHERE..IN
         // query value interpolation
         // (https://github.com/launchbadge/sqlx/blob/main/FAQ.md#how-can-i-do-a-select--where-foo-in--query).
@@ -119,15 +121,18 @@ impl<M: TransactionMode> Transaction<M> {
         // You manually format the query, and place as many ?
         // placeholders in it as there are values, then bind them in a
         // loop. Ugh, but it seems to do the trick (and is safe).
-        let tag_placeholders = tag_iter
+        let slug_placeholders = slug_iter
             .clone()
             .map(|_| "?")
             .collect::<Vec<&str>>()
             .join(", ");
-        let sql = format!(r#"SELECT * FROM tags WHERE name IN ({})"#, tag_placeholders);
+        let sql = format!(
+            r#"SELECT * FROM tags WHERE slug IN ({})"#,
+            slug_placeholders
+        );
         let mut existing_query = sqlx::query_as(&sql);
-        for tag in tag_iter {
-            existing_query = existing_query.bind(tag);
+        for slug in slug_iter {
+            existing_query = existing_query.bind(slug);
         }
         let existing_tags: Vec<Tag<TagId>> = existing_query.fetch_all(&mut *self.txn).await?;
 
@@ -153,18 +158,24 @@ impl Transaction<ReadWrite> {
     ) -> Result<Vec<Tag<TagId>>, sqlx::Error> {
         let tag_iter = tags.into_iter().map(|t| normalize_tag(t));
         let existing_tags = self.get_tags_with_names(tag_iter.clone()).await?;
-        let existing_names: BTreeSet<_> = existing_tags.iter().map(|t| t.name.clone()).collect();
-        let all_tags: BTreeSet<String> = tag_iter.collect();
-        let missing_names = all_tags.difference(&existing_names);
+        let existing_slugs: BTreeSet<_> = existing_tags.iter().map(|t| &t.slug).collect();
+        let mut missing_tags = BTreeMap::new();
+        for t in tag_iter {
+            let slug = normalize_tag(t.clone());
+            if !existing_slugs.contains(&slug) && !missing_tags.contains_key(&slug) {
+                missing_tags.insert(slug, t);
+            }
+        }
         let mut inserted = vec![];
-        tracing::debug!(?existing_names, "Ensuring tags");
-        for name in missing_names {
+        tracing::debug!(?existing_slugs, "Ensuring tags");
+        for (slug, tag) in missing_tags {
             let tag = sqlx::query_as(
                 r#"
-                  INSERT INTO tags (name, created_at) VALUES (?, datetime()) RETURNING *;
+                  INSERT INTO tags (name, slug, created_at) VALUES (?, ?, datetime()) RETURNING *;
                 "#,
             )
-            .bind(name)
+            .bind(tag)
+            .bind(slug)
             .fetch_one(&mut *self.txn)
             .await?;
             inserted.push(tag);
@@ -322,10 +333,14 @@ mod tests {
         let inserted = txn.ensure_tags(["hi", "test", "Welp!"]).await?;
         assert_eq!(inserted.len(), 3);
 
-        let inserted = txn.ensure_tags(["hi", "test", "new"]).await?;
+        // Only one "new" gets inserted.
+        let inserted = txn.ensure_tags(["hi", "test", "new", "NEW"]).await?;
         assert_eq!(inserted.len(), 3);
 
-        let existing = txn.get_tags_with_names(["welp", "new"]).await?;
+        // `WwElP` is normalized on the lookup; "foo` doesn't match and is ignored.
+        let existing = txn
+            .get_tags_with_names(["wElP", "new", "foo", "new"])
+            .await?;
         assert_eq!(
             existing
                 .into_iter()

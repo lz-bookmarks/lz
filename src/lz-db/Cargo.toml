@@ -18,8 +18,8 @@ serde_json = { workspace = true, features = ["raw_value"] }
 chrono = { workspace = true, features = ["serde"] }
 utoipa = { workspace = true, features = ["chrono", "url"] }
 delegate-display = { workspace = true }
-deunicode = "1.4.4"
-regex = "1.10.4"
+deunicode = { workspace = true }
+regex = { workspace = true }
 
 [dev-dependencies]
 test-context = { workspace = true }

@@ -74,7 +74,7 @@ impl From<&Tag<TagId>> for TagId {
 
 /// The name representation of a tag.
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone, ToSchema, ToResponse)]
-pub struct TagName(#[schema(min_length = 1, pattern = "^[a-z0-9:-]+$")] pub String);
+pub struct TagName(#[schema(min_length = 1)] pub String);
 
 impl AsRef<str> for TagName {
     fn as_ref(&self) -> &str {

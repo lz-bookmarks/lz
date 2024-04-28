@@ -860,6 +860,13 @@ pub mod types {
     ///        "null"
     ///      ]
     ///    },
+    ///    "existing_bookmark": {
+    ///      "allOf": [
+    ///        {
+    ///          "$ref": "#/components/schemas/AnnotatedBookmark"
+    ///        }
+    ///      ]
+    ///    },
     ///    "title": {
     ///      "description": "The title of the document retrieved",
     ///      "type": "string"
@@ -873,6 +880,8 @@ pub mod types {
         ///A description (probably from a meta tag on HTML)
         #[serde(default, skip_serializing_if = "Option::is_none")]
         pub description: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub existing_bookmark: Option<AnnotatedBookmark>,
         ///The title of the document retrieved
         pub title: String,
     }
@@ -1035,51 +1044,6 @@ pub mod types {
     }
     impl ListRequest {
         pub fn builder() -> builder::ListRequest {
-            Default::default()
-        }
-    }
-    ///Metadata retrieved from a URL
-    ///
-    /// <details><summary>JSON schema</summary>
-    ///
-    /// ```json
-    ///{
-    ///  "description": "Metadata retrieved from a URL",
-    ///  "type": "object",
-    ///  "required": [
-    ///    "title"
-    ///  ],
-    ///  "properties": {
-    ///    "description": {
-    ///      "description": "A description (probably from a meta tag on HTML)",
-    ///      "type": [
-    ///        "string",
-    ///        "null"
-    ///      ]
-    ///    },
-    ///    "title": {
-    ///      "description": "The title of the document retrieved",
-    ///      "type": "string"
-    ///    }
-    ///  }
-    ///}
-    /// ```
-    /// </details>
-    #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-    pub struct Metadata {
-        ///A description (probably from a meta tag on HTML)
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        pub description: Option<String>,
-        ///The title of the document retrieved
-        pub title: String,
-    }
-    impl From<&Metadata> for Metadata {
-        fn from(value: &Metadata) -> Self {
-            value.clone()
-        }
-    }
-    impl Metadata {
-        pub fn builder() -> builder::Metadata {
             Default::default()
         }
     }
@@ -1457,6 +1421,60 @@ pub mod types {
     }
     impl TagQuery {
         pub fn builder() -> builder::TagQuery {
+            Default::default()
+        }
+    }
+    ///Metadata retrieved from a URL
+    ///
+    /// <details><summary>JSON schema</summary>
+    ///
+    /// ```json
+    ///{
+    ///  "description": "Metadata retrieved from a URL",
+    ///  "type": "object",
+    ///  "required": [
+    ///    "title"
+    ///  ],
+    ///  "properties": {
+    ///    "description": {
+    ///      "description": "A description (probably from a meta tag on HTML)",
+    ///      "type": [
+    ///        "string",
+    ///        "null"
+    ///      ]
+    ///    },
+    ///    "existing_bookmark": {
+    ///      "allOf": [
+    ///        {
+    ///          "$ref": "#/components/schemas/AnnotatedBookmark"
+    ///        }
+    ///      ]
+    ///    },
+    ///    "title": {
+    ///      "description": "The title of the document retrieved",
+    ///      "type": "string"
+    ///    }
+    ///  }
+    ///}
+    /// ```
+    /// </details>
+    #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+    pub struct UrlMetadata {
+        ///A description (probably from a meta tag on HTML)
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub description: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub existing_bookmark: Option<AnnotatedBookmark>,
+        ///The title of the document retrieved
+        pub title: String,
+    }
+    impl From<&UrlMetadata> for UrlMetadata {
+        fn from(value: &UrlMetadata) -> Self {
+            value.clone()
+        }
+    }
+    impl UrlMetadata {
+        pub fn builder() -> builder::UrlMetadata {
             Default::default()
         }
     }
@@ -2166,12 +2184,14 @@ pub mod types {
         #[derive(Clone, Debug)]
         pub struct FetchPageMetadataResponse {
             description: Result<Option<String>, String>,
+            existing_bookmark: Result<Option<super::AnnotatedBookmark>, String>,
             title: Result<String, String>,
         }
         impl Default for FetchPageMetadataResponse {
             fn default() -> Self {
                 Self {
                     description: Ok(Default::default()),
+                    existing_bookmark: Ok(Default::default()),
                     title: Err("no value supplied for title".to_string()),
                 }
             }
@@ -2185,6 +2205,19 @@ pub mod types {
                 self.description = value
                     .try_into()
                     .map_err(|e| format!("error converting supplied value for description: {}", e));
+                self
+            }
+            pub fn existing_bookmark<T>(mut self, value: T) -> Self
+            where
+                T: std::convert::TryInto<Option<super::AnnotatedBookmark>>,
+                T::Error: std::fmt::Display,
+            {
+                self.existing_bookmark = value.try_into().map_err(|e| {
+                    format!(
+                        "error converting supplied value for existing_bookmark: {}",
+                        e
+                    )
+                });
                 self
             }
             pub fn title<T>(mut self, value: T) -> Self
@@ -2205,6 +2238,7 @@ pub mod types {
             ) -> Result<Self, super::error::ConversionError> {
                 Ok(Self {
                     description: value.description?,
+                    existing_bookmark: value.existing_bookmark?,
                     title: value.title?,
                 })
             }
@@ -2213,6 +2247,7 @@ pub mod types {
             fn from(value: super::FetchPageMetadataResponse) -> Self {
                 Self {
                     description: Ok(value.description),
+                    existing_bookmark: Ok(value.existing_bookmark),
                     title: Ok(value.title),
                 }
             }
@@ -2386,58 +2421,6 @@ pub mod types {
                     cursor: Ok(value.cursor),
                     per_page: Ok(value.per_page),
                     query: Ok(value.query),
-                }
-            }
-        }
-        #[derive(Clone, Debug)]
-        pub struct Metadata {
-            description: Result<Option<String>, String>,
-            title: Result<String, String>,
-        }
-        impl Default for Metadata {
-            fn default() -> Self {
-                Self {
-                    description: Ok(Default::default()),
-                    title: Err("no value supplied for title".to_string()),
-                }
-            }
-        }
-        impl Metadata {
-            pub fn description<T>(mut self, value: T) -> Self
-            where
-                T: std::convert::TryInto<Option<String>>,
-                T::Error: std::fmt::Display,
-            {
-                self.description = value
-                    .try_into()
-                    .map_err(|e| format!("error converting supplied value for description: {}", e));
-                self
-            }
-            pub fn title<T>(mut self, value: T) -> Self
-            where
-                T: std::convert::TryInto<String>,
-                T::Error: std::fmt::Display,
-            {
-                self.title = value
-                    .try_into()
-                    .map_err(|e| format!("error converting supplied value for title: {}", e));
-                self
-            }
-        }
-        impl std::convert::TryFrom<Metadata> for super::Metadata {
-            type Error = super::error::ConversionError;
-            fn try_from(value: Metadata) -> Result<Self, super::error::ConversionError> {
-                Ok(Self {
-                    description: value.description?,
-                    title: value.title?,
-                })
-            }
-        }
-        impl From<super::Metadata> for Metadata {
-            fn from(value: super::Metadata) -> Self {
-                Self {
-                    description: Ok(value.description),
-                    title: Ok(value.title),
                 }
             }
         }
@@ -2735,6 +2718,75 @@ pub mod types {
             fn from(value: super::TagQuery) -> Self {
                 Self {
                     tags: Ok(value.tags),
+                }
+            }
+        }
+        #[derive(Clone, Debug)]
+        pub struct UrlMetadata {
+            description: Result<Option<String>, String>,
+            existing_bookmark: Result<Option<super::AnnotatedBookmark>, String>,
+            title: Result<String, String>,
+        }
+        impl Default for UrlMetadata {
+            fn default() -> Self {
+                Self {
+                    description: Ok(Default::default()),
+                    existing_bookmark: Ok(Default::default()),
+                    title: Err("no value supplied for title".to_string()),
+                }
+            }
+        }
+        impl UrlMetadata {
+            pub fn description<T>(mut self, value: T) -> Self
+            where
+                T: std::convert::TryInto<Option<String>>,
+                T::Error: std::fmt::Display,
+            {
+                self.description = value
+                    .try_into()
+                    .map_err(|e| format!("error converting supplied value for description: {}", e));
+                self
+            }
+            pub fn existing_bookmark<T>(mut self, value: T) -> Self
+            where
+                T: std::convert::TryInto<Option<super::AnnotatedBookmark>>,
+                T::Error: std::fmt::Display,
+            {
+                self.existing_bookmark = value.try_into().map_err(|e| {
+                    format!(
+                        "error converting supplied value for existing_bookmark: {}",
+                        e
+                    )
+                });
+                self
+            }
+            pub fn title<T>(mut self, value: T) -> Self
+            where
+                T: std::convert::TryInto<String>,
+                T::Error: std::fmt::Display,
+            {
+                self.title = value
+                    .try_into()
+                    .map_err(|e| format!("error converting supplied value for title: {}", e));
+                self
+            }
+        }
+        impl std::convert::TryFrom<UrlMetadata> for super::UrlMetadata {
+            type Error = super::error::ConversionError;
+            fn try_from(value: UrlMetadata) -> Result<Self, super::error::ConversionError> {
+                Ok(Self {
+                    description: value.description?,
+                    existing_bookmark: value.existing_bookmark?,
+                    title: value.title?,
+                })
+            }
+        }
+        impl From<super::UrlMetadata> for UrlMetadata {
+            fn from(value: super::UrlMetadata) -> Self {
+                Self {
+                    description: Ok(value.description),
+                    existing_bookmark: Ok(value.existing_bookmark),
+                    title: Ok(value.title),
                 }
             }
         }

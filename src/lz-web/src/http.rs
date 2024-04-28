@@ -10,6 +10,8 @@ use serde::Serialize;
 use url::Url;
 use utoipa::ToSchema;
 
+use crate::db::queries::AnnotatedBookmark;
+
 /// Errors that can occur when retrieving content from the web
 #[derive(thiserror::Error, Debug)]
 pub enum LookupError {
@@ -28,24 +30,30 @@ thread_local! {
 
 /// Metadata retrieved from a URL
 #[derive(PartialEq, Eq, Clone, Debug, Serialize, ToSchema)]
-pub struct Metadata {
+pub struct UrlMetadata {
     /// The title of the document retrieved
     pub title: String,
 
     /// A description (probably from a meta tag on HTML)
     pub description: Option<String>,
+
+    pub existing_bookmark: Option<AnnotatedBookmark>,
 }
 
 /// Retrieves metadata about a link on the web.
-pub async fn lookup_page_from_web(url: &Url) -> Result<Metadata, LookupError> {
+pub async fn lookup_page_from_web(
+    url: &Url,
+    existing_bookmark: Option<AnnotatedBookmark>,
+) -> Result<UrlMetadata, LookupError> {
     tracing::trace!(?url, "retrieving page");
     let client = reqwest::Client::new();
     let response = client.get(url.clone()).send().await?;
     response.error_for_status_ref()?;
     let Ok(body) = response.text().await else {
-        return Ok(Metadata {
+        return Ok(UrlMetadata {
             title: "Untitled".to_string(),
             description: None,
+            existing_bookmark,
         });
     };
     let doc = Html::parse_document(&body);
@@ -64,13 +72,19 @@ pub async fn lookup_page_from_web(url: &Url) -> Result<Metadata, LookupError> {
             .map(|meta_val| meta_val.to_string()),
         None => None,
     };
-    Ok(Metadata { title, description })
+    Ok(UrlMetadata {
+        title,
+        description,
+        existing_bookmark,
+    })
 }
 
 /// Retrieve metadata for a link and pre-fill a [Bookmark] structure
 pub async fn lookup_bookmark_from_web(url: &Url) -> Result<Bookmark<NoId, NoId>, LookupError> {
     let now = Utc::now();
-    let Metadata { title, description } = lookup_page_from_web(url).await?;
+    let UrlMetadata {
+        title, description, ..
+    } = lookup_page_from_web(url, None).await?;
     let to_add = Bookmark {
         accessed_at: Some(now),
         created_at: now,

@@ -21,9 +21,11 @@ use tower_http::cors::CorsLayer;
 use url::Url;
 use utoipa::{IntoParams, OpenApi, ToResponse, ToSchema};
 
-use crate::db::queries::{list_bookmarks, AnnotatedBookmark, ListResult, Pagination};
+use crate::db::queries::{
+    annotate_bookmarks, list_bookmarks, AnnotatedBookmark, ListResult, Pagination,
+};
 use crate::db::{DbTransaction, GlobalWebAppState};
-use crate::http::{lookup_page_from_web, Metadata};
+use crate::http::{lookup_page_from_web, UrlMetadata};
 
 mod error;
 use error::ApiError;
@@ -35,7 +37,7 @@ use error::ApiError;
     security(),
     servers((url = "/api/v1/")),
     components(
-        schemas(ListBookmarkResult, AnnotatedBookmark, AssociatedLink, UserId, BookmarkId, ExistingBookmark, ExistingTag, Pagination, TagName, TagQuery, ListRequest, BookmarkSearch, BookmarkSearchDateParams, DateInput, BookmarkSearchDatetimeField, BookmarkSearchDatetimeOrientation, TagId, NoId, BookmarkCreateRequest, Metadata),
+        schemas(ListBookmarkResult, AnnotatedBookmark, AssociatedLink, UserId, BookmarkId, ExistingBookmark, ExistingTag, Pagination, TagName, TagQuery, ListRequest, BookmarkSearch, BookmarkSearchDateParams, DateInput, BookmarkSearchDatetimeField, BookmarkSearchDatetimeOrientation, TagId, NoId, BookmarkCreateRequest, UrlMetadata),
         responses(ListBookmarkResult, AnnotatedBookmark, AssociatedLink, UserId, ExistingBookmark, ExistingTag)
     )
 )]
@@ -179,15 +181,21 @@ struct PageMetadataQuery {
     params(("url" = String, Query, description = "URL to retrieve and inspect for metadata")),
     tag = "HTTP",
     responses(
-        (status = 200, body = inline(Metadata), description = "Returns page metadata"),
+        (status = 200, body = inline(UrlMetadata), description = "Returns page metadata"),
     ),
 )]
 #[tracing::instrument(err(Debug, level = tracing::Level::WARN), skip(txn))]
 async fn fetch_page_metadata(
     mut txn: DbTransaction<ReadWrite>,
     Query(PageMetadataQuery { url }): Query<PageMetadataQuery>,
-) -> Result<Json<Metadata>, ApiError> {
+) -> Result<Json<UrlMetadata>, ApiError> {
     txn.ensure_url(&url).await?;
+    let annotated = if let Some(existing_bookmark) = txn.find_bookmark_with_url(&url).await? {
+        let (mut annotated, _) = annotate_bookmarks(&mut txn, &[existing_bookmark], 1).await?;
+        annotated.pop()
+    } else {
+        None
+    };
     txn.commit().await?;
-    Ok(Json(lookup_page_from_web(&url).await?))
+    Ok(Json(lookup_page_from_web(&url, annotated).await?))
 }

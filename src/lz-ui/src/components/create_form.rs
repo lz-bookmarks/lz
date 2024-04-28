@@ -7,7 +7,8 @@ use bounce::query::{
 };
 use chrono::Utc;
 use lz_openapi::types::{
-    BookmarkCreateRequest, CreateBookmarkResponse, Metadata, NewBookmark, NoId,
+    AnnotatedBookmark, BookmarkCreateRequest, CreateBookmarkResponse, NewBookmark, NoId,
+    UrlMetadata,
 };
 use patternfly_yew::prelude::*;
 use url::Url;
@@ -26,6 +27,7 @@ pub struct VisibleProps {
 #[derive(Clone, Default, PartialEq, Debug, Slice)]
 #[bounce(with_notion(CloseModal))]
 struct BookmarkData {
+    existing_bookmark: Option<AnnotatedBookmark>,
     url: String,
     title: String,
     description: String,
@@ -45,7 +47,7 @@ enum BookmarkAction {
     SetDescription(String),
     SetNotes(String),
     SetTags(Vec<String>),
-    FromMetadata(Metadata),
+    FromMetadata(UrlMetadata),
 }
 
 impl Reducible for BookmarkData {
@@ -79,9 +81,14 @@ impl Reducible for BookmarkData {
                 ..(*self).clone()
             }
             .into(),
-            BookmarkAction::FromMetadata(Metadata { title, description }) => Self {
+            BookmarkAction::FromMetadata(UrlMetadata {
+                title,
+                description,
+                existing_bookmark,
+            }) => Self {
                 title,
                 description: description.unwrap_or("".to_string()),
+                existing_bookmark,
                 ..(*self).clone()
             }
             .into(),
@@ -125,7 +132,7 @@ impl BookmarkData {
 }
 
 #[derive(PartialEq, Debug, Clone)]
-struct SaveBookmarkQuery(Metadata);
+struct SaveBookmarkQuery(UrlMetadata);
 
 #[async_trait(?Send)]
 impl Query for SaveBookmarkQuery {
@@ -149,9 +156,10 @@ impl Query for SaveBookmarkQuery {
             .await
             .map_err(GoddamnIt::new)?;
         let md = res.into_inner();
-        Ok(SaveBookmarkQuery(Metadata {
+        Ok(SaveBookmarkQuery(UrlMetadata {
             title: md.title,
             description: md.description,
+            existing_bookmark: md.existing_bookmark,
         })
         .into())
     }

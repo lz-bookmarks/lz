@@ -52,7 +52,7 @@ pub async fn list_bookmarks<M: TransactionMode>(
 }
 
 /// A bookmark, including tags and associations on it.
-#[derive(Serialize, Debug, ToSchema, ToResponse)]
+#[derive(Serialize, Debug, ToSchema, ToResponse, Clone, PartialEq, Eq)]
 pub struct AnnotatedBookmark {
     /// The bookmark, as represented in the data store
     pub bookmark: ExistingBookmark,
@@ -64,6 +64,8 @@ pub struct AnnotatedBookmark {
     pub associations: Vec<AssociatedLink>,
 }
 
+/// Annotate bookmarks with their associated links and tags, then
+/// return those annotated bookmarks and the next cursor.
 pub async fn annotate_bookmarks<M: TransactionMode>(
     txn: &mut DbTransaction<M>,
     bookmarks: &[ExistingBookmark],

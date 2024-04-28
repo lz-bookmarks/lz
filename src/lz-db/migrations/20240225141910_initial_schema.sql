@@ -48,6 +48,7 @@ CREATE TABLE "tags" (
 ) STRICT;
 
 CREATE UNIQUE INDEX "tags_by_name" ON "tags" ("name");
+CREATE UNIQUE INDEX "tags_by_slug" ON "tags" ("slug");
 
 CREATE TABLE "bookmark_tags" (
   "bookmark_id" INTEGER NOT NULL,

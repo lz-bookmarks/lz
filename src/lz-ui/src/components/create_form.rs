@@ -313,6 +313,9 @@ fn fill_bookmark(FillBookmarkProps { url, onclose }: &FillBookmarkProps) -> Html
     match metadata_query.result() {
         Some(_) => html! {
             <Form {onvalidated} onsubmit={save}>
+                <FormGroup label="URL">
+                    <TextInput value={url.to_string()} disabled=true />
+                </FormGroup>
                 <TitleInput onchange={set_title} value={bookmark_data.title.clone()} />
                 <FormGroup label="Description">
                     <TextArea onchange={set_description} value={bookmark_data.description.clone()} />
@@ -320,10 +323,9 @@ fn fill_bookmark(FillBookmarkProps { url, onclose }: &FillBookmarkProps) -> Html
                 <FormGroup label="Notes">
                     <TextArea onchange={set_notes} value={bookmark_data.notes.clone()} />
                 </FormGroup>
-                <div class="grid grid-cols-1 gap-1">
-                    <label class="font-medium" for="bookmark_tags">{ "Tags" }</label>
+                <FormGroup label="Tags">
                     <TagSelect on_change={set_tags} />
-                </div>
+                </FormGroup>
                 <ActionGroup>
                     <Button
                         loading={save_bookmark.state() == MutationState::Loading}

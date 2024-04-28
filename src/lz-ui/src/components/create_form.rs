@@ -31,6 +31,8 @@ struct BookmarkData {
     url: String,
     title: String,
     description: String,
+    website_description: Option<String>,
+    website_title: Option<String>,
     notes: String,
     tags: Vec<String>,
 }
@@ -85,13 +87,20 @@ impl Reducible for BookmarkData {
                 title,
                 description,
                 existing_bookmark,
-            }) => Self {
-                title,
-                description: description.unwrap_or("".to_string()),
-                existing_bookmark,
-                ..(*self).clone()
+            }) => {
+                let website_title = (title != "").then(|| title.clone());
+                let website_description = description.clone();
+                let description = description.unwrap_or("".to_string());
+                Self {
+                    website_title,
+                    website_description,
+                    title,
+                    description,
+                    existing_bookmark,
+                    ..(*self).clone()
+                }
+                .into()
             }
-            .into(),
         }
     }
 }
@@ -123,8 +132,8 @@ impl BookmarkData {
                 title: self.title.to_string(),
                 unread: None,
                 url: self.url.to_string(),
-                website_description: None, // TODO
-                website_title: None,       // TODO
+                website_description: self.website_description.clone(),
+                website_title: self.website_title.clone(),
             },
             tag_names: self.tags.clone(),
         }

@@ -42,11 +42,13 @@ CREATE TABLE "tags" (
   "tag_id" INTEGER NOT NULL PRIMARY KEY,
   "created_at" TEXT NOT NULL,
   "name" TEXT NOT NULL UNIQUE,
+  "slug" TEXT NOT NULL UNIQUE,
 
   CHECK("name" NOT LIKE '% %' AND length("name") >= 1)
 ) STRICT;
 
 CREATE UNIQUE INDEX "tags_by_name" ON "tags" ("name");
+CREATE UNIQUE INDEX "tags_by_slug" ON "tags" ("slug");
 
 CREATE TABLE "bookmark_tags" (
   "bookmark_id" INTEGER NOT NULL,

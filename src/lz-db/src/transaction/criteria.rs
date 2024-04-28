@@ -190,6 +190,14 @@ impl BookmarkSearchCriteria for TagName {
         sep.push_bind_unseparated(self.0.to_string());
         sep
     }
+
+    fn where_clause<'qb, 'args, Sep: fmt::Display>(
+        &self,
+        mut sep: Separated<'qb, 'args, Sqlite, Sep>,
+    ) -> Separated<'qb, 'args, Sqlite, Sep> {
+        sep.push("1 = 1");
+        sep
+    }
 }
 
 /// Constricts a bookmark query to only return bookmarks having a tag with the given ID.

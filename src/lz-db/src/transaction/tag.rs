@@ -1,5 +1,8 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
+use deunicode::deunicode;
+use once_cell::sync::Lazy;
+use regex::{Captures, Regex, Replacer};
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::*;
 use sqlx::query;
@@ -50,6 +53,8 @@ pub struct Tag<ID: IdType<TagId>> {
 
     /// Name of the tag.
     pub name: String,
+    /// Normalized name of tag, as for URLs.
+    pub slug: String,
 
     /// When the tag was first created.
     pub created_at: chrono::DateTime<chrono::Utc>,
@@ -69,7 +74,7 @@ impl From<&Tag<TagId>> for TagId {
 
 /// The name representation of a tag.
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone, ToSchema, ToResponse)]
-pub struct TagName(#[schema(min_length = 1, pattern = "^[^ ]+$")] pub String);
+pub struct TagName(#[schema(min_length = 1)] pub String);
 
 impl AsRef<str> for TagName {
     fn as_ref(&self) -> &str {
@@ -106,7 +111,7 @@ impl<M: TransactionMode> Transaction<M> {
         &mut self,
         tags: T,
     ) -> Result<Vec<Tag<TagId>>, sqlx::Error> {
-        let tag_iter = tags.into_iter();
+        let slug_iter = tags.into_iter().map(|t| normalize_tag(t));
         // Hyper-yikes: sqlx with sqlite does not support WHERE..IN
         // query value interpolation
         // (https://github.com/launchbadge/sqlx/blob/main/FAQ.md#how-can-i-do-a-select--where-foo-in--query).
@@ -116,15 +121,18 @@ impl<M: TransactionMode> Transaction<M> {
         // You manually format the query, and place as many ?
         // placeholders in it as there are values, then bind them in a
         // loop. Ugh, but it seems to do the trick (and is safe).
-        let tag_placeholders = tag_iter
+        let slug_placeholders = slug_iter
             .clone()
             .map(|_| "?")
             .collect::<Vec<&str>>()
             .join(", ");
-        let sql = format!(r#"SELECT * FROM tags WHERE name IN ({})"#, tag_placeholders);
+        let sql = format!(
+            r#"SELECT * FROM tags WHERE slug IN ({})"#,
+            slug_placeholders
+        );
         let mut existing_query = sqlx::query_as(&sql);
-        for tag in tag_iter {
-            existing_query = existing_query.bind(tag.as_ref().to_string());
+        for slug in slug_iter {
+            existing_query = existing_query.bind(slug);
         }
         let existing_tags: Vec<Tag<TagId>> = existing_query.fetch_all(&mut *self.txn).await?;
 
@@ -143,25 +151,31 @@ impl Transaction<ReadWrite> {
     pub async fn ensure_tags<
         T: std::fmt::Debug + IntoIterator<Item = S, IntoIter = C>,
         C: std::fmt::Debug + Clone + std::iter::Iterator<Item = S>,
-        S: AsRef<str>,
+        S: std::fmt::Display + AsRef<str>,
     >(
         &mut self,
         tags: T,
     ) -> Result<Vec<Tag<TagId>>, sqlx::Error> {
-        let tag_iter = tags.into_iter();
+        let tag_iter = tags.into_iter().map(|t| t.to_string());
         let existing_tags = self.get_tags_with_names(tag_iter.clone()).await?;
-        let existing_names: BTreeSet<_> = existing_tags.iter().map(|t| t.name.clone()).collect();
-        let all_tags: BTreeSet<String> = tag_iter.map(|t| t.as_ref().to_string()).collect();
-        let missing_names = all_tags.difference(&existing_names);
+        let existing_slugs: BTreeSet<_> = existing_tags.iter().map(|t| &t.slug).collect();
+        let mut missing_tags = BTreeMap::new();
+        for t in tag_iter {
+            let slug = normalize_tag(t.clone());
+            if !existing_slugs.contains(&slug) && !missing_tags.contains_key(&slug) {
+                missing_tags.insert(slug, t);
+            }
+        }
         let mut inserted = vec![];
-        tracing::debug!(?existing_names, "Ensuring tags");
-        for name in missing_names {
+        tracing::debug!(?existing_slugs, "Ensuring tags");
+        for (slug, tag) in missing_tags {
             let tag = sqlx::query_as(
                 r#"
-                  INSERT INTO tags (name, created_at) VALUES (?, datetime()) RETURNING *;
+                  INSERT INTO tags (name, slug, created_at) VALUES (?, ?, datetime()) RETURNING *;
                 "#,
             )
-            .bind(name)
+            .bind(tag)
+            .bind(slug)
             .fetch_one(&mut *self.txn)
             .await?;
             inserted.push(tag);
@@ -172,6 +186,36 @@ impl Transaction<ReadWrite> {
             .chain(inserted.into_iter())
             .collect())
     }
+}
+
+struct SlugDeduper;
+
+impl Replacer for SlugDeduper {
+    fn replace_append(&mut self, caps: &Captures<'_>, dst: &mut String) {
+        let val = &caps.get(0).unwrap().as_str().chars().nth(0).unwrap();
+        dst.push_str(&val.to_string());
+    }
+}
+
+/// "Slugify" our tags, turning them into 7-bit alphanumeric ASCII (as well
+/// as the colon and hyphen).
+/// ```
+/// use lz_db;
+/// assert_eq!(lz_db::normalize_tag(&"Gödel's Incompleteness Theorem"), "godels-incompleteness-theorem");
+/// assert_eq!(lz_db::normalize_tag(&"Music::C86"), "music:c86");
+/// assert_eq!(lz_db::normalize_tag(&"  Pogo  A  Go Go!"), "pogo-a-go-go");
+/// ```
+pub fn normalize_tag<T: AsRef<str>>(tag: T) -> String {
+    // TODO: We should return Option<String> instead, allowing us to block degenerate
+    // tags such as "foo:-:bar".
+    static HYPHENIZE_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"[^a-z0-9:-]").unwrap());
+    static DEDUPE_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"(::+|--+)").unwrap());
+    let normal_tag = deunicode(tag.as_ref())
+        .to_lowercase()
+        .replace(['\'', '\"'], "");
+    let normal_tag = HYPHENIZE_RE.replace_all(&normal_tag, "-");
+    let normal_tag = DEDUPE_RE.replace_all(&normal_tag, SlugDeduper);
+    normal_tag.trim_matches('-').trim_matches(':').to_string()
 }
 
 /// A named tag, possibly assigned to multiple bookmarks.
@@ -286,17 +330,30 @@ mod tests {
     #[tokio::test]
     async fn roundtrip_tag(ctx: &mut Context) -> TestResult {
         let mut txn = ctx.begin().await?;
-        let inserted = txn.ensure_tags(["hi", "test", "welp"]).await?;
+        let inserted = txn.ensure_tags(["hi", "test", "Welp!"]).await?;
         assert_eq!(inserted.len(), 3);
 
-        let inserted = txn.ensure_tags(["hi", "test", "new"]).await?;
+        // Only one "new" gets inserted.
+        let inserted = txn.ensure_tags(["hi", "test", "new", "NEW"]).await?;
         assert_eq!(inserted.len(), 3);
 
-        let existing = txn.get_tags_with_names(["welp", "new"]).await?;
+        // `WwElP` is normalized on the lookup; "foo` doesn't match and is ignored.
+        let existing = txn
+            .get_tags_with_names(["wElP", "new", "foo", "new"])
+            .await?;
+        // And "Welp!" is preserved as a display name.
+        assert_eq!(
+            existing
+                .clone()
+                .into_iter()
+                .map(|t| t.name)
+                .collect::<BTreeSet<String>>(),
+            BTreeSet::from(["Welp!".to_string(), "new".to_string()])
+        );
         assert_eq!(
             existing
                 .into_iter()
-                .map(|t| t.name)
+                .map(|t| t.slug)
                 .collect::<BTreeSet<String>>(),
             BTreeSet::from(["welp".to_string(), "new".to_string()])
         );

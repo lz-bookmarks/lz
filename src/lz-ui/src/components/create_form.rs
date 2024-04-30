@@ -327,13 +327,32 @@ fn fill_bookmark(FillBookmarkProps { url, onclose }: &FillBookmarkProps) -> Html
         })
     };
 
+    let validator = Validator::from(|ctx: ValidationContext<String>| {
+        if ctx.initial {
+            ValidationResult::ok()
+        } else if ctx.value.is_empty() {
+            ValidationResult::error("Title is required")
+        } else {
+            ValidationResult::ok()
+        }
+    });
+    let node_ref = use_node_ref();
+
     match metadata_query.result() {
         Some(_) => html! {
             <Form {onvalidated} onsubmit={save}>
                 <FormGroup label="URL">
                     <TextInput value={url.to_string()} disabled=true />
                 </FormGroup>
-                <TitleInput onchange={set_title} value={bookmark_data.title.clone()} />
+                <FormGroupValidated<TextInput> required=true label="Title" {validator}>
+                    <TextInput
+                        r#ref={node_ref}
+                        autofocus=true
+                        required=true
+                        onchange={set_title}
+                        value={bookmark_data.title.clone()}
+                    />
+                </FormGroupValidated<TextInput>>
                 <FormGroup label="Description">
                     <TextArea onchange={set_description} value={bookmark_data.description.clone()} />
                 </FormGroup>
@@ -355,30 +374,5 @@ fn fill_bookmark(FillBookmarkProps { url, onclose }: &FillBookmarkProps) -> Html
             </Form>
         },
         None => html! { <div class="skeleton w-full h-full" /> },
-    }
-}
-
-#[derive(Properties, PartialEq)]
-struct TitleInputProps {
-    onchange: Callback<String>,
-    value: String,
-}
-
-// Workaround for https://github.com/patternfly-yew/patternfly-yew/issues/145:
-#[function_component(TitleInput)]
-fn title_input(TitleInputProps { onchange, value }: &TitleInputProps) -> Html {
-    let validator = Validator::from(|ctx: ValidationContext<String>| {
-        if ctx.initial {
-            ValidationResult::ok()
-        } else if ctx.value.is_empty() {
-            ValidationResult::error("Title is required")
-        } else {
-            ValidationResult::ok()
-        }
-    });
-    html! {
-        <FormGroupValidated<TextInput> required=true label="Title" {validator}>
-            <TextInput required=true {onchange} value={value.clone()} />
-        </FormGroupValidated<TextInput>>
     }
 }

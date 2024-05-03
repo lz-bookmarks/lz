@@ -336,7 +336,6 @@ fn fill_bookmark(FillBookmarkProps { url, onclose }: &FillBookmarkProps) -> Html
             ValidationResult::ok()
         }
     });
-    let node_ref = use_node_ref();
 
     match metadata_query.result() {
         Some(_) => html! {
@@ -346,7 +345,6 @@ fn fill_bookmark(FillBookmarkProps { url, onclose }: &FillBookmarkProps) -> Html
                 </FormGroup>
                 <FormGroupValidated<TextInput> required=true label="Title" {validator}>
                     <TextInput
-                        r#ref={node_ref}
                         autofocus=true
                         required=true
                         onchange={set_title}

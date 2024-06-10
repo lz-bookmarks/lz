@@ -157,8 +157,10 @@ impl Bookmark {
         other.url = self.url.clone();
         other.title = title;
         other.description = description;
-        other.website_title = self.website_title.clone();
-        other.website_description = self.website_description.clone();
+        other.website_title.clone_from(&self.website_title);
+        other
+            .website_description
+            .clone_from(&self.website_description);
         other.notes = match self.notes.as_ref() {
             None => None,
             Some(n) if n.is_empty() => None,

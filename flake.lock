@@ -363,16 +363,16 @@
     "trunk": {
       "flake": false,
       "locked": {
-        "lastModified": 1712848872,
-        "narHash": "sha256-iVwnuTCOgUbmU0jdiWmtzgd4nulVY17IMqlh3bh3gqE=",
+        "lastModified": 1724857526,
+        "narHash": "sha256-gVxmeQXCiXmCBLXoA4LavjA6luExFUkajsnjrXznWeI=",
         "owner": "trunk-rs",
         "repo": "trunk",
-        "rev": "d264a099eff8570cabf6fcf72f841d48c6a43172",
+        "rev": "c5a55b2834552f0c0e0ebde82fe075155d6b563e",
         "type": "github"
       },
       "original": {
         "owner": "trunk-rs",
-        "ref": "v0.19.2",
+        "ref": "v0.21.0-rc.3",
         "repo": "trunk",
         "type": "github"
       }

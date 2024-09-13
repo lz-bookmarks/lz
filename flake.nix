@@ -88,15 +88,18 @@
           pname = "trunk";
           version = (builtins.fromTOML (builtins.readFile "${inputs.trunk}/Cargo.toml")).package.version;
           src = inputs.trunk;
-          nativeBuildInputs = [pkgs.pkg-config];
+          nativeBuildInputs = [pkgs.pkg-config (pkgs.lib.getDev pkgs.openssl) pkgs.openssl];
           buildInputs =
-            if pkgs.stdenv.isDarwin
-            then
-              with pkgs.darwin.apple_sdk.frameworks; [
-                SystemConfiguration
-                CoreServices
-              ]
-            else [];
+            [(pkgs.lib.getDev pkgs.openssl) pkgs.openssl]
+            ++ (
+              if pkgs.stdenv.isDarwin
+              then
+                with pkgs.darwin.apple_sdk.frameworks; [
+                  SystemConfiguration
+                  CoreServices
+                ]
+              else []
+            );
           checkFlags = ["--skip=tools::tests::download_and_install_binaries"];
           cargoLock.lockFile = "${inputs.trunk}/Cargo.lock";
           meta.mainProgram = "trunk";
@@ -265,7 +268,7 @@
       flake = false;
     };
     trunk = {
-      url = "github:trunk-rs/trunk/v0.19.2";
+      url = "github:trunk-rs/trunk/v0.21.0-rc.3";
       flake = false;
     };
   };

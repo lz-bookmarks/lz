@@ -193,7 +193,7 @@ struct SlugDeduper;
 impl Replacer for SlugDeduper {
     fn replace_append(&mut self, caps: &Captures<'_>, dst: &mut String) {
         let val = &caps.get(0).unwrap().as_str().chars().nth(0).unwrap();
-        dst.push_str(&val.to_string());
+        dst.push(*val);
     }
 }
 

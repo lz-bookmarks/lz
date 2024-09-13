@@ -45,6 +45,8 @@ lazy_static = { workspace = true }
 sentry = { workspace = true }
 sentry-tracing = { workspace = true, features = ["backtrace"] }
 sentry-tower = { workspace = true, features = ["axum", "url", "http", "axum-matched-path"] }
+rust-embed = { workspace = true, features = ["axum", "interpolate-folder-path"] }
+mime_guess = { workspace = true }
 
 [dev-dependencies]
 axum-test = { workspace = true }

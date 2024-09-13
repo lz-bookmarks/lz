@@ -2,9 +2,13 @@ use std::io;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
+use axum::http::header;
+use axum::http::Uri;
+use axum::response::{Html, IntoResponse};
 use axum::{routing, Router};
 use clap::Parser;
 use db::GlobalWebAppState;
+use rust_embed::Embed;
 use tracing_subscriber::layer::SubscriberExt as _;
 use tracing_subscriber::{EnvFilter, Layer as _, Registry};
 use utoipa::OpenApi as _;
@@ -49,6 +53,7 @@ pub async fn run(pool: lz_db::Connection, args: &Args) -> anyhow::Result<()> {
         .nest("/api/v1", api_router)
         .layer(sentry_tower::NewSentryLayer::new_from_top())
         .layer(sentry_tower::SentryHttpLayer::with_transaction())
+        .fallback(static_handler)
         .with_state(db_conns);
 
     // run our app with hyper, listening globally on port 3000
@@ -76,4 +81,43 @@ fn init_observability(_args: &Args) -> anyhow::Result<()> {
     tracing::subscriber::set_global_default(subscriber).expect("Unable to set global subscriber");
 
     Ok(())
+}
+
+#[derive(Embed)]
+#[cfg_attr(not(debug_assertions), folder = "$UI_DIST")]
+#[cfg_attr(debug_assertions, folder = "empty-dir")]
+struct Assets;
+
+async fn static_handler(uri: Uri) -> impl IntoResponse {
+    let path = uri.path().trim_start_matches('/');
+
+    if path.is_empty() || path == "index.html" {
+        return index_html().await;
+    }
+
+    match Assets::get(path) {
+        Some(content) => {
+            let mime = mime_guess::from_path(path).first_or_octet_stream();
+
+            ([(header::CONTENT_TYPE, mime.as_ref())], content.data).into_response()
+        }
+        None => {
+            if path.contains('.') {
+                return not_found().await;
+            }
+
+            index_html().await
+        }
+    }
+}
+
+async fn index_html() -> axum::response::Response {
+    match Assets::get("index.html") {
+        Some(content) => Html(content.data).into_response(),
+        None => not_found().await,
+    }
+}
+
+async fn not_found() -> axum::response::Response {
+    (axum::http::StatusCode::NOT_FOUND, "404").into_response()
 }

@@ -6,6 +6,7 @@
     flake-parts,
     nixpkgs,
     fenix,
+    crane,
     ...
   }:
     flake-parts.lib.mkFlake {inherit inputs;} {
@@ -45,7 +46,23 @@
         rustPlatform = pkgs.makeRustPlatform {
           inherit (fenix.packages.${system}.stable) rustc cargo;
         };
+        rustToolchain = pkgs.rust-bin.stable.latest.default.override {
+          # Set the build targets supported by the toolchain,
+          # wasm32-unknown-unknown is required for trunk.
+          targets = ["wasm32-unknown-unknown"];
+        };
+        craneLib = ((crane.mkLib pkgs).overrideToolchain rustToolchain).overrideScope (_final: _prev: {
+          inherit (import nixpkgs {inherit system;}) wasm-bindgen-cli;
+        });
+
+        lib = pkgs.lib;
       in {
+        _module.args.pkgs = import inputs.nixpkgs {
+          inherit system;
+          overlays = [
+            inputs.rust-overlay.overlays.default
+          ];
+        };
         formatter = pkgs.alejandra;
 
         packages.default = config.packages.lz;
@@ -55,24 +72,71 @@
             ++ cIncludes
             ++ cLibs
             ++ [pkgs.pkg-config];
+          node-modules = pkgs.mkYarnPackage {
+            name = "node-modules";
+            src = ./src/lz-ui;
+          };
+          src = lib.cleanSourceWith {
+            src = ./.; # The original, unfiltered source
+            filter = path: type:
+              (lib.hasSuffix "\.html" path)
+              || (lib.hasSuffix "\.scss" path)
+              || (lib.hasInfix "/assets/" path)
+              || (lib.hasSuffix "\.json" path)
+              || (lib.hasSuffix "\.js" path)
+              || (lib.hasSuffix "\.lock" path)
+              || (lib.hasSuffix "\.sql" path)
+              # Default filter from crane (allow .rs files)
+              || (craneLib.filterCargoSources path type);
+          };
+          commonArgs = {
+            inherit src;
+            strictDeps = true;
+
+            buildInputs =
+              [
+              ]
+              ++ lib.optionals pkgs.stdenv.isDarwin [
+                pkgs.libiconv
+              ];
+          };
+          wasmArgs =
+            commonArgs
+            // {
+              pname = "lz-workspace-wasm";
+              cargoExtraArgs = "--package=lz-ui";
+              trunkIndexPath = "src/lz-ui/index.html";
+              CARGO_BUILD_TARGET = "wasm32-unknown-unknown";
+              prePatch = ''
+                ln -s ${node-modules}/libexec/lz-ui-js/node_modules src/lz-ui/node_modules
+              '';
+            };
+          cargoArtifactsWasm = craneLib.buildDepsOnly (wasmArgs
+            // {
+              doCheck = false;
+            });
+          ui =
+            craneLib.buildTrunkPackage wasmArgs
+            // {
+              pname = "lz-ui-wasm";
+              cargoArtifacts = cargoArtifactsWasm;
+              wasm-bindgen-cli = pkgs.wasm-bindgen-cli;
+              stripPhase = "";
+            };
         in
           rustPlatform.buildRustPackage {
             pname = "lz";
-            version = (builtins.fromTOML (builtins.readFile ./src/lz-web/Cargo.toml)).package.version;
+            version = (builtins.fromTOML (builtins.readFile ./Cargo.toml)).workspace.package.version;
             inherit nativeBuildInputs;
             buildInputs = nativeBuildInputs;
-            src = let
-              fs = pkgs.lib.fileset;
-            in
-              fs.toSource {
-                root = ./.;
-                fileset = fs.unions [
-                  ./Cargo.toml
-                  ./Cargo.lock
-                  ./src
-                ];
-              };
+            inherit src;
             cargoLock.lockFile = ./Cargo.lock;
+
+            UI_DIST = ui;
+            preBuild = ''
+              ln -s ${ui} src/lz-cli/dist
+            '';
+
             postFixup = "mv $out/bin/lz-cli $out/bin/lz";
             meta.mainProgram = "lz";
           };
@@ -88,15 +152,19 @@
           pname = "trunk";
           version = (builtins.fromTOML (builtins.readFile "${inputs.trunk}/Cargo.toml")).package.version;
           src = inputs.trunk;
-          nativeBuildInputs = [pkgs.pkg-config];
+          nativeBuildInputs = [pkgs.pkg-config (pkgs.lib.getDev pkgs.openssl) pkgs.openssl];
           buildInputs =
-            if pkgs.stdenv.isDarwin
-            then
-              with pkgs.darwin.apple_sdk.frameworks; [
-                SystemConfiguration
-                CoreServices
-              ]
-            else [];
+            [(pkgs.lib.getDev pkgs.openssl) pkgs.openssl]
+            ++ (
+              if pkgs.stdenv.isDarwin
+              then
+                with pkgs.darwin.apple_sdk.frameworks; [
+                  SystemConfiguration
+                  CoreServices
+                ]
+              else []
+            );
+          doCheck = false;
           checkFlags = ["--skip=tools::tests::download_and_install_binaries"];
           cargoLock.lockFile = "${inputs.trunk}/Cargo.lock";
           meta.mainProgram = "trunk";
@@ -265,8 +333,17 @@
       flake = false;
     };
     trunk = {
-      url = "github:trunk-rs/trunk/v0.19.2";
+      url = "github:trunk-rs/trunk/v0.21.0-rc.3";
       flake = false;
+    };
+    rust-overlay = {
+      url = "github:oxalica/rust-overlay";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+      };
+    };
+    crane = {
+      url = "github:ipetkov/crane";
     };
   };
 }

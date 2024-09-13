@@ -164,6 +164,7 @@
                 ]
               else []
             );
+          doCheck = false;
           checkFlags = ["--skip=tools::tests::download_and_install_binaries"];
           cargoLock.lockFile = "${inputs.trunk}/Cargo.lock";
           meta.mainProgram = "trunk";

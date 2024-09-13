@@ -33,14 +33,14 @@ pub(super) fn add_layers<T: Clone + Send + Sync + 'static>(router: Router<T>) ->
                     |response: &Response<Body>, latency: Duration, span: &Span| {
                         span.record(
                             "status_code",
-                            &tracing::field::display(response.status().as_u16()),
+                            tracing::field::display(response.status().as_u16()),
                         );
-                        span.record("response.status", &field::display(response.status()));
+                        span.record("response.status", field::display(response.status()));
                         span.record(
                             "response.status_code",
-                            &field::display(response.status().as_u16()),
+                            field::display(response.status().as_u16()),
                         );
-                        span.record("response.headers", &field::debug(response.headers()));
+                        span.record("response.headers", field::debug(response.headers()));
                         span.record("response.latency_ms", latency.as_millis());
                         debug!("response generated")
                     },

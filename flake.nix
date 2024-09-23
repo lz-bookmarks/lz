@@ -115,14 +115,13 @@
             // {
               doCheck = false;
             });
-          ui =
-            craneLib.buildTrunkPackage wasmArgs
+          ui = craneLib.buildTrunkPackage (wasmArgs
             // {
               pname = "lz-ui-wasm";
               cargoArtifacts = cargoArtifactsWasm;
               wasm-bindgen-cli = pkgs.wasm-bindgen-cli;
               stripPhase = "";
-            };
+            });
         in
           rustPlatform.buildRustPackage {
             pname = "lz";
